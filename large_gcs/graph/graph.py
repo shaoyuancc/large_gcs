@@ -1,5 +1,6 @@
-from pydrake.all import(GraphOfConvexSets, Cost, Constraint)
-
+from pydrake.all import(GraphOfConvexSets, GraphOfConvexSetsOptions,
+                        Cost, Constraint)
+import numpy as np
 from dataclasses import dataclass
 from typing import Tuple, List, Optional
 import matplotlib.pyplot as plt
@@ -58,6 +59,13 @@ class Graph():
 
         if vertex.costs is not None or vertex.constraints is not None:
             raise NotImplementedError("Vertex costs and constraints not implemented yet.")
+        elif self._default_costs_constraints is not None:
+            if self._default_costs_constraints.vertex_costs is not None:
+                for cost in self._default_costs_constraints.vertex_costs:
+                    vertex.gcs_vertex.AddCost(cost, vertex.gcs_vertex.x().flatten())
+            if self._default_costs_constraints.vertex_constraints is not None:
+                for constraint in self._default_costs_constraints.vertex_constraints:
+                    vertex.gcs_vertex.AddConstraint(constraint, vertex.gcs_vertex.x().flatten())
     
     def add_vertices_from_sets(self, sets: List[ConvexSet], costs=None, constraints=None, names=None):
         """
@@ -87,11 +95,18 @@ class Graph():
         edge.gcs_edge = self._gcs.AddEdge(self.vertices[edge.u].gcs_vertex, self.vertices[edge.v].gcs_vertex)
         self.edges[(edge.u, edge.v)] = edge
 
-        if self._default_costs_constraints is not None:
-            raise NotImplementedError("Default costs and constraints not implemented yet.")
-
         if edge.costs is not None or edge.constraints is not None:
-            raise NotImplementedError("Vertex costs and constraints not implemented yet.")
+            raise NotImplementedError("Edge costs and constraints not implemented yet.")
+        elif self._default_costs_constraints is not None:
+            if self._default_costs_constraints.edge_costs is not None:
+                for cost in self._default_costs_constraints.edge_costs:
+                    print(f"Adding cost {cost} to edge {edge.u} -> {edge.v}")
+                    x = np.array([edge.gcs_edge.xu(), edge.gcs_edge.xv()]).flatten()
+                    edge.gcs_edge.AddCost(cost, x)
+            if self._default_costs_constraints.edge_constraints is not None:
+                for constraint in self._default_costs_constraints.edge_constraints:
+                    x = np.array([edge.gcs_edge.xu(), edge.gcs_edge.xv()]).flatten()
+                    edge.gcs_edge.AddConstraint(constraint, x)
 
     def add_edges_from_vertex_names(self, us: List[str], vs: List[str], costs:List[List[Cost]] = None, constraints: List[List[Constraint]] = None):
         """
@@ -100,6 +115,39 @@ class Graph():
 
         for u, v, cost_list, constraint_list in zip(us, vs, costs, constraints):
             self.add_edge(Edge(u, v, cost_list, constraint_list))
+    
+    def set_source(self, vertex_name:str):
+
+        assert vertex_name in self.vertices
+        self._source = vertex_name
+
+    def set_target(self, vertex_name:str):
+
+        assert vertex_name in self.vertices
+        self._target = vertex_name
+
+
+    def solve_shortest_path(self, use_convex_relaxation=False):
+        """
+        Solve the shortest path problem.
+        """
+        assert self._source is not None
+        assert self._target is not None
+
+        options = GraphOfConvexSetsOptions()
+        options.preprocessing = True
+        options.convex_relaxation = use_convex_relaxation
+        if use_convex_relaxation is True:
+            options.max_rounded_paths = 10
+
+        print("Solving GCS problem...")
+        result = self._gcs.SolveShortestPath(self.vertices[self._source].gcs_vertex,
+                                             self.vertices[self._target].gcs_vertex,
+                                             options)
+        assert result.is_success()
+        print("Result is success!")
+
+        return result
 
     def plot_sets(self, **kwargs):
         plt.rc('axes', axisbelow=True)
