@@ -8,7 +8,7 @@ class ConvexSet(ABC):
 
     @abstractmethod
     def __init__(self):
-        raise NotImplementedError
+        pass
     
     def plot(self, **kwargs):
         """
@@ -21,5 +21,16 @@ class ConvexSet(ABC):
         self._plot(**options)
     
     @property
+    @abstractmethod
     def dimension(self):
-        return self._dimension
+        pass
+    
+    @property
+    @abstractmethod
+    def set(self):
+        pass
+
+    @property
+    @abstractmethod
+    def center(self):
+        pass

@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from pydrake.all import (HPolyhedron, VPolytope)
+from scipy.spatial import ConvexHull
 from large_gcs.geometry.convex_set import ConvexSet
 
 
@@ -19,15 +20,33 @@ class Polyhedron(ConvexSet):
         # Verify that the vertices are in the same dimension
         assert len(set([v.size for v in self._vertices])) == 1
 
-        self._dimension = self._vertices.shape[1]
-        self._h_polyhedron = HPolyhedron(VPolytope(vertices))
+        v_polytope = VPolytope(self._vertices.T)
+        self._h_polyhedron = HPolyhedron(v_polytope)
+
+        # Compute center
+        max_ellipsoid = self._h_polyhedron.MaximumVolumeInscribedEllipsoid()
+        self._center = np.array(max_ellipsoid.center())
 
     def _plot(self, **kwargs):
         if self.vertices.shape[0] < 3:
             raise NotImplementedError
-        plt.fill(*self.vertices.T, **kwargs)
+        hull = ConvexHull(self.vertices) # orders vertices counterclockwise
+        vertices = self.vertices[hull.vertices]
+        plt.fill(*vertices.T, **kwargs)
     
     @property
     def vertices(self):
         return self._vertices
+    
+    @property
+    def dimension(self):
+        return self._vertices.shape[1]
+    
+    @property
+    def set(self):
+        return self._h_polyhedron
+    
+    @property
+    def center(self):
+        return self._center
     

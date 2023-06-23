@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from pydrake.all import (HyperEllipsoid, VPolytope)
+from pydrake.all import (Hyperellipsoid)
 from large_gcs.geometry.convex_set import ConvexSet
 
 class Ellipsoid(ConvexSet):
@@ -9,17 +9,17 @@ class Ellipsoid(ConvexSet):
     Wrapper for the Drake HyperEllipsoid class representing: {x | (x-center)ᵀAᵀA(x-center) ≤ 1}.
     """
 
-    def __init__(self, A, center):
+    def __init__(self, center, A):
         """
         Default constructor for the ellipsoid {x | (x-center)ᵀAᵀA(x-center) ≤ 1}.
         Args:
-            A: 2D numpy array.
-            center: 1D numpy array.
+            center: (m,1) or (m,) numpy array or list.
+            A: (m,n) numpy array or list.
         """
-        self._A = np.array(A).astype('float64')
+        self.A = np.array(A).astype('float64')
         self._center = np.array(center).astype('float64')
-        self._dimension = self._center.size
-        self._hyper_ellipsoid = HyperEllipsoid(self._A, self._center)
+        reshaped_center = self._center.reshape(self.A.shape[0], 1)
+        self._hyper_ellipsoid = Hyperellipsoid(self.A, reshaped_center)
 
     def _plot(self, **kwargs):
         l, v = np.linalg.eig(self.A)
@@ -27,3 +27,15 @@ class Ellipsoid(ConvexSet):
         ellipse = (self.center, 2 * l[0] ** -.5, 2 * l[1] ** -.5, angle)
         patch = patches.Ellipse(*ellipse, **kwargs)
         plt.gca().add_artist(patch)
+
+    @property
+    def dimension(self):
+        return self._center.size
+    
+    @property
+    def set(self):
+        return self._hyper_ellipsoid
+    
+    @property
+    def center(self):
+        return self._center
