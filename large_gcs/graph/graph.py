@@ -11,18 +11,21 @@ from dataclasses import dataclass
 from typing import Tuple, List, Optional
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from copy import copy
 from large_gcs.geometry.convex_set import ConvexSet
 
 
 @dataclass
 class ShortestPathSolution:
     cost: float
-    time: float  # time to solve the problem
-    path: List[
-        Tuple[str, np.ndarray]
-    ]  # list of vertex names and discrete coordinates in the path
-    flows: List[float]  # flows along the edges (range [0, 1])
-    result: MathematicalProgramResult  # result of the optimization
+    # Time to solve the optimization problem
+    time: float
+    # List of vertex names and discrete coordinates in the path
+    path: List[Tuple[str, np.ndarray]]
+    # Flows along the edges (range [0, 1])
+    flows: List[float]
+    # Result of the optimization
+    result: MathematicalProgramResult
 
 
 @dataclass
@@ -40,17 +43,25 @@ class DefaultGraphCostsConstraints:
 @dataclass
 class Vertex:
     convex_set: ConvexSet
+    # Set to empty list to override default costs to be no cost
     costs: List[Cost] = None
+    # Set to empty list to override default constraints to be no constraint
     constraints: List[Constraint] = None
+    # This will be overwritten when adding vertex to graph
     gcs_vertex: Optional[GraphOfConvexSets.Vertex] = None
 
 
 @dataclass
 class Edge:
-    u: str  # source/"left" vertex of the edge
-    v: str  # target/"right" vertex of the edge
+    # Source/"left" vertex of the edge
+    u: str
+    # Target/"right" vertex of the edge
+    v: str
+    # Set to empty list to override default costs to be no cost
     costs: List[Cost] = None
+    # Set to empty list to override default constraints to be no constraint
     constraints: List[Constraint] = None
+    # This will be overwritten when adding edge to graph
     gcs_edge: Optional[GraphOfConvexSets.Edge] = None
 
 
@@ -65,8 +76,8 @@ class Graph:
         self._default_costs_constraints = default_costs_constraints
         self.vertices = {}
         self.edges = {}
-        self._source = None
-        self._target = None
+        self._source_name = None
+        self._target_name = None
 
         self._gcs = GraphOfConvexSets()
 
@@ -78,24 +89,48 @@ class Graph:
             name = len(self.vertices)
         assert name not in self.vertices
 
-        vertex.gcs_vertex = self._gcs.AddVertex(vertex.convex_set.set, name)
-        self.vertices[name] = vertex
+        # Makes a copy so that the original vertex is not modified
+        # allows for convenient adding of vertices from one graph to another
+        v = copy(vertex)
 
-        if vertex.costs is not None or vertex.constraints is not None:
-            raise NotImplementedError(
-                "Vertex costs and constraints not implemented yet."
-            )
-        elif self._default_costs_constraints is not None:
-            if self._default_costs_constraints.vertex_costs is not None:
-                for cost in self._default_costs_constraints.vertex_costs:
-                    binding = Binding[Cost](cost, vertex.gcs_vertex.x().flatten())
-                    vertex.gcs_vertex.AddCost(binding)
-            if self._default_costs_constraints.vertex_constraints is not None:
-                for constraint in self._default_costs_constraints.vertex_constraints:
-                    binding = Binding[Constraint](
-                        constraint, vertex.gcs_vertex.x().flatten()
-                    )
-                    vertex.gcs_vertex.AddConstraint(binding)
+        v.gcs_vertex = self._gcs.AddVertex(v.convex_set.set, name)
+        self.vertices[name] = v
+
+        # Set default costs and constraints if necessary
+        if self._default_costs_constraints:  # Have defaults
+            if (
+                v.costs
+                is None  # Vertex have not been specifically overriden to be no cost (empty list)
+                and self._default_costs_constraints.vertex_costs
+            ):
+                v.costs = self._default_costs_constraints.vertex_costs
+            if (
+                v.constraints is None
+                and self._default_costs_constraints.vertex_constraints
+            ):
+                v.constraints = self._default_costs_constraints.vertex_constraints
+
+        # Add costs and constraints to gcs vertex
+        if v.costs:
+            for cost in v.costs:
+                binding = Binding[Cost](cost, v.gcs_vertex.x().flatten())
+                v.gcs_vertex.AddCost(binding)
+        if v.constraints:
+            for constraint in v.constraints:
+                binding = Binding[Constraint](constraint, v.gcs_vertex.x().flatten())
+                v.gcs_vertex.AddConstraint(binding)
+
+    def remove_vertex(self, name: str):
+        """
+        Remove a vertex from the graph as well as any edges from or to that vertex.
+        """
+        self._gcs.RemoveVertex(self.vertices[name].gcs_vertex)
+        self.vertices.pop(name)
+        for edge in self.edge_keys:
+            if name in edge:
+                self.remove_edge(
+                    edge, remove_from_gcs=False
+                )  # gcs.RemoveVertex already removes edges from gcs
 
     def add_vertices_from_sets(
         self, sets: List[ConvexSet], costs=None, constraints=None, names=None
@@ -125,25 +160,47 @@ class Graph:
         """
         Add an edge to the graph.
         """
-
-        edge.gcs_edge = self._gcs.AddEdge(
-            self.vertices[edge.u].gcs_vertex, self.vertices[edge.v].gcs_vertex
+        e = copy(edge)
+        e.gcs_edge = self._gcs.AddEdge(
+            self.vertices[e.u].gcs_vertex, self.vertices[e.v].gcs_vertex
         )
-        self.edges[(edge.u, edge.v)] = edge
 
-        if edge.costs is not None or edge.constraints is not None:
-            raise NotImplementedError("Edge costs and constraints not implemented yet.")
-        elif self._default_costs_constraints is not None:
-            if self._default_costs_constraints.edge_costs is not None:
-                for cost in self._default_costs_constraints.edge_costs:
-                    x = np.array([edge.gcs_edge.xu(), edge.gcs_edge.xv()]).flatten()
-                    binding = Binding[Cost](cost, x)
-                    edge.gcs_edge.AddCost(binding)
-            if self._default_costs_constraints.edge_constraints is not None:
-                for constraint in self._default_costs_constraints.edge_constraints:
-                    x = np.array([edge.gcs_edge.xu(), edge.gcs_edge.xv()]).flatten()
-                    binding = Binding[Constraint](constraint, x)
-                    edge.gcs_edge.AddConstraint(binding, x)
+        # Set default costs and constraints if necessary
+        if self._default_costs_constraints:  # Have defaults
+            if (
+                e.costs
+                is None  # Edge have not been specifically overriden to be no cost (empty list)
+                and self._default_costs_constraints.edge_costs
+            ):
+                e.costs = self._default_costs_constraints.edge_costs
+            if (
+                e.constraints is None
+                and self._default_costs_constraints.edge_constraints
+            ):
+                e.constraints = self._default_costs_constraints.edge_constraints
+
+        # Add costs and constraints to gcs edge
+        if e.costs:
+            for cost in e.costs:
+                x = np.array([e.gcs_edge.xu(), e.gcs_edge.xv()]).flatten()
+                binding = Binding[Cost](cost, x)
+                e.gcs_edge.AddCost(binding)
+        if e.constraints:
+            for constraint in e.constraints:
+                x = np.array([e.gcs_edge.xu(), e.gcs_edge.xv()]).flatten()
+                binding = Binding[Constraint](constraint, x)
+                e.gcs_edge.AddConstraint(binding)
+
+        self.edges[(e.u, e.v)] = e
+
+    def remove_edge(self, edge_key: Tuple[str, str], remove_from_gcs: bool = True):
+        """
+        Remove an edge from the graph.
+        """
+        if remove_from_gcs:
+            self._gcs.RemoveEdge(self.edges[edge_key].gcs_edge)
+
+        self.edges.pop(edge_key)
 
     def add_edges_from_vertex_names(
         self,
@@ -161,18 +218,43 @@ class Graph:
 
     def set_source(self, vertex_name: str):
         assert vertex_name in self.vertices
-        self._source = vertex_name
+        self._source_name = vertex_name
 
     def set_target(self, vertex_name: str):
         assert vertex_name in self.vertices
-        self._target = vertex_name
+        self._target_name = vertex_name
+
+    def outgoing_edges(self, vertex_name: str) -> List[Edge]:
+        """
+        Get the outgoing edges of a vertex.
+        """
+        assert vertex_name in self.vertices
+        return [edge for edge in self.edges.values() if edge.u == vertex_name]
+
+    def incoming_edges(self, vertex_name: str) -> List[Edge]:
+        """
+        Get the incoming edges of a vertex.
+        """
+        assert vertex_name in self.vertices
+        return [edge for edge in self.edges.values() if edge.v == vertex_name]
+
+    def incident_edges(self, vertex_name: str) -> List[Edge]:
+        """
+        Get the incident edges of a vertex.
+        """
+        assert vertex_name in self.vertices
+        return [
+            edge
+            for edge in self.edges.values()
+            if edge.u == vertex_name or edge.v == vertex_name
+        ]
 
     def solve_shortest_path(self, use_convex_relaxation=False) -> ShortestPathSolution:
         """
         Solve the shortest path problem.
         """
-        assert self._source is not None
-        assert self._target is not None
+        assert self._source_name is not None
+        assert self._target_name is not None
 
         options = GraphOfConvexSetsOptions()
 
@@ -183,8 +265,8 @@ class Graph:
 
         print("Solving GCS problem...")
         result = self._gcs.SolveShortestPath(
-            self.vertices[self._source].gcs_vertex,
-            self.vertices[self._target].gcs_vertex,
+            self.vertices[self._source_name].gcs_vertex,
+            self.vertices[self._target_name].gcs_vertex,
             options,
         )
         assert result.is_success()
@@ -308,16 +390,16 @@ class Graph:
     def source_name(self):
         return (
             self.vertex_names[self.vertices[0]]
-            if self._source is None
-            else self._source
+            if self._source_name is None
+            else self._source_name
         )
 
     @property
     def target_name(self):
         return (
             self.vertex_names[self.vertices[-1]]
-            if self._target is None
-            else self._target
+            if self._target_name is None
+            else self._target_name
         )
 
     @property

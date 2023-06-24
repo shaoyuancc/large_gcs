@@ -3,7 +3,8 @@ from abc import ABC, abstractmethod
 
 class ConvexSet(ABC):
     """
-    Abstract wrapper class for convex sets. Base implementations will be drake implementations,
+    Abstract base class for wrappers of convex sets. Implementations will each
+    wrap be drake implementations,
     but this allows for other data and methods to the convex set as well.
     """
 
