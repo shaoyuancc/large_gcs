@@ -1,11 +1,19 @@
 from pydrake.all import(GraphOfConvexSets, GraphOfConvexSetsOptions,
-                        Cost, Constraint)
+                        Cost, Constraint, Binding, MathematicalProgramResult)
 import numpy as np
 from dataclasses import dataclass
 from typing import Tuple, List, Optional
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from large_gcs.geometry.convex_set import ConvexSet
+
+@dataclass
+class ShortestPathSolution():
+    cost: float
+    time: float # time to solve the problem
+    path: List[Tuple[str, np.ndarray]] # list of vertex names and discrete coordinates in the path
+    flows: List[float] # flows along the edges (range [0, 1])
+    result: MathematicalProgramResult # result of the optimization
 
 @dataclass
 class DefaultGraphCostsConstraints():
@@ -62,10 +70,12 @@ class Graph():
         elif self._default_costs_constraints is not None:
             if self._default_costs_constraints.vertex_costs is not None:
                 for cost in self._default_costs_constraints.vertex_costs:
-                    vertex.gcs_vertex.AddCost(cost, vertex.gcs_vertex.x().flatten())
+                    binding = Binding[Cost](cost, vertex.gcs_vertex.x().flatten())
+                    vertex.gcs_vertex.AddCost(binding)
             if self._default_costs_constraints.vertex_constraints is not None:
                 for constraint in self._default_costs_constraints.vertex_constraints:
-                    vertex.gcs_vertex.AddConstraint(constraint, vertex.gcs_vertex.x().flatten())
+                    binding = Binding[Constraint](constraint, vertex.gcs_vertex.x().flatten())
+                    vertex.gcs_vertex.AddConstraint(binding)
     
     def add_vertices_from_sets(self, sets: List[ConvexSet], costs=None, constraints=None, names=None):
         """
@@ -100,13 +110,14 @@ class Graph():
         elif self._default_costs_constraints is not None:
             if self._default_costs_constraints.edge_costs is not None:
                 for cost in self._default_costs_constraints.edge_costs:
-                    print(f"Adding cost {cost} to edge {edge.u} -> {edge.v}")
                     x = np.array([edge.gcs_edge.xu(), edge.gcs_edge.xv()]).flatten()
-                    edge.gcs_edge.AddCost(cost, x)
+                    binding = Binding[Cost](cost, x)
+                    edge.gcs_edge.AddCost(binding)
             if self._default_costs_constraints.edge_constraints is not None:
                 for constraint in self._default_costs_constraints.edge_constraints:
                     x = np.array([edge.gcs_edge.xu(), edge.gcs_edge.xv()]).flatten()
-                    edge.gcs_edge.AddConstraint(constraint, x)
+                    binding = Binding[Constraint](constraint, x)
+                    edge.gcs_edge.AddConstraint(binding, x)
 
     def add_edges_from_vertex_names(self, us: List[str], vs: List[str], costs:List[List[Cost]] = None, constraints: List[List[Constraint]] = None):
         """
@@ -127,7 +138,7 @@ class Graph():
         self._target = vertex_name
 
 
-    def solve_shortest_path(self, use_convex_relaxation=False):
+    def solve_shortest_path(self, use_convex_relaxation=False) -> ShortestPathSolution:
         """
         Solve the shortest path problem.
         """
@@ -135,9 +146,10 @@ class Graph():
         assert self._target is not None
 
         options = GraphOfConvexSetsOptions()
-        options.preprocessing = True
+        
         options.convex_relaxation = use_convex_relaxation
         if use_convex_relaxation is True:
+            options.preprocessing = True
             options.max_rounded_paths = 10
 
         print("Solving GCS problem...")
@@ -147,7 +159,39 @@ class Graph():
         assert result.is_success()
         print("Result is success!")
 
-        return result
+        return self._parse_shortest_path_result(result)
+    
+    def _parse_shortest_path_result(self, result: MathematicalProgramResult) -> ShortestPathSolution: 
+        cost = result.get_optimal_cost()
+        time = result.get_solver_details().optimizer_time
+
+        flow_variables = [e.phi() for e in self._gcs.Edges()]
+        flows = [result.GetSolution(p) for p in flow_variables]
+        edge_path = []
+        for k, flow in enumerate(flows):
+            if flow >= 0.99:
+                edge_path.append(self.edge_keys[k])
+        # Edges are in order they were added to the graph and not in order of the path
+        vertex_path = self._convert_active_edges_to_vertex_path(self.source_name, edge_path)
+        path = [(v, result.GetSolution(self.vertices[v].gcs_vertex.x())) for v in vertex_path]
+
+        return ShortestPathSolution(cost, time, path, flows, result)
+    
+    @staticmethod
+    def _convert_active_edges_to_vertex_path(source_name, edges):
+        # Create a dictionary where the keys are the vertices and the values are their neighbors
+        neighbors = {u: v for u, v in edges}
+        # Start with the source vertex
+        path = [source_name]
+
+        # While the last vertex in the path has a neighbor
+        while path[-1] in neighbors:
+            # Add the neighbor to the path
+            path.append(neighbors[path[-1]])
+
+        assert len(path) == len(edges) + 1, "Path length does not match number of edges"
+
+        return path
 
     def plot_sets(self, **kwargs):
         plt.rc('axes', axisbelow=True)
@@ -186,13 +230,10 @@ class Graph():
         options.update(kwargs)
         plt.scatter(*x.T, **options)
 
-    def plot_path(self, phis, x, **kwargs):
+    def plot_path(self, path: List[Tuple[str,np.ndarray]], **kwargs):
         options = {'color':'g', 'marker': 'o', 'markeredgecolor': 'k', 'markerfacecolor': 'w'}
         options.update(kwargs)
-        for k, phi in enumerate(phis):
-            if phi > 1 - 1e-3:
-                vertex_indices = [self.vertex_names.index(vertex) for vertex in self.edge_keys[k]]
-                plt.plot(*x[vertex_indices].T, **options)
+        plt.plot(*np.array([x for _, x in path]).T, **options)
 
     def edge_key_index(self, edge_key):
         return self.edge_keys.index(edge_key)
@@ -224,11 +265,11 @@ class Graph():
 
     @property
     def source(self):
-        return self.vertices[self.source]
+        return self.vertices[self.source_name]
 
     @property
     def target(self):
-        return self.vertices[self.target]
+        return self.vertices[self.target_name]
 
     @property
     def dimension(self):

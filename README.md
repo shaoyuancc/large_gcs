@@ -15,6 +15,13 @@ poetry install -vvv
 ```
 (the `-vvv` flag adds verbose output).
 
+Next, add the following lines to `.venv/bin/activate` replacing the paths with your actual paths:
+```
+export PYTHONPATH="/path/to/project/folder/large_gcs:$PYTHONPATH"
+export MOSEKLM_LICENSE_FILE="/path/to/mosek/license/mosek/mosek.lic"
+export GRB_LICENSE_FILE="/path/to/gurobi/license/gurobi.lic"
+```
+
 Finally, make sure to have graphviz installed on your computer. On MacOS, run the following command:
 ```
 brew install graphviz

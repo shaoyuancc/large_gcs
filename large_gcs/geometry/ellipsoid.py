@@ -22,7 +22,8 @@ class Ellipsoid(ConvexSet):
         self._hyper_ellipsoid = Hyperellipsoid(self.A, reshaped_center)
 
     def _plot(self, **kwargs):
-        l, v = np.linalg.eig(self.A)
+        B = self.A.T @ self.A
+        l, v = np.linalg.eig(B)
         angle = 180 * np.arctan2(*v[0]) / np.pi + 90
         ellipse = (self.center, 2 * l[0] ** -.5, 2 * l[1] ** -.5, angle)
         patch = patches.Ellipse(*ellipse, **kwargs)
