@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from pydrake.all import (Hyperellipsoid)
+from pydrake.all import Hyperellipsoid
 from large_gcs.geometry.convex_set import ConvexSet
+
 
 class Ellipsoid(ConvexSet):
     """
@@ -16,8 +17,8 @@ class Ellipsoid(ConvexSet):
             center: (m,1) or (m,) numpy array or list.
             A: (m,n) numpy array or list.
         """
-        self.A = np.array(A).astype('float64')
-        self._center = np.array(center).astype('float64')
+        self.A = np.array(A).astype("float64")
+        self._center = np.array(center).astype("float64")
         reshaped_center = self._center.reshape(self.A.shape[0], 1)
         self._hyper_ellipsoid = Hyperellipsoid(self.A, reshaped_center)
 
@@ -25,18 +26,18 @@ class Ellipsoid(ConvexSet):
         B = self.A.T @ self.A
         l, v = np.linalg.eig(B)
         angle = 180 * np.arctan2(*v[0]) / np.pi + 90
-        ellipse = (self.center, 2 * l[0] ** -.5, 2 * l[1] ** -.5, angle)
+        ellipse = (self.center, 2 * l[0] ** -0.5, 2 * l[1] ** -0.5, angle)
         patch = patches.Ellipse(*ellipse, **kwargs)
         plt.gca().add_artist(patch)
 
     @property
     def dimension(self):
         return self._center.size
-    
+
     @property
     def set(self):
         return self._hyper_ellipsoid
-    
+
     @property
     def center(self):
         return self._center

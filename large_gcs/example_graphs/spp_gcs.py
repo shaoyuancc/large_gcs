@@ -10,6 +10,7 @@ from large_gcs.geometry.ellipsoid import Ellipsoid
 from large_gcs.geometry.point import Point
 from large_gcs.graph.graph import Graph, DefaultGraphCostsConstraints, Edge
 
+
 def create_spp_2d_graph(edge_cost_factory) -> Graph:
     dim = 2
     # Convex sets
@@ -27,15 +28,15 @@ def create_spp_2d_graph(edge_cost_factory) -> Graph:
     )
     ellipsoids = (
         Ellipsoid((4, -1), ([1, 0], [0, 1])),
-        Ellipsoid((7, 2), ([.5, 0], [0, 1])),
+        Ellipsoid((7, 2), ([0.5, 0], [0, 1])),
     )
 
     sets = points + polyhedra + ellipsoids
 
     # Vertex names
-    vertex_names = ['s', 't']
-    vertex_names += [f'p{i}' for i in range(len(polyhedra))]
-    vertex_names += [f'e{i}' for i in range(len(ellipsoids))]
+    vertex_names = ["s", "t"]
+    vertex_names += [f"p{i}" for i in range(len(polyhedra))]
+    vertex_names += [f"e{i}" for i in range(len(ellipsoids))]
 
     # Edge costs
     edge_cost = edge_cost_factory(dim)
@@ -43,23 +44,23 @@ def create_spp_2d_graph(edge_cost_factory) -> Graph:
     default_costs_constraints = DefaultGraphCostsConstraints(edge_costs=[edge_cost])
     # Add convex sets to graph
     G = Graph(default_costs_constraints)
-    G.add_vertices_from_sets(sets, names = vertex_names)
-    G.set_source('s')
-    G.set_target('t')
+    G.add_vertices_from_sets(sets, names=vertex_names)
+    G.set_source("s")
+    G.set_target("t")
 
     # Edges
     edges = {
-        's': ('p0', 'p1', 'p2'),
-        'p0': ('e1',),
-        'p1': ('p2', 'e0', 'e1'),
-        'p2': ('p1', 'p3', 'e0'),
-        'p3': ('t', 'p2', 'p4', 'e1'),
-        'p4': ('t', 'e0'),
-        'e0': ('p3', 'p4', 'e1'),
-        'e1': ('t', 'p4', 'e0')
+        "s": ("p0", "p1", "p2"),
+        "p0": ("e1",),
+        "p1": ("p2", "e0", "e1"),
+        "p2": ("p1", "p3", "e0"),
+        "p3": ("t", "p2", "p4", "e1"),
+        "p4": ("t", "e0"),
+        "e0": ("p3", "p4", "e1"),
+        "e1": ("t", "p4", "e0"),
     }
     for u, vs in edges.items():
         for v in vs:
             G.add_edge(Edge(u, v))
-    
+
     return G
