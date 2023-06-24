@@ -17,7 +17,8 @@ poetry install -vvv
 
 Next, add the following lines to `.venv/bin/activate` replacing the paths with your actual paths:
 ```
-export PYTHONPATH="/path/to/project/folder/large_gcs:$PYTHONPATH"
+export PROJECT_ROOT="/path/to/project/folder/large_gcs"
+export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
 export MOSEKLM_LICENSE_FILE="/path/to/mosek/license/mosek/mosek.lic"
 export GRB_LICENSE_FILE="/path/to/gurobi/license/gurobi.lic"
 ```

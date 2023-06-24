@@ -263,14 +263,12 @@ class Graph:
             options.preprocessing = True
             options.max_rounded_paths = 10
 
-        print("Solving GCS problem...")
         result = self._gcs.SolveShortestPath(
             self.vertices[self._source_name].gcs_vertex,
             self.vertices[self._target_name].gcs_vertex,
             options,
         )
         assert result.is_success()
-        print("Result is success!")
 
         return self._parse_shortest_path_result(result)
 
@@ -319,27 +317,36 @@ class Graph:
         for v in self.vertices.values():
             v.convex_set.plot(**kwargs)
 
-    def plot_edges(self, **kwargs):
+    def plot_edge(self, edge_key, **kwargs):
         options = {
             "color": "k",
             "zorder": 2,
             "arrowstyle": "->, head_width=3, head_length=8",
         }
         options.update(kwargs)
+        tail = self.vertices[edge_key[0]].convex_set.center
+        head = self.vertices[edge_key[1]].convex_set.center
+        arrow = patches.FancyArrowPatch(tail, head, **options)
+        plt.gca().add_patch(arrow)
+
+    def plot_edges(self, **kwargs):
         for edge in self.edge_keys:
-            tail = self.vertices[edge[0]].convex_set.center
-            head = self.vertices[edge[1]].convex_set.center
-            arrow = patches.FancyArrowPatch(tail, head, **options)
-            plt.gca().add_patch(arrow)
+            self.plot_edge(edge, **kwargs)
 
     def plot_set_labels(self, labels=None, **kwargs):
-        options = {"c": "b"}
+        options = {
+            "color": "black",
+            "backgroundcolor": "white",
+            "zorder": 4,
+            "size": 8,
+        }
         options.update(kwargs)
         if labels is None:
             labels = self.vertex_names
-
+        offset = np.array([0.2, 0.1])
         for v, label in zip(self.vertices.values(), labels):
-            plt.text(*v.convex_set.center, label, **options)
+            pos = v.convex_set.center + offset
+            plt.text(*pos, label, **options)
 
     def plot_edge_labels(self, labels, **kwargs):
         options = {"c": "r", "va": "top"}

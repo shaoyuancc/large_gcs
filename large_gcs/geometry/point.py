@@ -14,7 +14,7 @@ class Point(ConvexSet):
         self._point = DrakePoint(x)
 
     def _plot(self, **kwargs):
-        plt.scatter(*self.center, c="k", **kwargs)
+        plt.scatter(*self.center, c="k", s=80)
 
     @property
     def dimension(self):
