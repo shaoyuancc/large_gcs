@@ -15,12 +15,13 @@ scipy = "^1.10.1"
 graphviz = "^0.20.1"
 # Use nightly build of Drake
 drake = [
-    {url="https://drake-packages.csail.mit.edu/drake/nightly/drake-latest-cp311-cp311-macosx_12_0_x86_64.whl", markers = "sys_platform == 'darwin' and platform_machine == 'x86_64'"},
+    #{url="https://drake-packages.csail.mit.edu/drake/nightly/drake-latest-cp311-cp311-macosx_12_0_x86_64.whl", markers = "sys_platform == 'darwin' and platform_machine == 'x86_64'"},
     {url="https://drake-packages.csail.mit.edu/drake/nightly/drake-latest-cp311-cp311-macosx_12_0_arm64.whl", markers = "sys_platform == 'darwin' and platform_machine == 'arm64'"},
     # For Ubuntu 20.04 Focal
     # {url="https://drake-packages.csail.mit.edu/drake/nightly/drake-latest-cp38-cp38-manylinux_2_31_x86_64.whl", markers="sys_platform == 'linux'"},
 ]
 black = "^23.3.0"
+tqdm = "^4.65.0"
 
 [build-system]
 requires = ["poetry-core"]

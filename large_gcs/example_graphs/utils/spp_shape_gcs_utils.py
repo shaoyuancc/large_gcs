@@ -1,6 +1,7 @@
 from typing import List, Tuple
 import numpy as np
 from copy import deepcopy
+from tqdm import tqdm
 from dataclasses import dataclass
 from large_gcs.graph.graph import Graph, DefaultGraphCostsConstraints, Edge, Vertex
 from scipy.spatial.distance import cdist
@@ -65,6 +66,7 @@ def generate_spp_shape_gcs(
     round_dp = 2
 
     # Uniformly sample n_sets within the dim dimensional workspace
+    print("Sampling points uniformly within the workspace...")
     samples = np.round(
         np.random.uniform(
             params.workspace[:, 0], params.workspace[:, 1], (params.n_sets, params.dim)
@@ -72,11 +74,12 @@ def generate_spp_shape_gcs(
         round_dp,
     )
 
-    # 2) Sort the sampled points by l2 norm distance away from the bottom left corner of the workspace
+    # Sort the sampled points by l2 norm distance away from the bottom left corner of the workspace
     dists = np.linalg.norm(samples - params.workspace[:, 0], axis=1)
     sorted_indices = np.argsort(dists)
     samples = samples[sorted_indices]
     vertex_names_by_samples = []
+
     # Initialize the graph
     if edge_cost_factory:
         edge_cost = edge_cost_factory(params.dim)
@@ -88,12 +91,15 @@ def generate_spp_shape_gcs(
     polyhedra = {}
     ellipsoids = {}
     edges = {}
+
     # Add source and target vertices
     points["s"] = params.source
     points["t"] = params.target
 
     # For each point, randomly choose if it's going to be a polyhedron or an ellipse
-    for i, sample in enumerate(samples):
+    print("Processing samples into convex sets...")
+    for i in tqdm(range(len(samples))):
+        sample = samples[i]
         if np.random.choice([True, False]):
             Q, _ = np.linalg.qr(
                 np.random.randn(params.dim, params.dim)
@@ -123,13 +129,16 @@ def generate_spp_shape_gcs(
     vertex_names_by_samples = np.array(vertex_names_by_samples)
 
     # Add edges from source and target to nearby vertices
+    print("Calculating distance matrix...")
     st_dist_matrix = cdist(np.array([params.source, params.target]), samples)
     nearest_source_indices = np.argsort(st_dist_matrix[0])[: params.n_st_edges]
     edges["s"] = vertex_names_by_samples[nearest_source_indices]
 
     # Add edges to nearby vertices
     dist_matrix = cdist(samples, samples)
-    for i, u in enumerate(vertex_names_by_samples):
+    print("Adding edges to vertices...")
+    for i in tqdm(range(len(vertex_names_by_samples))):
+        u = vertex_names_by_samples[i]
         nearest_indices = np.argsort(dist_matrix[i])[1 : params.k_nearest_pool + 1]
         n_edges = np.random.randint(
             params.k_nearest_edges[0], params.k_nearest_edges[1]
@@ -139,14 +148,15 @@ def generate_spp_shape_gcs(
         ]
 
     nearest_target_indices = np.argsort(st_dist_matrix[1])[: params.n_st_edges]
-    for i in nearest_target_indices:
-        u = vertex_names_by_samples[i]
+    for i in tqdm(range(len(nearest_target_indices))):
+        u = vertex_names_by_samples[nearest_target_indices[i]]
         if u in edges:
             edges[u] = np.append(edges[u], "t")
         else:
             edges[u] = np.array(["t"])
 
     if params.should_save:
+        print("Saving graph data...")
         np.save(
             params.save_path,
             {
@@ -158,6 +168,7 @@ def generate_spp_shape_gcs(
             },
         )
 
+    print("Adding vertices and edges to graph...")
     graph = _add_vertices_edges_to_graph(points, ellipsoids, polyhedra, edges, graph)
     return graph
 
@@ -175,19 +186,34 @@ def load_spp_shape_gcs(path: str, edge_cost_factory) -> Graph:
     return graph
 
 
+from tqdm import tqdm
+
+
 def _add_vertices_edges_to_graph(points, ellipsoids, polyhedra, edges, graph):
-    for vertex_name, point in points.items():
+    print("Adding points as vertices to the graph...")
+    for vertex_name in tqdm(points.keys()):
+        point = points[vertex_name]
         shape = Point(point)
         graph.add_vertex(Vertex(shape), vertex_name)
-    for vertex_name, (center, A) in ellipsoids.items():
+
+    print("Adding ellipsoids as vertices to the graph...")
+    for vertex_name in tqdm(ellipsoids.keys()):
+        center, A = ellipsoids[vertex_name]
         shape = Ellipsoid(center=center, A=A)
         graph.add_vertex(Vertex(shape), vertex_name)
-    for vertex_name, vertices in polyhedra.items():
+
+    print("Adding polyhedra as vertices to the graph...")
+    for vertex_name in tqdm(polyhedra.keys()):
+        vertices = polyhedra[vertex_name]
         shape = Polyhedron(vertices=vertices)
         graph.add_vertex(Vertex(shape), vertex_name)
+
     graph.set_source("s")
     graph.set_target("t")
-    for u, vs in edges.items():
+
+    print("Adding edges to the graph...")
+    for u in tqdm(edges.keys()):
+        vs = edges[u]
         for v in vs:
             graph.add_edge(Edge(u, v))
 
