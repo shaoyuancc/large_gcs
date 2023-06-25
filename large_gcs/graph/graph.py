@@ -285,9 +285,10 @@ class Graph:
             if flow >= 0.99:
                 edge_path.append(self.edge_keys[k])
         # Edges are in order they were added to the graph and not in order of the path
-        vertex_path = self._convert_active_edges_to_vertex_path(
-            self.source_name, edge_path
-        )
+        # vertex_path = self._convert_active_edges_to_vertex_path(
+        #     self.source_name, edge_path
+        # )
+        vertex_path = [self.source_name]
         path = [
             (v, result.GetSolution(self.vertices[v].gcs_vertex.x()))
             for v in vertex_path
