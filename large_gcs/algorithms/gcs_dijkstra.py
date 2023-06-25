@@ -15,7 +15,7 @@ class GcsDijkstra(SearchAlgorithm):
         self._graph = graph
         self._vis_params = vis_params
         self._writer = None
-
+        self.iteration_count = 0
         self._pq = []
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph()
@@ -48,7 +48,7 @@ class GcsDijkstra(SearchAlgorithm):
         _dist, node = heap.heappop(self._pq)
         if node in self._visited.vertex_names:
             return
-
+        self.iteration_count += 1
         # Add node to the visited subgraph along with all of its incoming and outgoing edges to the visited subgraph
         self._visited.add_vertex(self._graph.vertices[node], node)
         edges = self._graph.incident_edges(node)
@@ -63,6 +63,7 @@ class GcsDijkstra(SearchAlgorithm):
             self._visited.set_source(self._graph.source_name)
 
         if self._writer:
+            print(f"Iteration {self.iteration_count}, visiting vertex {node}")
             self._writer.fig.clear()
             self.plot_graph()
             self._writer.grab_frame()
