@@ -23,8 +23,8 @@ class SppShapeGcsGeneratorParams:
     target: Tuple = (4, 0)
     # Number of edges from the source and to the target
     n_st_edges: int = 3
-    # Workspace bounds
-    workspace: List = ([-5, 5], [-5, 5])
+    # Workspace bounds from which samples are drawn
+    samples_workspace: List = ([-5, 5], [-5, 5])
     # Scaling factor for each of the convex sets
     set_scale: float = 1.2
     # Lower and upper bounds on the number of edges from each convex set
@@ -43,12 +43,12 @@ class SppShapeGcsGeneratorParams:
     def __post_init__(self):
         self.source = np.array(self.source)
         self.target = np.array(self.target)
-        self.workspace = np.array(self.workspace)
+        self.samples_workspace = np.array(self.samples_workspace)
         self.k_nearest_edges = np.array(self.k_nearest_edges)
         self.n_polyhedron_vertices = np.array(self.n_polyhedron_vertices)
 
         assert self.source.shape == self.target.shape == (self.dim,)
-        assert self.workspace.shape == (self.dim, 2)
+        assert self.samples_workspace.shape == (self.dim, 2)
         assert self.k_nearest_edges.shape == (2,)
         assert self.n_polyhedron_vertices.shape == (2,)
 
@@ -62,30 +62,36 @@ def generate_spp_shape_gcs(
         seed = np.random.randint(0, 1000000)
         params.random_seed = seed
         np.random.seed(seed)
-    params.workspace = np.array(params.workspace)
+    params.samples_workspace = np.array(params.samples_workspace)
     round_dp = 2
 
     # Uniformly sample n_sets within the dim dimensional workspace
     print("Sampling points uniformly within the workspace...")
     samples = np.round(
         np.random.uniform(
-            params.workspace[:, 0], params.workspace[:, 1], (params.n_sets, params.dim)
+            params.samples_workspace[:, 0],
+            params.samples_workspace[:, 1],
+            (params.n_sets, params.dim),
         ),
         round_dp,
     )
 
     # Sort the sampled points by l2 norm distance away from the bottom left corner of the workspace
-    dists = np.linalg.norm(samples - params.workspace[:, 0], axis=1)
+    dists = np.linalg.norm(samples - params.samples_workspace[:, 0], axis=1)
     sorted_indices = np.argsort(dists)
     samples = samples[sorted_indices]
     vertex_names_by_samples = []
 
     # Initialize the graph
+    workspace_bounds = params.samples_workspace * params.set_scale
     if edge_cost_factory:
         edge_cost = edge_cost_factory(params.dim)
-        graph = Graph(DefaultGraphCostsConstraints(edge_costs=[edge_cost]))
+        graph = Graph(
+            DefaultGraphCostsConstraints(edge_costs=[edge_cost]),
+            workspace_bounds=workspace_bounds,
+        )
     else:
-        graph = Graph()
+        graph = Graph(workspace=workspace_bounds)
 
     points = {}
     polyhedra = {}
@@ -181,7 +187,11 @@ def load_spp_shape_gcs(path: str, edge_cost_factory) -> Graph:
     edges = data["edges"]
     params = data["params"]
     edge_cost = edge_cost_factory(params.dim)
-    graph = Graph(DefaultGraphCostsConstraints(edge_costs=[edge_cost]))
+    workspace_bounds = params.samples_workspace * params.set_scale
+    graph = Graph(
+        DefaultGraphCostsConstraints(edge_costs=[edge_cost]),
+        workspace_bounds=workspace_bounds,
+    )
     graph = _add_vertices_edges_to_graph(points, ellipsoids, polyhedra, edges, graph)
     return graph
 

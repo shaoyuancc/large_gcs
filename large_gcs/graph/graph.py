@@ -65,19 +65,54 @@ class Edge:
     gcs_edge: Optional[GraphOfConvexSets.Edge] = None
 
 
+@dataclass
+class GraphParams:
+    # Dimension of the ambient space of the graph
+    dim: int
+    # Number of vertices/convex sets
+    n_vertices: int
+    # Number of edges
+    n_edges: int
+    # Source and target coordinates, (centers if they are non singleton sets)
+    source: Tuple
+    target: Tuple
+    # Workspace bounds if specified
+    workspace: np.ndarray
+    # Default costs and constraints if any
+    default_costs_constraints: DefaultGraphCostsConstraints
+
+
 class Graph:
     """
     Wrapper for Drake GraphOfConvexSets class.
     """
 
     def __init__(
-        self, default_costs_constraints: DefaultGraphCostsConstraints = None
+        self,
+        default_costs_constraints: DefaultGraphCostsConstraints = None,
+        workspace: np.ndarray = None,
     ) -> None:
+        """
+        Args:
+            default_costs_constraints: Default costs and constraints for vertices and edges.
+            workspace_bounds: Bounds on the workspace that will be plotted. Each row should specify lower and upper bounds for a dimension.
+        """
+
         self._default_costs_constraints = default_costs_constraints
         self.vertices = {}
         self.edges = {}
         self._source_name = None
         self._target_name = None
+
+        if workspace is not None:
+            assert (
+                workspace.shape[1] == 2
+            ), "Each row of workspace_bounds should specify lower and upper bounds for a dimension"
+            if workspace.shape[0] > 2:
+                raise NotImplementedError(
+                    "Workspace bounds with more than 2 dimensions not yet supported"
+                )
+        self.workspace = workspace
 
         self._gcs = GraphOfConvexSets()
 
@@ -286,8 +321,9 @@ class Graph:
                 edge_path.append(self.edge_keys[k])
         # Edges are in order they were added to the graph and not in order of the path
         vertex_path = self._convert_active_edges_to_vertex_path(
-            self.source_name, edge_path
+            self.source_name, self.target_name, edge_path
         )
+        # vertex_path = [self.source_name]
         path = [
             (v, result.GetSolution(self.vertices[v].gcs_vertex.x()))
             for v in vertex_path
@@ -296,7 +332,7 @@ class Graph:
         return ShortestPathSolution(cost, time, path, flows, result)
 
     @staticmethod
-    def _convert_active_edges_to_vertex_path(source_name, edges):
+    def _convert_active_edges_to_vertex_path(source_name, target_name, edges):
         # Create a dictionary where the keys are the vertices and the values are their neighbors
         neighbors = {u: v for u, v in edges}
         # Start with the source vertex
@@ -307,11 +343,12 @@ class Graph:
             # Add the neighbor to the path
             path.append(neighbors[path[-1]])
 
-        assert len(path) == len(edges) + 1, "Path length does not match number of edges"
+        assert path[-1] == target_name, "Path does not end at target"
 
         return path
 
     def plot_sets(self, **kwargs):
+        # Set gridlines to be drawn below the data
         plt.rc("axes", axisbelow=True)
         plt.gca().set_aspect("equal")
         for v in self.vertices.values():
@@ -336,16 +373,27 @@ class Graph:
     def plot_set_labels(self, labels=None, **kwargs):
         options = {
             "color": "black",
-            "backgroundcolor": "white",
-            "zorder": 4,
+            "zorder": 5,
             "size": 8,
         }
         options.update(kwargs)
         if labels is None:
             labels = self.vertex_names
         offset = np.array([0.2, 0.1])
+        patch_offset = np.array([-0.05, -0.1])  # from text
         for v, label in zip(self.vertices.values(), labels):
             pos = v.convex_set.center + offset
+            # Create a colored rectangle as the background
+            rect = patches.FancyBboxPatch(
+                pos + patch_offset,
+                0.6,
+                0.4,
+                color="white",
+                alpha=0.8,
+                zorder=4,
+                boxstyle="round,pad=0.1",
+            )
+            plt.gca().add_patch(rect)
             plt.text(*pos, label, **options)
 
     def plot_edge_labels(self, labels, **kwargs):
@@ -420,7 +468,7 @@ class Graph:
     @property
     def dimension(self):
         assert len(set(V.convex_set.dimension for V in self.vertices.values())) == 1
-        return self.vertices[0].convex_set.dimension
+        return self.vertices[self.vertex_names[0]].convex_set.dimension
 
     @property
     def n_vertices(self):
@@ -429,3 +477,15 @@ class Graph:
     @property
     def n_edges(self):
         return len(self.edges)
+
+    @property
+    def params(self):
+        return GraphParams(
+            dim=self.dimension,
+            n_vertices=self.n_vertices,
+            n_edges=self.n_edges,
+            source=self.source.convex_set.center,
+            target=self.target.convex_set.center,
+            default_costs_constraints=self._default_costs_constraints,
+            workspace=self.workspace,
+        )

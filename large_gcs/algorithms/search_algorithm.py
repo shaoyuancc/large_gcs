@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from math import inf
 
 
 @dataclass
@@ -9,6 +10,7 @@ class AlgVisParams:
     """
 
     output_path: str = "alg_vis_output.mp4"
+    figsize: tuple = (5, 5)
     fps: int = 2
     dpi: int = 200
     visited_color: str = "lightskyblue"
@@ -19,6 +21,25 @@ class AlgVisParams:
     relaxing_edge_color: str = "lime"
     intermediate_path_color: str = "lightgrey"
     final_path_color: str = "orange"
+
+
+@dataclass
+class AlgMetrics:
+    """
+    Metrics for the algorithm.
+    """
+
+    n_vertices_visited: int = 0
+    # Note that this is not the number of edges relaxed. It is the number of edges in the visited subgraph.
+    n_edges_visited: int = 0
+    vertex_coverage: float = 0.0
+    edge_coverage: float = 0.0
+    n_gcs_solves: int = 0
+    gcs_solve_time_total: float = 0.0
+    gcs_solve_time_iter_mean: float = 0.0
+    gcs_solve_time_iter_std: float = 0.0
+    gcs_solve_time_iter_min: float = inf
+    gcs_solve_time_iter_max: float = 0.0
 
 
 class SearchAlgorithm(ABC):
