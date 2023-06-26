@@ -42,6 +42,7 @@ class GcsDijkstra(SearchAlgorithm):
         self._visited.set_target(self._graph.target_name)
         sol = self._visited.solve_shortest_path()
         self._update_alg_metrics_after_gcs_solve(sol.time)
+        clear_output(wait=True)
         print(f"Gcs Dijkstra complete! \n{sol}\n{self.alg_metrics}")
         if self._writer:
             self._writer.fig.clear()

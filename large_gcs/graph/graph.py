@@ -386,7 +386,7 @@ class Graph:
             # Create a colored rectangle as the background
             rect = patches.FancyBboxPatch(
                 pos + patch_offset,
-                0.6,
+                0.8,
                 0.4,
                 color="white",
                 alpha=0.8,

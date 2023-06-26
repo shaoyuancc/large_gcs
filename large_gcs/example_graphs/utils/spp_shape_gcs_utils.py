@@ -190,7 +190,7 @@ def load_spp_shape_gcs(path: str, edge_cost_factory) -> Graph:
     workspace_bounds = params.samples_workspace * params.set_scale
     graph = Graph(
         DefaultGraphCostsConstraints(edge_costs=[edge_cost]),
-        workspace_bounds=workspace_bounds,
+        workspace=workspace_bounds,
     )
     graph = _add_vertices_edges_to_graph(points, ellipsoids, polyhedra, edges, graph)
     return graph
