@@ -11,9 +11,10 @@ class AlgVisParams:
 
     output_path: str = "alg_vis_output.mp4"
     figsize: tuple = (5, 5)
-    fps: int = 2
+    fps: int = 3
     dpi: int = 200
-    visited_color: str = "lightskyblue"
+    visited_vertex_color: str = "lightskyblue"
+    visited_edge_color: str = "lightseagreen"
     frontier_color: str = "lightyellow"
     relaxing_to_color: str = "lightgreen"
     relaxing_from_color: str = "skyblue"

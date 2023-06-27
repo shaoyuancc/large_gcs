@@ -319,6 +319,8 @@ class Graph:
         for k, flow in enumerate(flows):
             if flow >= 0.99:
                 edge_path.append(self.edge_keys[k])
+        assert len(self._gcs.Edges()) == self.n_edges
+
         # Edges are in order they were added to the graph and not in order of the path
         vertex_path = self._convert_active_edges_to_vertex_path(
             self.source_name, self.target_name, edge_path
@@ -443,19 +445,21 @@ class Graph:
 
     @property
     def source_name(self):
-        return (
-            self.vertex_names[self.vertices[0]]
-            if self._source_name is None
-            else self._source_name
-        )
+        return self._source_name
+        # return (
+        #     self.vertex_names[self.vertices[0]]
+        #     if self._source_name is None
+        #     else self._source_name
+        # )
 
     @property
     def target_name(self):
-        return (
-            self.vertex_names[self.vertices[-1]]
-            if self._target_name is None
-            else self._target_name
-        )
+        return self._target_name
+        # return (
+        #     self.vertex_names[self.vertices[-1]]
+        #     if self._target_name is None
+        #     else self._target_name
+        # )
 
     @property
     def source(self):

@@ -9,13 +9,22 @@ from large_gcs.algorithms.search_algorithm import (
     SearchAlgorithm,
     AlgVisParams,
 )
-from large_gcs.graph.graph import Graph
-
-# matplotlib.use("Agg")
+from large_gcs.graph.graph import Edge, Graph
 
 
-class GcsDijkstra(SearchAlgorithm):
+class GcsAstar(SearchAlgorithm):
+    """A* search algorithm for GCS. This implementation is very similar to GCS Dijkstra,
+    but the the target node is always added to the visited subgraph, and an edge from the
+    node being relaxed to the target is also added.
+    Therefore, this will not work for edge costs for which this would not lead to an
+    admissible heuristic (e.g. L2NormSquaredEdgeCost).
+    """
+
     def __init__(self, graph: Graph, vis_params: AlgVisParams = AlgVisParams()):
+        assert (
+            graph._default_costs_constraints.edge_costs is not None
+        ), "Edge costs must be specified in the graph's default costs constraints."
+
         self._graph = graph
         self._vis_params = vis_params
         self._writer = None
@@ -24,29 +33,38 @@ class GcsDijkstra(SearchAlgorithm):
         self._pq = []
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph()
-        self._node_dists[self._graph.source_name] = 0
+        self._node_dists[
+            self._graph.source_name
+        ] = 0  # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
         heap.heappush(self._pq, (0, self._graph.source_name))
+
+        # Add the target to the visited subgraph
+        self._visited.add_vertex(
+            self._graph.vertices[self._graph.target_name], self._graph.target_name
+        )
+        self._visited.set_target(self._graph.target_name)
+        self.alg_metrics.n_vertices_visited = (
+            1  # Start with the target node in the visited subgraph
+        )
 
     def run(self, animate: bool = False):
         if animate:
-            metadata = dict(title="GCS Dijkstra", artist="Matplotlib")
+            metadata = dict(title="GCS A*", artist="Matplotlib")
             self._writer = FFMpegWriter(fps=self._vis_params.fps, metadata=metadata)
             fig = plt.figure(figsize=self._vis_params.figsize)
             self._writer.setup(fig, self._vis_params.output_path, self._vis_params.dpi)
 
+        last_valid_sol = None
         while len(self._pq) > 0 and self._pq[0][1] != self._graph.target_name:
-            self._run_iteration()
+            sol = self._run_iteration()
+            if sol is not None:
+                last_valid_sol = sol
 
-        # Solve GCS for a final time to extract the path
-        self._add_vertex_and_edges_to_visited(self._graph.target_name)
-        self._visited.set_target(self._graph.target_name)
-        sol = self._visited.solve_shortest_path()
-        self._update_alg_metrics_after_gcs_solve(sol.time)
         clear_output(wait=True)
-        print(f"Gcs Dijkstra complete! \n{sol}\n{self.alg_metrics}")
+        print(f"Gcs A* complete! \n{last_valid_sol}\n{self.alg_metrics}")
         if self._writer:
             self._writer.fig.clear()
-            self.plot_graph(path=sol.path)
+            self.plot_graph(path=last_valid_sol.path, is_final_path=True)
             self._writer.grab_frame()
             self._writer.finish()
             self._writer = None
@@ -54,7 +72,7 @@ class GcsDijkstra(SearchAlgorithm):
 
     def _run_iteration(self):
         _, node = heap.heappop(self._pq)
-        if node in self._visited.vertex_names:
+        if node in self._visited.vertex_names and node != self._graph.target_name:
             return
 
         self._add_vertex_and_edges_to_visited(node)
@@ -64,7 +82,7 @@ class GcsDijkstra(SearchAlgorithm):
 
         if self._writer:
             clear_output(wait=True)
-            print(f"{self.alg_metrics}, now relaxing node {node}")
+            print(f"{self.alg_metrics}, now relaxing node {node}'s neighbors")
             self._writer.fig.clear()
             self.plot_graph()
             self._writer.grab_frame()
@@ -72,19 +90,35 @@ class GcsDijkstra(SearchAlgorithm):
         edges = self._graph.outgoing_edges(node)
         for edge in edges:
             neighbor = edge.v
-            if neighbor not in self._visited.vertex_names:
-                # Add neighbor and edge temporarily to the visited subgraph
-                self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
-                self._visited.add_edge(edge)
-                self._visited.set_target(neighbor)
+            if (
+                neighbor not in self._visited.vertex_names
+                or neighbor == self._graph.target_name
+            ):
+                if neighbor != self._graph.target_name:
+                    # Add neighbor and edge temporarily to the visited subgraph
+                    self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
+                    self._visited.add_edge(edge)
+                    # Note: if the neighbor was the target, this would be a duplicate edge
+
+                    # if self._graph.target_name not in [e.v for e in self._graph.outgoing_edges(neighbor)]:
+                    # Add an edge from the neighbor to the target
+                    direct_to_target = Edge(neighbor, self._graph.target_name)
+                    self._visited.add_edge(direct_to_target)
 
                 sol = self._visited.solve_shortest_path()
                 new_dist = sol.cost
 
-                # Remove neighbor and associated edges from the visited subgraph
-                self._visited.remove_vertex(neighbor)
-
                 self._update_alg_metrics_after_gcs_solve(sol.time)
+
+                if neighbor != self._graph.target_name:
+                    # Remove neighbor and associated edges from the visited subgraph
+                    self._visited.remove_vertex(neighbor)
+                else:
+                    pass
+                    # print(f"neighbor is target, removing edge {(edge.u, edge.v)}")
+                    # Just remove the edge from the neighbor to the target from the visited subgraph
+                    # because the target node must be kept in the visited subgraph
+                    # self._visited.remove_edge((edge.u, edge.v))
 
                 if new_dist < self._node_dists[neighbor]:
                     self._node_dists[neighbor] = new_dist
@@ -94,6 +128,7 @@ class GcsDijkstra(SearchAlgorithm):
                     self._writer.fig.clear()
                     self.plot_graph(sol.path, edge)
                     self._writer.grab_frame()
+        return sol
 
     def _add_vertex_and_edges_to_visited(self, vertex_name):
         # Add node to the visited subgraph along with all of its incoming and outgoing edges to the visited subgraph
@@ -118,8 +153,8 @@ class GcsDijkstra(SearchAlgorithm):
             m.gcs_solve_time_iter_max = solve_time
         self._gcs_solve_times = np.append(self._gcs_solve_times, solve_time)
 
-    def plot_graph(self, path=None, current_edge=None):
-        plt.title("GCS Dijkstra")
+    def plot_graph(self, path=None, current_edge=None, is_final_path=False):
+        plt.title("GCS A*")
         if self._graph.workspace is not None:
             plt.xlim(self._graph.workspace[0])
             plt.ylim(self._graph.workspace[1])
@@ -159,7 +194,7 @@ class GcsDijkstra(SearchAlgorithm):
         self._graph.plot_set_labels(dist_labels)
 
         if path:
-            if self._graph._target_name in self._visited.vertex_names:
+            if is_final_path:
                 path_color = self._vis_params.final_path_color
             else:
                 path_color = self._vis_params.intermediate_path_color
