@@ -34,9 +34,7 @@ class GcsAstar(SearchAlgorithm):
         self._pq = []
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
-        self._node_dists[
-            self._graph.source_name
-        ] = 0  # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
+        # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
         heap.heappush(self._pq, (0, self._graph.source_name))
 
         # Add the target to the visited subgraph
@@ -59,7 +57,10 @@ class GcsAstar(SearchAlgorithm):
                 fig, self._vis_params.vid_output_path, self._vis_params.dpi
             )
 
-        while len(self._pq) > 0 and self._pq[0][1] != self._graph.target_name:
+        while (
+            len(self._pq) > 0
+            and (self._pq[0][1], self._graph.target_name) not in self._graph.edges
+        ):
             self._run_iteration(verbose=verbose)
 
         sol = self._candidate_sol
@@ -129,7 +130,8 @@ class GcsAstar(SearchAlgorithm):
                 if new_dist < self._node_dists[neighbor]:
                     self._node_dists[neighbor] = new_dist
                     heap.heappush(self._pq, (new_dist, neighbor))
-                    if neighbor == self._graph.target_name:
+                    # Check if this neighbor actually has an edge to the target
+                    if (neighbor, self._graph.target_name) in self._graph.edges:
                         self._candidate_sol = sol
 
                 if self._writer:

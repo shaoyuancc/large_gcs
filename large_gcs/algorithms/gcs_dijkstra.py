@@ -23,7 +23,7 @@ class GcsDijkstra(SearchAlgorithm):
         self._gcs_solve_times = np.empty((0,))
         self._pq = []
         self._node_dists = defaultdict(lambda: float("inf"))
-        self._visited = Graph()
+        self._visited = Graph(graph._default_costs_constraints)
         self._node_dists[self._graph.source_name] = 0
         heap.heappush(self._pq, (0, self._graph.source_name))
 
