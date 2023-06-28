@@ -6,7 +6,7 @@ from large_gcs.graph.cost_factory import create_l2norm_edge_cost
 from large_gcs.example_graphs.utils.spp_shape_gcs_utils import load_spp_shape_gcs
 
 
-base_file_name = "spp_2d_v100_t2_shape_gcs"
+base_file_name = "spp_2d_v100_t8_shape_gcs"
 graph_file = os.path.join(
     os.environ["PROJECT_ROOT"], "large_gcs", "example_graphs", base_file_name + ".npy"
 )

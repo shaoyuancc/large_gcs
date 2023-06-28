@@ -33,7 +33,7 @@ class GcsAstar(SearchAlgorithm):
         self._candidate_sol = None
         self._pq = []
         self._node_dists = defaultdict(lambda: float("inf"))
-        self._visited = Graph()
+        self._visited = Graph(self._graph._default_costs_constraints)
         self._node_dists[
             self._graph.source_name
         ] = 0  # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
@@ -59,14 +59,11 @@ class GcsAstar(SearchAlgorithm):
                 fig, self._vis_params.vid_output_path, self._vis_params.dpi
             )
 
-        # last_valid_sol = None
-        # sol = None
         while len(self._pq) > 0 and self._pq[0][1] != self._graph.target_name:
             self._run_iteration(verbose=verbose)
-            # if sol is not None:
-            #     last_valid_sol = sol
+
         sol = self._candidate_sol
-        # clear_output(wait=True)
+        clear_output(wait=True)
         print(f"Gcs A* complete! \n{sol}\n{self.alg_metrics}")
         if self._writer:
             self._writer.fig.clear()
@@ -75,8 +72,9 @@ class GcsAstar(SearchAlgorithm):
             self._writer.finish()
             self._writer = None
         if final_plot:
-            fig = plt.figure(figsize=self._vis_params.figsize)
-            self.plot_graph(path=sol.path, is_final_path=True)
+            if not animate:
+                fig = plt.figure(figsize=self._vis_params.figsize)
+                self.plot_graph(path=sol.path, is_final_path=True)
             plt.savefig(self._vis_params.plot_output_path)
             plt.show()
         return sol
@@ -87,15 +85,15 @@ class GcsAstar(SearchAlgorithm):
         if node in self._visited.vertex_names and node != self._graph.target_name:
             return sol
 
-        self._add_vertex_and_edges_to_visited(node)
+        self._add_vertex_and_edges_to_visited_except_edges_to_target(node)
 
         if node == self._graph.source_name:
             self._visited.set_source(self._graph.source_name)
 
+        if verbose:
+            clear_output(wait=True)
+            print(f"{self.alg_metrics}, now relaxing node {node}'s neighbors")
         if self._writer:
-            if verbose:
-                # clear_output(wait=True)
-                print(f"{self.alg_metrics}, now relaxing node {node}'s neighbors")
             self._writer.fig.clear()
             self.plot_graph()
             self._writer.grab_frame()
@@ -110,17 +108,13 @@ class GcsAstar(SearchAlgorithm):
                 if neighbor != self._graph.target_name:
                     # Add neighbor and edge temporarily to the visited subgraph
                     self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
-                    self._visited.add_edge(edge)
-                    # Note: if the neighbor was the target, this would be a duplicate edge
-
-                    # if self._graph.target_name not in [e.v for e in self._graph.outgoing_edges(neighbor)]:
                     # Add an edge from the neighbor to the target
                     direct_to_target = Edge(neighbor, self._graph.target_name)
                     self._visited.add_edge(direct_to_target)
 
+                self._visited.add_edge(edge)
                 sol = self._visited.solve_shortest_path()
                 new_dist = sol.cost
-                print(f"relaxing edge: {(edge.u, edge.v)}, {sol}")
 
                 self._update_alg_metrics_after_gcs_solve(sol.time)
 
@@ -128,7 +122,6 @@ class GcsAstar(SearchAlgorithm):
                     # Remove neighbor and associated edges from the visited subgraph
                     self._visited.remove_vertex(neighbor)
                 else:
-                    # print(f"neighbor is target, removing edge {(edge.u, edge.v)}")
                     # Just remove the edge from the neighbor to the target from the visited subgraph
                     # because the target node must be kept in the visited subgraph
                     self._visited.remove_edge((edge.u, edge.v))
@@ -145,7 +138,7 @@ class GcsAstar(SearchAlgorithm):
                     self._writer.grab_frame()
         return sol
 
-    def _add_vertex_and_edges_to_visited(self, vertex_name):
+    def _add_vertex_and_edges_to_visited_except_edges_to_target(self, vertex_name):
         # Add node to the visited subgraph along with all of its incoming and outgoing edges to the visited subgraph
         self._visited.add_vertex(self._graph.vertices[vertex_name], vertex_name)
         self._alg_metrics.n_vertices_visited += 1
@@ -154,6 +147,7 @@ class GcsAstar(SearchAlgorithm):
             if (
                 edge.u in self._visited.vertex_names
                 and edge.v in self._visited.vertex_names
+                and edge.v != self._graph.target_name
             ):
                 self._visited.add_edge(edge)
 

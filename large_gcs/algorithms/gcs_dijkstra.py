@@ -27,7 +27,9 @@ class GcsDijkstra(SearchAlgorithm):
         self._node_dists[self._graph.source_name] = 0
         heap.heappush(self._pq, (0, self._graph.source_name))
 
-    def run(self, animate: bool = False):
+    def run(
+        self, verbose: bool = False, animate: bool = False, final_plot: bool = False
+    ):
         if animate:
             metadata = dict(title="GCS Dijkstra", artist="Matplotlib")
             self._writer = FFMpegWriter(fps=self._vis_params.fps, metadata=metadata)
@@ -37,7 +39,7 @@ class GcsDijkstra(SearchAlgorithm):
             )
 
         while len(self._pq) > 0 and self._pq[0][1] != self._graph.target_name:
-            self._run_iteration()
+            self._run_iteration(verbose=verbose)
 
         # Solve GCS for a final time to extract the path
         self._add_vertex_and_edges_to_visited(self._graph.target_name)
@@ -52,9 +54,15 @@ class GcsDijkstra(SearchAlgorithm):
             self._writer.grab_frame()
             self._writer.finish()
             self._writer = None
+        if final_plot:
+            if not animate:
+                fig = plt.figure(figsize=self._vis_params.figsize)
+                self.plot_graph(path=sol.path, is_final_path=True)
+            plt.savefig(self._vis_params.plot_output_path)
+            plt.show()
         return sol
 
-    def _run_iteration(self):
+    def _run_iteration(self, verbose: bool = False):
         _, node = heap.heappop(self._pq)
         if node in self._visited.vertex_names:
             return
@@ -64,9 +72,11 @@ class GcsDijkstra(SearchAlgorithm):
         if node == self._graph.source_name:
             self._visited.set_source(self._graph.source_name)
 
-        if self._writer:
+        if verbose:
             clear_output(wait=True)
-            print(f"{self.alg_metrics}, now relaxing node {node}")
+            print(f"{self.alg_metrics}, now relaxing node {node}'s neighbors")
+
+        if self._writer:
             self._writer.fig.clear()
             self.plot_graph()
             self._writer.grab_frame()

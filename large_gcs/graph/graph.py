@@ -292,10 +292,9 @@ class Graph:
         assert self._target_name is not None
 
         options = GraphOfConvexSetsOptions()
-
+        options.preprocessing = True
         options.convex_relaxation = use_convex_relaxation
         if use_convex_relaxation is True:
-            options.preprocessing = True
             options.max_rounded_paths = 10
 
         # print(f"target: {self._target_name}, {self.vertices[self._target_name].gcs_vertex}")
