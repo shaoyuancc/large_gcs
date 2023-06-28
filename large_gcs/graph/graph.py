@@ -298,6 +298,7 @@ class Graph:
             options.preprocessing = True
             options.max_rounded_paths = 10
 
+        # print(f"target: {self._target_name}, {self.vertices[self._target_name].gcs_vertex}")
         result = self._gcs.SolveShortestPath(
             self.vertices[self._source_name].gcs_vertex,
             self.vertices[self._target_name].gcs_vertex,

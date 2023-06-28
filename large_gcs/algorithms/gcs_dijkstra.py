@@ -32,7 +32,9 @@ class GcsDijkstra(SearchAlgorithm):
             metadata = dict(title="GCS Dijkstra", artist="Matplotlib")
             self._writer = FFMpegWriter(fps=self._vis_params.fps, metadata=metadata)
             fig = plt.figure(figsize=self._vis_params.figsize)
-            self._writer.setup(fig, self._vis_params.output_path, self._vis_params.dpi)
+            self._writer.setup(
+                fig, self._vis_params.vid_output_path, self._vis_params.dpi
+            )
 
         while len(self._pq) > 0 and self._pq[0][1] != self._graph.target_name:
             self._run_iteration()

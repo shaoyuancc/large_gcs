@@ -9,7 +9,8 @@ class AlgVisParams:
     Parameters for visualizing the algorithm.
     """
 
-    output_path: str = "alg_vis_output.mp4"
+    vid_output_path: str = "alg_vis_output.mp4"
+    plot_output_path: str = "alg_vis_output.png"
     figsize: tuple = (5, 5)
     fps: int = 3
     dpi: int = 200

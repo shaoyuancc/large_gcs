@@ -30,6 +30,7 @@ class GcsAstar(SearchAlgorithm):
         self._writer = None
         self._alg_metrics = AlgMetrics()
         self._gcs_solve_times = np.empty((0,))
+        self._candidate_sol = None
         self._pq = []
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph()
@@ -47,33 +48,44 @@ class GcsAstar(SearchAlgorithm):
             1  # Start with the target node in the visited subgraph
         )
 
-    def run(self, animate: bool = False):
+    def run(
+        self, verbose: bool = False, animate: bool = False, final_plot: bool = False
+    ):
         if animate:
             metadata = dict(title="GCS A*", artist="Matplotlib")
             self._writer = FFMpegWriter(fps=self._vis_params.fps, metadata=metadata)
             fig = plt.figure(figsize=self._vis_params.figsize)
-            self._writer.setup(fig, self._vis_params.output_path, self._vis_params.dpi)
+            self._writer.setup(
+                fig, self._vis_params.vid_output_path, self._vis_params.dpi
+            )
 
-        last_valid_sol = None
+        # last_valid_sol = None
+        # sol = None
         while len(self._pq) > 0 and self._pq[0][1] != self._graph.target_name:
-            sol = self._run_iteration()
-            if sol is not None:
-                last_valid_sol = sol
-
-        clear_output(wait=True)
-        print(f"Gcs A* complete! \n{last_valid_sol}\n{self.alg_metrics}")
+            self._run_iteration(verbose=verbose)
+            # if sol is not None:
+            #     last_valid_sol = sol
+        sol = self._candidate_sol
+        # clear_output(wait=True)
+        print(f"Gcs A* complete! \n{sol}\n{self.alg_metrics}")
         if self._writer:
             self._writer.fig.clear()
-            self.plot_graph(path=last_valid_sol.path, is_final_path=True)
+            self.plot_graph(path=sol.path, is_final_path=True)
             self._writer.grab_frame()
             self._writer.finish()
             self._writer = None
+        if final_plot:
+            fig = plt.figure(figsize=self._vis_params.figsize)
+            self.plot_graph(path=sol.path, is_final_path=True)
+            plt.savefig(self._vis_params.plot_output_path)
+            plt.show()
         return sol
 
-    def _run_iteration(self):
+    def _run_iteration(self, verbose: bool = False):
         _, node = heap.heappop(self._pq)
+        sol = None
         if node in self._visited.vertex_names and node != self._graph.target_name:
-            return
+            return sol
 
         self._add_vertex_and_edges_to_visited(node)
 
@@ -81,8 +93,9 @@ class GcsAstar(SearchAlgorithm):
             self._visited.set_source(self._graph.source_name)
 
         if self._writer:
-            clear_output(wait=True)
-            print(f"{self.alg_metrics}, now relaxing node {node}'s neighbors")
+            if verbose:
+                # clear_output(wait=True)
+                print(f"{self.alg_metrics}, now relaxing node {node}'s neighbors")
             self._writer.fig.clear()
             self.plot_graph()
             self._writer.grab_frame()
@@ -107,6 +120,7 @@ class GcsAstar(SearchAlgorithm):
 
                 sol = self._visited.solve_shortest_path()
                 new_dist = sol.cost
+                print(f"relaxing edge: {(edge.u, edge.v)}, {sol}")
 
                 self._update_alg_metrics_after_gcs_solve(sol.time)
 
@@ -114,15 +128,16 @@ class GcsAstar(SearchAlgorithm):
                     # Remove neighbor and associated edges from the visited subgraph
                     self._visited.remove_vertex(neighbor)
                 else:
-                    pass
                     # print(f"neighbor is target, removing edge {(edge.u, edge.v)}")
                     # Just remove the edge from the neighbor to the target from the visited subgraph
                     # because the target node must be kept in the visited subgraph
-                    # self._visited.remove_edge((edge.u, edge.v))
+                    self._visited.remove_edge((edge.u, edge.v))
 
                 if new_dist < self._node_dists[neighbor]:
                     self._node_dists[neighbor] = new_dist
                     heap.heappush(self._pq, (new_dist, neighbor))
+                    if neighbor == self._graph.target_name:
+                        self._candidate_sol = sol
 
                 if self._writer:
                     self._writer.fig.clear()
