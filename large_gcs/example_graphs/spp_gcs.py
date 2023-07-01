@@ -20,11 +20,11 @@ def create_spp_2d_graph(edge_cost_factory) -> Graph:
     )
 
     polyhedra = (
-        Polyhedron(([1, 0], [1, 2], [3, 1], [3, 0])),
-        Polyhedron(([4, 2], [3, 3], [2, 2], [2, 3])),
-        Polyhedron(([2, -2], [1, -3], [2, -4], [4, -4], [4, -3])),
-        Polyhedron(([5, -4], [7, -4], [6, -3])),
-        Polyhedron(([7, -2], [8, -2], [9, -3], [8, -4])),
+        Polyhedron.from_vertices(([1, 0], [1, 2], [3, 1], [3, 0])),
+        Polyhedron.from_vertices(([4, 2], [3, 3], [2, 2], [2, 3])),
+        Polyhedron.from_vertices(([2, -2], [1, -3], [2, -4], [4, -4], [4, -3])),
+        Polyhedron.from_vertices(([5, -4], [7, -4], [6, -3])),
+        Polyhedron.from_vertices(([7, -2], [8, -2], [9, -3], [8, -4])),
     )
     ellipsoids = (
         Ellipsoid((4, -1), ([1, 0], [0, 1])),

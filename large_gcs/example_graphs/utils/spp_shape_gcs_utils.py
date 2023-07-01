@@ -128,7 +128,7 @@ def generate_spp_shape_gcs(
             )
             hull = ConvexHull(vertices)  # orders vertices counterclockwise
             vertices = vertices[hull.vertices]
-            shape = Polyhedron(vertices=vertices)
+            shape = Polyhedron.from_vertices(vertices=vertices)
             vertex_name = f"p{i}"
             polyhedra[vertex_name] = vertices
         vertex_names_by_samples.append(vertex_name)
@@ -215,7 +215,7 @@ def _add_vertices_edges_to_graph(points, ellipsoids, polyhedra, edges, graph):
     print("Adding polyhedra as vertices to the graph...")
     for vertex_name in tqdm(polyhedra.keys()):
         vertices = polyhedra[vertex_name]
-        shape = Polyhedron(vertices=vertices)
+        shape = Polyhedron.from_vertices(vertices=vertices)
         graph.add_vertex(Vertex(shape), vertex_name)
 
     graph.set_source("s")
