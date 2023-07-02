@@ -15,6 +15,7 @@ class Polyhedron(ConvexSet):
         Default constructor for the polyhedron {x| A x ≤ b}.
         """
         self._h_polyhedron = HPolyhedron(A, b)
+        print(f"Polyhedron is bounded {self._h_polyhedron.IsBounded()}")
         self._vertices = VPolytope(self._h_polyhedron).vertices().T
         hull = ConvexHull(self._vertices)  # orders vertices counterclockwise
         self._vertices = self._vertices[hull.vertices]
