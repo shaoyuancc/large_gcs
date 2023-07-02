@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import matplotlib.pyplot as plt
 
 
 class ConvexSet(ABC):
@@ -12,7 +13,7 @@ class ConvexSet(ABC):
     def __init__(self):
         pass
 
-    def plot(self, **kwargs):
+    def plot(self, mark_center: bool = False, **kwargs):
         """
         Plots the convex set using matplotlib.
         """
@@ -21,6 +22,8 @@ class ConvexSet(ABC):
         options = {"facecolor": "mintcream", "edgecolor": "k", "zorder": 1}
         options.update(kwargs)
         self._plot(**options)
+        if mark_center:
+            plt.scatter(*self.center, color="k", zorder=2)
 
     @property
     @abstractmethod
