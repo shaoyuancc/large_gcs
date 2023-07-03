@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import itertools
 from pydrake.all import HPolyhedron, VPolytope
 from scipy.spatial import ConvexHull
 from large_gcs.geometry.convex_set import ConvexSet
@@ -15,6 +16,12 @@ class Polyhedron(ConvexSet):
         """
         Default constructor for the polyhedron {x| A x ≤ b}.
         """
+        if Polyhedron._has_equality_constraints(A, b):
+            self._h_polyhedron = HPolyhedron(A, b)
+            self._vertices = None
+            self._center = None
+            return
+
         vertices = VPolytope(HPolyhedron(A, b)).vertices().T
         hull = ConvexHull(vertices)  # orders vertices counterclockwise
         self._vertices = vertices[hull.vertices]
@@ -24,24 +31,6 @@ class Polyhedron(ConvexSet):
         # Compute center
         max_ellipsoid = self._h_polyhedron.MaximumVolumeInscribedEllipsoid()
         self._center = np.array(max_ellipsoid.center())
-
-    @staticmethod
-    def _reorder_A_b_by_vertices(A, b, vertices):
-        """
-        Reorders the halfspace representation A x ≤ b so that they follow the same order as the vertices.
-        i.e. the first row of A and the first element of b correspond to the line between the first and second vertices.
-        """
-        assert len(A) == len(vertices) == len(b)
-        new_order = []
-        for i in range(len(vertices)):
-            for j in range(len(vertices)):
-                if is_on_hyperplane(A[j], b[j], vertices[i]) and is_on_hyperplane(
-                    A[j], b[j], vertices[(i + 1) % len(vertices)]
-                ):
-                    new_order.append(j)
-                    break
-        assert len(new_order) == len(vertices), "Something went wrong"
-        return A[new_order], b[new_order]
 
     @classmethod
     def from_vertices(cls, vertices):
@@ -76,6 +65,44 @@ class Polyhedron(ConvexSet):
         )
         plt.plot(*vertices.T, **kwargs)
 
+    @staticmethod
+    def _reorder_A_b_by_vertices(A, b, vertices):
+        """
+        Reorders the halfspace representation A x ≤ b so that they follow the same order as the vertices.
+        i.e. the first row of A and the first element of b correspond to the line between the first and second vertices.
+        """
+        assert len(A) == len(vertices) == len(b)
+        new_order = []
+        for i in range(len(vertices)):
+            for j in range(len(vertices)):
+                if is_on_hyperplane(A[j], b[j], vertices[i]) and is_on_hyperplane(
+                    A[j], b[j], vertices[(i + 1) % len(vertices)]
+                ):
+                    new_order.append(j)
+                    break
+        assert len(new_order) == len(vertices), "Something went wrong"
+        return A[new_order], b[new_order]
+
+    @staticmethod
+    def _has_equality_constraints(A, b):
+        """Equality constraints are enforced by having one row in A and b be: ax ≤ b and another row be: -ax ≤ -b.
+        So checking if any pairs of rows add up to 0 tells us whether there are any equality constraints."""
+        for (a1, b1), (a2, b2) in itertools.product(zip(A, b), zip(A, b)):
+            if np.isclose(a1 + a2, [0] * len(a1)).all() and np.isclose(b1 + b2, 0):
+                return True
+        return False
+
+    @property
+    def dimension(self):
+        return self.set.A().shape[1]
+
+    @property
+    def set(self):
+        return self._h_polyhedron
+
+    # The following properties rely on vertices and center being set,
+    # they will not work for polyhedra with equality constraints.
+
     @property
     def bounding_box(self):
         return np.array([self.vertices.min(axis=0), self.vertices.max(axis=0)])
@@ -83,14 +110,6 @@ class Polyhedron(ConvexSet):
     @property
     def vertices(self):
         return self._vertices
-
-    @property
-    def dimension(self):
-        return self._vertices.shape[1]
-
-    @property
-    def set(self):
-        return self._h_polyhedron
 
     @property
     def center(self):
