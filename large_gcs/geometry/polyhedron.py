@@ -76,21 +76,6 @@ class Polyhedron(ConvexSet):
         )
         plt.plot(*vertices.T, **kwargs)
 
-    # def plot_halfspace(self, index, **kwargs):
-    #     assert index < self.set.A().shape[0], "Index out of bounds"
-    #     if self.dimension != 2:
-    #         raise NotImplementedError
-    #     a = self.set.A()[index]
-    #     b = self.set.b()[index]
-    #     # x = self.bounding_box[:, 0].flatten()
-    #     x = np.linspace(*self.bounding_box[:, 0], 100)
-    #     if a[1] == 0:
-    #         y_boundary = np.zeros_like(x)
-    #     else:
-    #         y_boundary = (b - a[0] * x) / a[1]
-
-    #     plt.plot(x, y_boundary, **kwargs)
-
     @property
     def bounding_box(self):
         return np.array([self.vertices.min(axis=0), self.vertices.max(axis=0)])
