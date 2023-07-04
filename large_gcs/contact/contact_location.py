@@ -79,10 +79,11 @@ class ContactLocationFace(ContactLocation):
         """Vector from the center of the body to the face in the direction of negative normal of the face
         (normal of the face points outwards, away from the center of the body)"""
         vec_vertex_center = (
-            self.center - self.body.geometry.vertices[self.adj_vertex_indices[0]]
+            self.body.geometry.center
+            - self.body.geometry.vertices[self.adj_vertex_indices[0]]
         )
         dist = np.dot(vec_vertex_center, -self.unit_normal)
-        return dist
+        return dist * self.unit_normal
 
 
 # Utility functions

@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def is_on_hyperplane(a, b, x):
@@ -12,3 +13,7 @@ def counter_clockwise_angle_between(v1, v2):
     """Returns the counter-clockwise angle between two vectors."""
     assert len(v1) == len(v2) == 2, "Vectors must be 2D"
     return np.arctan2(np.linalg.det([v1, v2]), np.dot(v1, v2))
+
+
+def plot_vector(vec, origin, **kwargs):
+    plt.quiver(*origin, *vec, angles="xy", scale_units="xy", scale=1, **kwargs)

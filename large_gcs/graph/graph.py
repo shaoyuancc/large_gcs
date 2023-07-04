@@ -284,7 +284,7 @@ class Graph:
             if edge.u == vertex_name or edge.v == vertex_name
         ]
 
-    def solve_shortest_path(self, use_convex_relaxation=False) -> ShortestPathSolution:
+    def solve(self, use_convex_relaxation=False) -> ShortestPathSolution:
         """
         Solve the shortest path problem.
         """
@@ -305,11 +305,9 @@ class Graph:
         )
         assert result.is_success()
 
-        return self._parse_shortest_path_result(result)
+        return self._parse_result(result)
 
-    def _parse_shortest_path_result(
-        self, result: MathematicalProgramResult
-    ) -> ShortestPathSolution:
+    def _parse_result(self, result: MathematicalProgramResult) -> ShortestPathSolution:
         cost = result.get_optimal_cost()
         time = result.get_solver_details().optimizer_time
 

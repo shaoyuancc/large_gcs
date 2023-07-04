@@ -114,7 +114,7 @@ class GcsAstar(SearchAlgorithm):
                     self._visited.add_edge(direct_to_target)
 
                 self._visited.add_edge(edge)
-                sol = self._visited.solve_shortest_path()
+                sol = self._visited.solve()
                 new_dist = sol.cost
 
                 self._update_alg_metrics_after_gcs_solve(sol.time)

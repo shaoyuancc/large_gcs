@@ -22,6 +22,7 @@ drake = [
 ]
 black = "^23.3.0"
 tqdm = "^4.65.0"
+pytest = "^7.4.0"
 
 [build-system]
 requires = ["poetry-core"]
