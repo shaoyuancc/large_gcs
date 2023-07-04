@@ -31,7 +31,7 @@ class Ellipsoid(ConvexSet):
         plt.gca().add_artist(patch)
 
     @property
-    def dimension(self):
+    def dim(self):
         return self._center.size
 
     @property

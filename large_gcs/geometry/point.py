@@ -17,7 +17,7 @@ class Point(ConvexSet):
         plt.scatter(*self.center, c="k", s=80)
 
     @property
-    def dimension(self):
+    def dim(self):
         return self.center.size
 
     @property

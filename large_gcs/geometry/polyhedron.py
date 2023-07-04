@@ -1,7 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools
-from pydrake.all import HPolyhedron, VPolytope
+from pydrake.all import (
+    HPolyhedron,
+    VPolytope,
+    Formula,
+    FormulaKind,
+    Variable,
+    DecomposeAffineExpressions,
+)
+from typing import List
 from scipy.spatial import ConvexHull
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.geometry_utils import *
@@ -48,6 +56,51 @@ class Polyhedron(ConvexSet):
 
         return cls(h_polyhedron.A(), h_polyhedron.b())
 
+    @classmethod
+    def from_constraints(cls, constraints: List[Formula], variables: List[Variable]):
+        """
+        Construct a polyhedron from a list of constraint formulas.
+        Args:
+            constraints: array of constraint formulas.
+            variables: array of variables.
+        """
+
+        # In case the constraints or variables were multi-dimensional lists
+        constraints = np.concatenate([c.flatten() for c in constraints])
+        variables = np.concatenate([v.flatten() for v in variables])
+
+        expressions = []
+        for formula in constraints:
+            kind = formula.get_kind()
+            lhs, rhs = formula.Unapply()[1]
+            if kind == FormulaKind.Eq:
+                # Eq constraint ax = b is
+                # implemented as ax ≤ b, -ax <= -b
+                expressions.append(lhs - rhs)
+                expressions.append(rhs - lhs)
+            elif kind == FormulaKind.Geq:
+                # lhs >= rhs
+                # ==> rhs - lhs ≤ 0
+                expressions.append(rhs - lhs)
+            elif kind == FormulaKind.Leq:
+                # lhs ≤ rhs
+                # ==> lhs - rhs ≤ 0
+                expressions.append(lhs - rhs)
+
+        # We now have expr ≤ 0 for all expressions
+        # ==> we get Ax - b ≤ 0
+        A, b_neg = DecomposeAffineExpressions(expressions, variables)
+
+        # Polyhedrons are of the form: Ax <= b
+        b = -b_neg
+        polyhedron = cls(A, b)
+
+        polyhedron.constraints = constraints
+        polyhedron.variables = variables
+        polyhedron.expressions = expressions
+
+        return polyhedron
+
     def _plot(self, **kwargs):
         if self.vertices.shape[0] < 3:
             raise NotImplementedError
@@ -93,7 +146,7 @@ class Polyhedron(ConvexSet):
         return False
 
     @property
-    def dimension(self):
+    def dim(self):
         return self.set.A().shape[1]
 
     @property

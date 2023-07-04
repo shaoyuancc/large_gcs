@@ -17,7 +17,7 @@ class ConvexSet(ABC):
         """
         Plots the convex set using matplotlib.
         """
-        if self.dimension != 2:
+        if self.dim != 2:
             raise NotImplementedError
         options = {"facecolor": "mintcream", "edgecolor": "k", "zorder": 1}
         options.update(kwargs)
@@ -28,7 +28,7 @@ class ConvexSet(ABC):
 
     @property
     @abstractmethod
-    def dimension(self):
+    def dim(self):
         pass
 
     @property

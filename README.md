@@ -34,3 +34,6 @@ The repo is setup to do automatic linting and code checking on every commit thro
 poetry shell
 pre-commit install
 ```
+
+## Credits
+This repo references and contains code from: Bernhard Paus Græsdal https://github.com/bernhardpg/planning-through-contact and Tobia Marcucci https://github.com/TobiaMarcucci/shortest-paths-in-graphs-of-convex-sets.
