@@ -19,7 +19,7 @@ def test_vec_center_to_face_square():
     contact_loc_face = ContactLocationFace(body, 0)
     # contact_loc_face.plot()
     # plt.show()
-    assert np.allclose(contact_loc_face.vec_center_to_face, np.array([0, 0.5]))
+    assert np.allclose(contact_loc_face.p_CF, np.array([0, 0.5]))
 
 
 def test_vec_center_to_face_triangle_dist():
@@ -34,6 +34,4 @@ def test_vec_center_to_face_triangle_dist():
     # contact_loc_face.plot()
     # plot_vector(contact_loc_face.vec_center_to_face, body.geometry.center, color="g")
     # plt.show()
-    assert np.isclose(
-        np.linalg.norm(contact_loc_face.vec_center_to_face), 0.2635, atol=1e-4
-    )
+    assert np.isclose(np.linalg.norm(contact_loc_face.p_CF), 0.2635, atol=1e-4)

@@ -24,6 +24,9 @@ class Polyhedron(ConvexSet):
         """
         Default constructor for the polyhedron {x| A x ≤ b}.
         """
+        A = np.array(A)
+        b = np.array(b)
+
         if Polyhedron._has_equality_constraints(A, b):
             self._h_polyhedron = HPolyhedron(A, b)
             self._vertices = None
@@ -110,6 +113,13 @@ class Polyhedron(ConvexSet):
     def plot_vertex(self, index, **kwargs):
         assert index < self.vertices.shape[0], "Index out of bounds"
         plt.scatter(*self.vertices[index], **kwargs)
+        plt.annotate(
+            index,
+            self.vertices[index],
+            textcoords="offset points",
+            xytext=(5, 5),
+            ha="center",
+        )
 
     def plot_face(self, index, **kwargs):
         assert index < self.vertices.shape[0], "Index out of bounds"
