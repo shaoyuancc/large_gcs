@@ -409,18 +409,6 @@ def _face_horizontal_bounds_formulas(
     return [ge(dist, lb), le(dist, ub)]
 
 
-def _convert_linear_buffer_to_quadratic_buffer(
-    linear_buffer: float, ub: float
-) -> Tuple[float, float]:
-    """Assumes lower bound is 0"""
-    assert linear_buffer > 0
-    assert ub > 0
-    quad_lb = linear_buffer**2
-    quad_ub = (ub - linear_buffer) ** 2
-    assert quad_lb < quad_ub
-    return quad_lb, quad_ub
-
-
 def generate_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):
     """Generate all possible contact pair modes between two rigid bodies"""
     contact_pair_modes = []
