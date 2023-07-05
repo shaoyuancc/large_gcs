@@ -85,6 +85,15 @@ class ContactPairMode(ABC):
         assert len(exprs) > 0
         return exprs
 
+    @property
+    def id(self):
+        return f"{self.compact_class_name}:{self.body_a.name}_{self.contact_location_a.compact_name}-{self.body_b.name}_{self.contact_location_b.compact_name}"
+
+    @property
+    @abstractmethod
+    def compact_class_name(self):
+        pass
+
 
 @dataclass
 class NoContactPairMode(ContactPairMode):
@@ -105,7 +114,11 @@ class NoContactPairMode(ContactPairMode):
 
         # TODO: Force and Velocity Constraints
 
-        self.constraint_formulas = constraints
+        return constraints
+
+    @property
+    def compact_class_name(self):
+        return "NC"
 
 
 @dataclass
@@ -131,7 +144,7 @@ class InContactPairMode(ContactPairMode):
 
         # TODO: Force and Velocity Constraints
 
-        self.constraint_formulas = constraints
+        return constraints
 
     def _create_horizontal_bounds_formulas(self):
         formulas = []
@@ -169,10 +182,14 @@ class InContactPairMode(ContactPairMode):
             elif isinstance(self.contact_location_a, ContactLocationVertex):
                 if isinstance(self.contact_location_b, ContactLocationFace):
                     formulas = create_movable_face_vert_horizontal_bounds_formulas(
-                        face=self.contact_location_b, vert=self.contact_location_b
+                        face=self.contact_location_b, vert=self.contact_location_a
                     )
         assert len(formulas) > 0
         return formulas
+
+    @property
+    def compact_class_name(self):
+        return "IC"
 
 
 def create_static_face_movable_face_signed_dist_surrog_exprs(

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from abc import ABC, abstractmethod
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools
@@ -8,7 +9,7 @@ from large_gcs.contact.rigid_body import RigidBody
 
 
 @dataclass
-class ContactLocation:
+class ContactLocation(ABC):
     body: RigidBody
 
     def plot(self, **kwargs):
@@ -18,6 +19,11 @@ class ContactLocation:
         options = {"color": "r", "zorder": 2}
         options.update(kwargs)
         self._plot(**options)
+
+    @property
+    @abstractmethod
+    def compact_name(self):
+        pass
 
 
 @dataclass
@@ -45,6 +51,10 @@ class ContactLocationVertex(ContactLocation):
     def p_CV(self):
         """Position vector from the center of the body to the vertex"""
         return self.vertex - self.body.geometry.center
+
+    @property
+    def compact_name(self):
+        return f"v{self.index}"
 
 
 @dataclass
@@ -110,6 +120,10 @@ class ContactLocationFace(ContactLocation):
     def length(self):
         """Length of the face"""
         return np.linalg.norm(self.adj_vertices[1] - self.adj_vertices[0])
+
+    @property
+    def compact_name(self):
+        return f"f{self.halfspace_index}"
 
 
 # Utility functions

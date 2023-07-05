@@ -1,8 +1,10 @@
 from dataclasses import dataclass
+import matplotlib.pyplot as plt
 from enum import Enum
 import numpy as np
 from pydrake.all import MakeMatrixContinuousVariable
 from large_gcs.geometry.polyhedron import Polyhedron
+from copy import copy
 
 
 class MobilityType(Enum):
@@ -49,3 +51,31 @@ class RigidBody:
     @property
     def n_faces(self):
         return len(self.geometry.set.b())
+
+    def plot(self):
+        plt.rc("axes", axisbelow=True)
+        plt.gca().set_aspect("equal")
+        self.geometry.plot()
+        plt.text(*self.geometry.center, self.name, ha="center", va="center")
+        self._plot_vertices()
+        self._plot_face_labels()
+
+    def _plot_vertices(self, **kwargs):
+        for i in range(self.n_vertices):
+            plt.text(
+                *self._get_offset_pos(self.geometry.vertices[i]),
+                f"v{i}",
+                ha="center",
+                va="center",
+            )
+
+    def _plot_face_labels(self):
+        vertices = np.vstack([self.geometry.vertices, self.geometry.vertices[0]])
+        for i in range(self.n_faces):
+            mid = (vertices[i] + vertices[i + 1]) / 2
+            plt.text(*self._get_offset_pos(mid), f"f{i}", ha="center", va="center")
+
+    def _get_offset_pos(self, pos):
+        offset_dir = pos - self.geometry.center
+        offset_hat = offset_dir / np.linalg.norm(offset_dir)
+        return pos + offset_hat * 0.1
