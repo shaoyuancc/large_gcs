@@ -247,6 +247,15 @@ class Graph:
         """
         Add edges to the graph.
         """
+        assert len(us) == len(vs)
+        if costs is None:
+            costs = [None] * len(us)
+        else:
+            assert len(costs) == len(us)
+        if constraints is None:
+            constraints = [None] * len(us)
+        else:
+            assert len(constraints) == len(us)
 
         for u, v, cost_list, constraint_list in zip(us, vs, costs, constraints):
             self.add_edge(Edge(u, v, cost_list, constraint_list))
@@ -468,9 +477,9 @@ class Graph:
         return self.vertices[self.target_name]
 
     @property
-    def dimension(self):
-        assert len(set(V.convex_set.dimension for V in self.vertices.values())) == 1
-        return self.vertices[self.vertex_names[0]].convex_set.dimension
+    def dim(self):
+        assert len(set(V.convex_set.dim for V in self.vertices.values())) == 1
+        return self.vertices[self.vertex_names[0]].convex_set.dim
 
     @property
     def n_vertices(self):
@@ -483,7 +492,7 @@ class Graph:
     @property
     def params(self):
         return GraphParams(
-            dim=self.dimension,
+            dim=self.dim,
             n_vertices=self.n_vertices,
             n_edges=self.n_edges,
             source=self.source.convex_set.center,

@@ -4,7 +4,6 @@ by Tobia Marcucci, Jack Umenberger, Pablo A. Parrilo, Russ Tedrake.
 https://arxiv.org/abs/2101.11565
 """
 
-import numpy as np
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.geometry.ellipsoid import Ellipsoid
 from large_gcs.geometry.point import Point

@@ -16,3 +16,18 @@ def create_l2norm_squared_edge_cost(dim: int):
     c = 0
     edge_cost = QuadraticCost(Q, b, c)
     return edge_cost
+
+
+def create_l2norm_vertex_cost(dim: int):
+    A = np.eye(dim)
+    b = np.zeros((dim, 1))
+    edge_cost = L2NormCost(A, b)
+    return edge_cost
+
+
+def create_l2norm_squared_vertex_cost(dim: int):
+    Q = np.identity(dim)
+    b = np.zeros((dim, 1))
+    c = 0
+    edge_cost = QuadraticCost(Q, b, c)
+    return edge_cost
