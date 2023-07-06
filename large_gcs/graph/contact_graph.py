@@ -100,15 +100,19 @@ class ContactGraph(Graph):
         """Generates all possible edges given a set of contact sets."""
         print("Generating edges...(parallel)")
         with Pool() as pool:
-            prod = list(permutations(contact_set_ids, 2))
+            pairs = list(combinations(contact_set_ids, 2))
             sets = [
                 (self.vertices[u].convex_set.set, self.vertices[v].convex_set.set)
-                for u, v in prod
+                for u, v in pairs
             ]
             intersections = list(
                 tqdm(pool.imap(self._check_intersection, sets), total=len(sets))
             )
-            edges = [edge for edge, intersect in zip(prod, intersections) if intersect]
+            edges = []
+            for (u, v), intersect in zip(pairs, intersections):
+                if intersect:
+                    edges.append((u, v))
+                    edges.append((v, u))
         print(f"{len(edges)} edges generated")
         return edges
 
