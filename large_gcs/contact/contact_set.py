@@ -71,6 +71,10 @@ class ContactSet(ConvexSet):
 
         return polyhedron
 
+    @staticmethod
+    def flatten_set_vars(vars_pos):
+        return vars_pos.flatten()
+
     @property
     def id(self):
         return tuple([mode.id for mode in self.contact_pair_modes])

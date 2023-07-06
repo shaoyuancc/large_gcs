@@ -149,7 +149,8 @@ class Polyhedron(ConvexSet):
     @staticmethod
     def _has_equality_constraints(A, b):
         """Equality constraints are enforced by having one row in A and b be: ax ≤ b and another row be: -ax ≤ -b.
-        So checking if any pairs of rows add up to 0 tells us whether there are any equality constraints."""
+        So checking if any pairs of rows add up to 0 tells us whether there are any equality constraints.
+        """
         for (a1, b1), (a2, b2) in itertools.product(zip(A, b), zip(A, b)):
             if np.isclose(a1 + a2, [0] * len(a1)).all() and np.isclose(b1 + b2, 0):
                 return True

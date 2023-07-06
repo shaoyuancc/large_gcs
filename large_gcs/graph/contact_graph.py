@@ -3,6 +3,7 @@ from itertools import combinations, permutations, product
 from typing import List
 from pydrake.all import (
     Variables,
+    DecomposeLinearExpressions,
     DecomposeAffineExpressions,
     HPolyhedron,
     Formula,
@@ -28,6 +29,7 @@ from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.point import Point
 from large_gcs.graph.cost_factory import create_l2norm_edge_cost
+from large_gcs.graph.contact_cost_constraint_factory import ContactCostConstraintFactory
 from large_gcs.graph.graph import DefaultGraphCostsConstraints, Graph, Vertex, Edge
 
 
@@ -37,7 +39,19 @@ class ContactGraph(Graph):
         static_obstacles: List[RigidBody],
         unactuated_objects: List[RigidBody],
         actuated_robots: List[RigidBody],
+        source_pos_objs: List[np.ndarray],
+        source_pos_robs: List[np.ndarray],
+        target_pos_objs: List[np.ndarray],
+        target_pos_robs: List[np.ndarray],
     ):
+        """
+        Args:
+            static_obstacles: List of static obstacles.
+            unactuated_objects: List of unactuated objects.
+            actuated_robots: List of actuated robots.
+            initial_positions: List of initial positions of.
+        """
+        # Note: The order of operations in this constructor is important
         self.vertices = {}
         self.edges = {}
         self._source_name = None
@@ -62,39 +76,56 @@ class ContactGraph(Graph):
         self.objects = unactuated_objects
         self.robots = actuated_robots
 
+        self.source_pos = source_pos_objs + source_pos_robs
+        self.target_pos = target_pos_objs + target_pos_robs
+
         self._collect_all_variables()
         sets, set_ids = self._generate_contact_sets()
-        print(f"sets dim {sets[0].dim}")
+
+        # Assign costs and constraints
+        cc_factory = ContactCostConstraintFactory(self.vars_pos)
         self._default_costs_constraints = DefaultGraphCostsConstraints(
-            edge_costs=[create_l2norm_edge_cost(sets[0].dim)],
-            # vertex_costs=[create_l2norm_cost(sets[0].dim)]
+            vertex_costs=[cc_factory.vertex_cost_position_path_length()],
+            vertex_constraints=[],
+            edge_costs=[],
+            edge_constraints=[cc_factory.edge_constraint_position_continuity()],
         )
+
+        sets += [
+            self._create_point_set_from_positions(source_pos_objs, source_pos_robs),
+            self._create_point_set_from_positions(target_pos_objs, target_pos_robs),
+        ]
+        set_ids += ["s", "t"]
+
         # Add convex sets to graph (Need to do this before generating edges)
         self.add_vertices_from_sets(sets, names=set_ids)
+        self.set_source("s")
+        self.set_target("t")
 
-        # TODO: Implement source and target configs
-        # sets += [Point(source_coords), Point(target_coords)]
-        # set_ids += ["s", "t"]
         edges = self._generate_contact_graph_edges(set_ids)
-
         self.add_edges_from_vertex_names(*zip(*edges))
-        self.set_source(set_ids[0])
-        self.set_target(set_ids[-1])
-        print(f"The source is {self.source_name}")
-        print(f"The target is {self.target_name}")
 
-    ### COST CREATION ###
-    def _create_position_path_length_vertex_cost(self) -> L2NormCost:
-        pass
+        # Check that the source and target are reachable
+        assert (
+            len(self.outgoing_edges(self.source_name)) > 0
+        ), "Source does not overlap with any other set"
+        assert (
+            len(self.incoming_edges(self.target_name)) > 0
+        ), "Target is not reachable from any other set"
 
     ### SET & EDGE CREATION ###
     def _create_point_set_from_positions(self, obj_positions, rob_positions):
         """Creates a point set from a list of object positions and robot positions"""
         assert len(obj_positions) == len(self.objects)
         assert len(rob_positions) == len(self.robots)
-        raise NotImplementedError
-        positions = obj_positions + rob_positions
-        return Point(positions)
+        positions = np.array(obj_positions + rob_positions)
+        # Check that all object and robot positions have the same dimension
+        assert len(set([pos.shape[0] for pos in positions])) == 1
+        assert positions.shape[1] == self.robots[0].dim
+        # Repeat each position for the number of position points per set
+        coords = np.repeat(positions, self.robots[0].n_pos_points)
+        # Note: if more variables are added to the set, e.g. forces this will need to be updated
+        return Point(coords)
 
     def _generate_contact_graph_edges(self, contact_set_ids: List[str]):
         """Generates all possible edges given a set of contact sets."""
@@ -193,8 +224,12 @@ class ContactGraph(Graph):
         self.vars_pos = np.concatenate(
             [body.vars_pos for body in self.objects + self.robots]
         )
+        # All the decision variables for a single vertex
+        self.vars_all = ContactSet.flatten_set_vars(self.vars_pos)
 
-        self.vars_all = self.vars_pos.flatten()
-
-        print(f"vars_pos shape {self.vars_pos.shape}")
-        print(f"vars_all shape {self.vars_all.shape}")
+    @property
+    def params(self):
+        params = super().params
+        params.source = self.source_pos
+        params.target = self.target_pos
+        return params
