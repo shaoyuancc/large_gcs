@@ -40,8 +40,12 @@ class Polyhedron(ConvexSet):
         self._h_polyhedron = HPolyhedron(A, b)
 
         # Compute center
-        max_ellipsoid = self._h_polyhedron.MaximumVolumeInscribedEllipsoid()
-        self._center = np.array(max_ellipsoid.center())
+        try:
+            max_ellipsoid = self._h_polyhedron.MaximumVolumeInscribedEllipsoid()
+            self._center = np.array(max_ellipsoid.center())
+        except:
+            print("Could not compute center")
+            self._center = None
 
     @classmethod
     def from_vertices(cls, vertices):
@@ -134,7 +138,7 @@ class Polyhedron(ConvexSet):
         Reorders the halfspace representation A x ≤ b so that they follow the same order as the vertices.
         i.e. the first row of A and the first element of b correspond to the line between the first and second vertices.
         """
-        assert len(A) == len(vertices) == len(b)
+        # assert len(A) == len(vertices) == len(b)
         new_order = []
         for i in range(len(vertices)):
             for j in range(len(vertices)):

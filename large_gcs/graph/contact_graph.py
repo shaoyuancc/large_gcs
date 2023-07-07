@@ -111,11 +111,11 @@ class ContactGraph(Graph):
             vertex_constraints=[],
             edge_costs=[
                 cc_factory.edge_cost_constant(),
-                cc_factory.edge_costs_position_continuity_norm(),
+                # cc_factory.edge_costs_position_continuity_norm(),
             ],
             edge_constraints=[
-                # *cc_factory.edge_constraint_position_continuity(),
-                cc_factory.edge_constraint_position_continuity_linearconstraint(),
+                cc_factory.edge_constraint_position_continuity(),
+                # cc_factory.edge_constraint_position_continuity_linearconstraint(),
             ],
         )
         self.cc_factory = cc_factory
