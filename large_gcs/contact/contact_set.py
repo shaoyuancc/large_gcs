@@ -1,5 +1,6 @@
 import numpy as np
 import itertools
+import matplotlib.pyplot as plt
 from typing import List
 from pydrake.all import (
     Variables,

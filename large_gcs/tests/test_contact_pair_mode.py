@@ -36,20 +36,20 @@ def test_create_static_face_movable_face_signed_dist_surrog_square():
     )
 
     vals = [1.5, 0]
-    for expr, vars in zip(exprs, body_b.vars_pos):
+    for expr, vars in zip(exprs, body_b.vars_pos.T):
         assert expr.is_polynomial()
         env = dict(zip(vars, vals))
         dist_surrog = expr.Evaluate(env)
         assert np.isclose(dist_surrog, 0)
 
     vals = [15, 11]
-    for expr, vars in zip(exprs, body_b.vars_pos):
+    for expr, vars in zip(exprs, body_b.vars_pos.T):
         env = dict(zip(vars, vals))
         dist_surrog = expr.Evaluate(env)
         assert dist_surrog > 0
 
     vals = [-1, 11]
-    for expr, vars in zip(exprs, body_b.vars_pos):
+    for expr, vars in zip(exprs, body_b.vars_pos.T):
         env = dict(zip(vars, vals))
         dist_surrog = expr.Evaluate(env)
         assert dist_surrog < 0
@@ -75,20 +75,20 @@ def test_create_static_face_movable_face_signed_dist_surrog_triangle():
         contact_loc_a, contact_loc_b
     )
     vals = body_b.geometry.center
-    for expr, vars in zip(exprs, body_b.vars_pos):
+    for expr, vars in zip(exprs, body_b.vars_pos.T):
         assert expr.is_polynomial()
         env = dict(zip(vars, vals))
         dist_surrog = expr.Evaluate(env)
         assert np.isclose(dist_surrog, 0)
 
     vals = body_b.geometry.center + np.array([1, 1])
-    for expr, vars in zip(exprs, body_b.vars_pos):
+    for expr, vars in zip(exprs, body_b.vars_pos.T):
         env = dict(zip(vars, vals))
         dist_surrog = expr.Evaluate(env)
         assert dist_surrog > 0
 
     vals = body_b.geometry.center + np.array([-1, -1])
-    for expr, vars in zip(exprs, body_b.vars_pos):
+    for expr, vars in zip(exprs, body_b.vars_pos.T):
         env = dict(zip(vars, vals))
         dist_surrog = expr.Evaluate(env)
         assert dist_surrog < 0
@@ -137,20 +137,20 @@ def test_create_static_face_movable_vertex_signed_dist_surrog_square():
             contact_loc_a, contact_loc_b
         )
         vals = [1.5, 0]
-        for expr, vars in zip(exprs, body_b.vars_pos):
+        for expr, vars in zip(exprs, body_b.vars_pos.T):
             assert expr.is_polynomial()
             env = dict(zip(vars, vals))
             dist_surrog = expr.Evaluate(env)
             assert np.isclose(dist_surrog, 0)
 
         vals = [15, 11]
-        for expr, vars in zip(exprs, body_b.vars_pos):
+        for expr, vars in zip(exprs, body_b.vars_pos.T):
             env = dict(zip(vars, vals))
             dist_surrog = expr.Evaluate(env)
             assert dist_surrog > 0
 
         vals = [-1, 11]
-        for expr, vars in zip(exprs, body_b.vars_pos):
+        for expr, vars in zip(exprs, body_b.vars_pos.T):
             env = dict(zip(vars, vals))
             dist_surrog = expr.Evaluate(env)
             assert dist_surrog < 0
@@ -178,20 +178,20 @@ def test_create_static_vert_movable_face_signed_dist_surrog_square():
             contact_loc_a, contact_loc_b
         )
         vals = [1.5, 0]
-        for expr, vars in zip(exprs, body_b.vars_pos):
+        for expr, vars in zip(exprs, body_b.vars_pos.T):
             assert expr.is_polynomial()
             env = dict(zip(vars, vals))
             dist_surrog = expr.Evaluate(env)
             assert np.isclose(dist_surrog, 0)
 
         vals = [15, 11]
-        for expr, vars in zip(exprs, body_b.vars_pos):
+        for expr, vars in zip(exprs, body_b.vars_pos.T):
             env = dict(zip(vars, vals))
             dist_surrog = expr.Evaluate(env)
             assert dist_surrog > 0
 
         vals = [-1, 11]
-        for expr, vars in zip(exprs, body_b.vars_pos):
+        for expr, vars in zip(exprs, body_b.vars_pos.T):
             env = dict(zip(vars, vals))
             dist_surrog = expr.Evaluate(env)
             assert dist_surrog < 0
@@ -215,7 +215,7 @@ def test_create_movable_face_face_signed_dist_surrog_triangle():
         contact_loc_a, contact_loc_b
     )
     vals = np.hstack((body_a.geometry.center, body_b.geometry.center))
-    exprs_vars = zip(exprs, np.hstack((body_a.vars_pos, body_b.vars_pos)))
+    exprs_vars = zip(exprs, np.hstack((body_a.vars_pos.T, body_b.vars_pos.T)))
 
     for expr, vars in exprs_vars:
         assert expr.is_polynomial()
@@ -258,7 +258,7 @@ def test_create_movable_face_vert_signed_dist_surrog_triangle():
         contact_loc_a, contact_loc_b
     )
     vals = np.hstack((body_a.geometry.center, body_b.geometry.center))
-    exprs_vars = zip(exprs, np.hstack((body_a.vars_pos, body_b.vars_pos)))
+    exprs_vars = zip(exprs, np.hstack((body_a.vars_pos.T, body_b.vars_pos.T)))
 
     for expr, vars in exprs_vars:
         assert expr.is_polynomial()
@@ -305,7 +305,45 @@ def test_create_static_face_movable_face_horizontal_bounds_square():
     x_vals = [1.5] * 20
     vals_list = list(zip(x_vals, y_vals))
     for vals in vals_list:
-        vars = body_b.vars_pos.flatten()
+        vars = body_b.vars_pos.T.flatten()
         env = dict(zip(vars, vals * body_b.n_pos_points))
         for formula in formulas:
             assert formula.item().Evaluate(env)
+
+
+def test_create_static_vertex_movable_face_horizontal_bounds_triangle():
+    body_a = RigidBody(
+        "obj_a",
+        Polyhedron.from_vertices([[0, 0], [1, 0], [0, -1]]),
+        MobilityType.STATIC,
+    )
+    body_b = RigidBody(
+        "obj_b",
+        Polyhedron.from_vertices([[-1, -1], [-1.5, -0.5], [-1.2, -1.5]]),
+        MobilityType.UNACTUATED,
+    )
+    # First
+    contact_loc_a = ContactLocationVertex(body_a, 0)
+    contact_loc_b = ContactLocationFace(body_b, 0)
+
+    formulas = create_static_vert_movable_face_horizontal_bounds_formulas(
+        contact_loc_a, contact_loc_b
+    )
+    vals = [-0.63333045, -0.59998453]
+    vars = body_b.vars_pos.T.flatten()
+    env = dict(zip(vars, vals * body_b.n_pos_points))
+    res = [formula.item().Evaluate(env) for formula in formulas]
+    assert not all(res)
+
+    # Second
+    contact_loc_a = ContactLocationVertex(body_a, 2)
+    contact_loc_b = ContactLocationFace(body_b, 2)
+
+    formulas = create_static_vert_movable_face_horizontal_bounds_formulas(
+        contact_loc_a, contact_loc_b
+    )
+    vals = [0.12666955, 0.90001547]
+    vars = body_b.vars_pos.T.flatten()
+    env = dict(zip(vars, vals * body_b.n_pos_points))
+    res = [formula.item().Evaluate(env) for formula in formulas]
+    assert not all(res)

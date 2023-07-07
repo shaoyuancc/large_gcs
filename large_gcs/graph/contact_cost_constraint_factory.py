@@ -10,6 +10,7 @@ from pydrake.all import (
     LinearCost,
     QuadraticCost,
     LinearEqualityConstraint,
+    LinearConstraint,
 )
 from large_gcs.contact.contact_set import ContactSet
 
@@ -76,6 +77,21 @@ class ContactCostConstraintFactory:
         b = constant_cost
         return LinearCost(a, b)
 
+    def edge_costs_position_continuity_norm(
+        self, linear_scaling: float = 100
+    ) -> L2NormCost:
+        # Get the last position in u and first position in v
+        u_last_pos = self.u_vars_pos[:, :, -1]
+        v_first_pos = self.v_vars_pos[:, :, 0]
+
+        exprs = (u_last_pos - v_first_pos).flatten() * linear_scaling
+        # print(f"u_last_pos: {u_last_pos}")
+        # print(f"v_first_pos: {v_first_pos}")
+        print(f"edge_costs_position_continuity_norm exprs: {exprs}")
+        A = DecomposeLinearExpressions(exprs, self.uv_vars_all)
+        b = np.zeros(A.shape[0])
+        return L2NormCost(A, b)
+
     ### EDGE CONSTRAINT CREATION ###
 
     def edge_constraint_position_continuity(self) -> List[LinearEqualityConstraint]:
@@ -110,3 +126,21 @@ class ContactCostConstraintFactory:
         # b = np.zeros((A.shape[0],1))
         print(f"constraints: {constraints}")
         return constraints
+
+    def edge_constraint_position_continuity_linearconstraint(self) -> LinearConstraint:
+        """Creates a constraint that enforces position continuity between the last position in vertex u to
+        the first position in vertex v, given there's an edge from u to v. Since this is an edge constraint,
+        the decision variables will be those of both the u and v vertices.
+        """
+        # Get the last position in u and first position in v
+        u_last_pos = self.u_vars_pos[:, :, -1].flatten()
+        v_first_pos = self.v_vars_pos[:, :, 0].flatten()
+
+        exprs = u_last_pos - v_first_pos
+        print(f"edge_constraint_position_continuity_linearconstraint exprs: {exprs}")
+        A = DecomposeLinearExpressions(exprs, self.uv_vars_all)
+        tol = 1e-6
+        lb = np.ones((A.shape[0], 1)) * -tol
+        ub = np.ones((A.shape[0], 1)) * tol
+        print(f"A: {A}")
+        return LinearConstraint(A, lb, ub)

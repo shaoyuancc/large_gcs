@@ -355,7 +355,7 @@ def create_static_vert_movable_face_horizontal_bounds_formulas(
             p_Refleft=p_Mc + movable_face.p_CVleft,
             p_Refright=p_Mc + movable_face.p_CVright,
             p_Relv=static_vert.vertex,
-            rel_length=movable_face.length,
+            rel_length=0,
         )
     return formulas
 
@@ -417,9 +417,8 @@ def _face_horizontal_bounds_formulas(
     p_RefleftRelv_hat = p_RefleftRefright / ref_length
     p_RefleftRelv = p_Relv - p_Refleft
     # Project p_RefleftReleft onto p_RefleftRefright
-    dist = np.dot(
-        p_RefleftRelv, p_RefleftRelv_hat
-    )  # Symbolic expression in decision variables
+    # Symbolic expression in decision variables
+    dist = np.dot(p_RefleftRelv, p_RefleftRelv_hat)
     buff = buffer_ratio * ref_length
     lb = buff
     ub = ref_length + rel_length - buff

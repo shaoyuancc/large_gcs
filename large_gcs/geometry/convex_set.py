@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
+from pydrake.all import RandomGenerator
 
 
 class ConvexSet(ABC):
@@ -25,6 +26,19 @@ class ConvexSet(ABC):
         self._plot(**options)
         if mark_center:
             plt.scatter(*self.center, color="k", zorder=2)
+
+    def get_samples(self, n_samples=100):
+        samples = []
+        generator = RandomGenerator()
+        try:
+            samples.append(self.set.UniformSample(generator))
+            for i in range(n_samples - 1):
+                samples.append(
+                    self.set.UniformSample(generator, previous_sample=samples[-1])
+                )
+        except:
+            print("Warning: failed to sample convex set")
+        return samples
 
     @property
     @abstractmethod

@@ -109,9 +109,16 @@ class ContactGraph(Graph):
                 # cc_factory.vertex_cost_position_path_length_squared(),
             ],
             vertex_constraints=[],
-            edge_costs=[cc_factory.edge_cost_constant()],
-            edge_constraints=cc_factory.edge_constraint_position_continuity(),
+            edge_costs=[
+                cc_factory.edge_cost_constant(),
+                cc_factory.edge_costs_position_continuity_norm(),
+            ],
+            edge_constraints=[
+                # *cc_factory.edge_constraint_position_continuity(),
+                cc_factory.edge_constraint_position_continuity_linearconstraint(),
+            ],
         )
+        self.cc_factory = cc_factory
 
         sets += [
             self._create_point_set_from_positions(source_pos_objs, source_pos_robs),
@@ -145,8 +152,8 @@ class ContactGraph(Graph):
             v_first_pos = xv[:, :, 0].flatten()
             constraints = eq(u_last_pos, v_first_pos)
             for c in constraints:
+                print(f"Adding edge pos continuity constraint {c}")
                 edge.gcs_edge.AddConstraint(c)
-            # edge.gcs_edge.AddConstraint(eq(u_last_pos, v_first_pos))
 
     ### SET & EDGE CREATION ###
     def _create_point_set_from_positions(self, obj_positions, rob_positions):
@@ -269,6 +276,22 @@ class ContactGraph(Graph):
         """Post solve hook that is called after solving by the base graph class"""
         print("Post solve hook called...")
         _vertex_names, ambient_path = zip(*sol.path)
+        obj_pos_trajectories, rob_pos_trajectories = self.decompose_ambient_path(
+            ambient_path
+        )
+        self.contact_spp_sol = ContactShortestPathSolution(
+            obj_pos_trajectories, rob_pos_trajectories
+        )
+
+    @property
+    def params(self):
+        params = super().params
+        params.source = self.source_pos
+        params.target = self.target_pos
+        return params
+
+    def decompose_ambient_path(self, ambient_path):
+        """An ambient path is a list of vertices in the higher dimensional space"""
         base_dim = self.vars_pos.shape[1]
         n_pos_per_set = self.vars_pos.shape[2]
         obj_pos_trajectories = np.zeros(
@@ -281,7 +304,6 @@ class ContactGraph(Graph):
         rob_pos_trajectories = np.zeros(
             (self.n_robots, base_dim, len(ambient_path) * n_pos_per_set)
         )
-        print(f"ambient path: {np.array(ambient_path)}")
         for i, x in enumerate(ambient_path):
             x = x.reshape(self.vars_pos.shape)
             # print(f"x shape {x.shape}")
@@ -293,23 +315,30 @@ class ContactGraph(Graph):
             rob_pos_trajectories[:, :, i * n_pos_per_set : (i + 1) * n_pos_per_set] = x[
                 self.n_objects : self.n_objects + self.n_robots
             ]
-            # print(f"obj_pos_trajectories: {obj_pos_trajectories}")
-            # print(f"rob_pos_trajectories: {rob_pos_trajectories}")
+        return obj_pos_trajectories, rob_pos_trajectories
 
-        # print(f"obj_pos_trajectories shape {obj_pos_trajectories.shape}")
-        # print(obj_pos_trajectories)
-        # print(f"rob_pos_trajectories shape {rob_pos_trajectories.shape}")
-        # print(rob_pos_trajectories)
-        self.contact_spp_sol = ContactShortestPathSolution(
-            obj_pos_trajectories, rob_pos_trajectories
+    def plot_samples_in_set(self, set_name: str, n_samples: int = 100, **kwargs):
+        """Plots a single set"""
+        options = {"facecolor": "mintcream", "edgecolor": "k", "zorder": 1}
+        options.update(kwargs)
+        plt.axis("equal")
+        vertex = self.vertices[set_name]
+        samples = vertex.convex_set.get_samples(n_samples)
+        # print(samples)
+        obj_pos_trajectories, rob_pos_trajectories = self.decompose_ambient_path(
+            samples
         )
 
-    @property
-    def params(self):
-        params = super().params
-        params.source = self.source_pos
-        params.target = self.target_pos
-        return params
+        for j in range(len(samples)):
+            # Plot object trajectories
+            for i in range(obj_pos_trajectories.shape[0]):
+                self.objects[i].plot_at_position(obj_pos_trajectories[i, :, j])
+                print(f"obj_pos: {obj_pos_trajectories[i, :, j]}")
+            for i in range(rob_pos_trajectories.shape[0]):
+                self.robots[i].plot_at_position(rob_pos_trajectories[i, :, j])
+                print(f"rob_pos: {rob_pos_trajectories[i, :, j]}")
+        for obs in self.obstacles:
+            obs.plot()
 
     def plot_sets(self):
         raise NotImplementedError("Not sure how to visualize high dimensional sets")
