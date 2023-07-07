@@ -314,7 +314,16 @@ class Graph:
         )
         assert result.is_success()
 
-        return self._parse_result(result)
+        sol = self._parse_result(result)
+
+        # Optional post solve hook for subclasses
+        self._post_solve(sol)
+
+        return sol
+
+    def _post_solve(self, sol: ShortestPathSolution):
+        """Optional post solve hook for subclasses"""
+        pass
 
     def _parse_result(self, result: MathematicalProgramResult) -> ShortestPathSolution:
         cost = result.get_optimal_cost()

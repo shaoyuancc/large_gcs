@@ -1,6 +1,10 @@
 import numpy as np
+from dataclasses import dataclass
 from itertools import combinations, permutations, product
 from typing import List
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+
 from pydrake.all import (
     Variables,
     DecomposeLinearExpressions,
@@ -15,6 +19,7 @@ from pydrake.all import (
     Binding,
     MathematicalProgramResult,
     L2NormCost,
+    eq,
 )
 from tqdm import tqdm
 import time
@@ -30,7 +35,21 @@ from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.point import Point
 from large_gcs.graph.cost_factory import create_l2norm_edge_cost
 from large_gcs.graph.contact_cost_constraint_factory import ContactCostConstraintFactory
-from large_gcs.graph.graph import DefaultGraphCostsConstraints, Graph, Vertex, Edge
+from large_gcs.graph.graph import (
+    DefaultGraphCostsConstraints,
+    Graph,
+    ShortestPathSolution,
+    Vertex,
+    Edge,
+)
+
+
+@dataclass
+class ContactShortestPathSolution:
+    # shape: (n_objects, n_base_dimension, n_sets_in_path * n_pos_per_set)
+    object_pos_trajectories: np.ndarray
+    # shape: (n_robots, n_base_dimension, n_sets_in_path * n_pos_per_set)
+    robot_pos_trajectories: np.ndarray
 
 
 class ContactGraph(Graph):
@@ -85,10 +104,13 @@ class ContactGraph(Graph):
         # Assign costs and constraints
         cc_factory = ContactCostConstraintFactory(self.vars_pos)
         self._default_costs_constraints = DefaultGraphCostsConstraints(
-            vertex_costs=[cc_factory.vertex_cost_position_path_length()],
+            vertex_costs=[
+                cc_factory.vertex_cost_position_path_length(),
+                # cc_factory.vertex_cost_position_path_length_squared(),
+            ],
             vertex_constraints=[],
-            edge_costs=[],
-            edge_constraints=[cc_factory.edge_constraint_position_continuity()],
+            edge_costs=[cc_factory.edge_cost_constant()],
+            edge_constraints=cc_factory.edge_constraint_position_continuity(),
         )
 
         sets += [
@@ -113,11 +135,24 @@ class ContactGraph(Graph):
             len(self.incoming_edges(self.target_name)) > 0
         ), "Target is not reachable from any other set"
 
+        # self.add_edge_position_continuity_constraints()
+
+    def add_edge_position_continuity_constraints(self):
+        for edge in self.edges.values():
+            xu = edge.gcs_edge.xu().reshape(self.vars_pos.shape)
+            xv = edge.gcs_edge.xv().reshape(self.vars_pos.shape)
+            u_last_pos = xu[:, :, -1].flatten()
+            v_first_pos = xv[:, :, 0].flatten()
+            constraints = eq(u_last_pos, v_first_pos)
+            for c in constraints:
+                edge.gcs_edge.AddConstraint(c)
+            # edge.gcs_edge.AddConstraint(eq(u_last_pos, v_first_pos))
+
     ### SET & EDGE CREATION ###
     def _create_point_set_from_positions(self, obj_positions, rob_positions):
         """Creates a point set from a list of object positions and robot positions"""
-        assert len(obj_positions) == len(self.objects)
-        assert len(rob_positions) == len(self.robots)
+        assert len(obj_positions) == self.n_objects
+        assert len(rob_positions) == self.n_robots
         positions = np.array(obj_positions + rob_positions)
         # Check that all object and robot positions have the same dimension
         assert len(set([pos.shape[0] for pos in positions])) == 1
@@ -221,11 +256,53 @@ class ContactGraph(Graph):
         return non_empty_sets, non_empty_set_ids
 
     def _collect_all_variables(self):
-        self.vars_pos = np.concatenate(
-            [body.vars_pos for body in self.objects + self.robots]
-        )
+        self.vars_pos = np.array([body.vars_pos for body in self.objects + self.robots])
+
         # All the decision variables for a single vertex
         self.vars_all = ContactSet.flatten_set_vars(self.vars_pos)
+        print(f"vars_pos shape {self.vars_pos.shape}")
+        print(self.vars_pos)
+        print(f"vars_all shape {self.vars_all.shape}")
+        print(self.vars_all)
+
+    def _post_solve(self, sol):
+        """Post solve hook that is called after solving by the base graph class"""
+        print("Post solve hook called...")
+        _vertex_names, ambient_path = zip(*sol.path)
+        base_dim = self.vars_pos.shape[1]
+        n_pos_per_set = self.vars_pos.shape[2]
+        obj_pos_trajectories = np.zeros(
+            (
+                self.n_objects,
+                base_dim,
+                len(ambient_path) * n_pos_per_set,
+            )
+        )
+        rob_pos_trajectories = np.zeros(
+            (self.n_robots, base_dim, len(ambient_path) * n_pos_per_set)
+        )
+        print(f"ambient path: {np.array(ambient_path)}")
+        for i, x in enumerate(ambient_path):
+            x = x.reshape(self.vars_pos.shape)
+            # print(f"x shape {x.shape}")
+            # print(x)
+
+            obj_pos_trajectories[:, :, i * n_pos_per_set : (i + 1) * n_pos_per_set] = x[
+                : self.n_objects
+            ]
+            rob_pos_trajectories[:, :, i * n_pos_per_set : (i + 1) * n_pos_per_set] = x[
+                self.n_objects : self.n_objects + self.n_robots
+            ]
+            # print(f"obj_pos_trajectories: {obj_pos_trajectories}")
+            # print(f"rob_pos_trajectories: {rob_pos_trajectories}")
+
+        # print(f"obj_pos_trajectories shape {obj_pos_trajectories.shape}")
+        # print(obj_pos_trajectories)
+        # print(f"rob_pos_trajectories shape {rob_pos_trajectories.shape}")
+        # print(rob_pos_trajectories)
+        self.contact_spp_sol = ContactShortestPathSolution(
+            obj_pos_trajectories, rob_pos_trajectories
+        )
 
     @property
     def params(self):
@@ -233,3 +310,66 @@ class ContactGraph(Graph):
         params.source = self.source_pos
         params.target = self.target_pos
         return params
+
+    def plot_sets(self):
+        raise NotImplementedError("Not sure how to visualize high dimensional sets")
+
+    def plot_set_labels(self):
+        raise NotImplementedError("Not sure how to visualize high dimensional sets")
+
+    def plot_edges(self):
+        raise NotImplementedError("Not sure how to visualize high dimensional sets")
+
+    def plot_path(self):
+        assert self.contact_spp_sol is not None, "Must solve before plotting"
+        assert self.base_dim == 2, "Can only plot 2D paths"
+        # Get the number of time steps
+        sol = self.contact_spp_sol
+        n_time_steps = sol.object_pos_trajectories.shape[2]
+
+        # Create a color map
+        colors = cm.rainbow(np.linspace(0, 1, n_time_steps))
+        # Add a color bar
+        sm = plt.cm.ScalarMappable(
+            cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=n_time_steps)
+        )
+        # Create a new figure
+        plt.figure()
+
+        # Plot object trajectories
+        for i in range(sol.object_pos_trajectories.shape[0]):
+            for j in range(n_time_steps):
+                plt.scatter(*sol.object_pos_trajectories[i, :, j], color=colors[j])
+
+        plt.colorbar(sm)
+        plt.axis("equal")
+        # Show the plot
+        plt.grid()
+        plt.show()
+
+        # Plot robot trajectories
+        for i in range(sol.robot_pos_trajectories.shape[0]):
+            for j in range(n_time_steps):
+                plt.scatter(*sol.robot_pos_trajectories[i, :, j], color=colors[j])
+
+        plt.colorbar(sm)
+        plt.axis("equal")
+        # Show the plot
+        plt.grid()
+        plt.show()
+
+    @property
+    def n_obstacles(self):
+        return len(self.obstacles)
+
+    @property
+    def n_objects(self):
+        return len(self.objects)
+
+    @property
+    def n_robots(self):
+        return len(self.robots)
+
+    @property
+    def base_dim(self):
+        return self.vars_pos.shape[1]

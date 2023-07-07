@@ -2,9 +2,13 @@ import numpy as np
 from typing import List
 from pydrake.all import (
     Variable,
+    Polynomial,
+    DecomposeAffineExpressions,
     DecomposeLinearExpressions,
+    DecomposeQuadraticPolynomial,
     L2NormCost,
     LinearCost,
+    QuadraticCost,
     LinearEqualityConstraint,
 )
 from large_gcs.contact.contact_set import ContactSet
@@ -54,11 +58,18 @@ class ContactCostConstraintFactory:
         b = np.zeros(A.shape[0])
         return L2NormCost(A, b)
 
+    def vertex_cost_position_path_length_squared(self) -> QuadraticCost:
+        path_length = np.diff(self.vars_pos).flatten()
+        expr = np.dot(path_length, path_length)
+        var_map = {var.get_id(): i for i, var in enumerate(self.vars_all)}
+        Q, b, c = DecomposeQuadraticPolynomial(Polynomial(expr), var_map)
+        return QuadraticCost(Q, b, c)
+
     ### VERTEX CONSTRAINT CREATION ###
 
     ### EDGE COST CREATION ###
 
-    def edge_cost_constant(self, constant_cost: float = 10) -> LinearCost:
+    def edge_cost_constant(self, constant_cost: float = 1) -> LinearCost:
         """Creates a cost that penalizes each active edge a constant value."""
         # Linear cost of the form: a'x + b, where a is a vector of coefficients and b is a constant.
         a = np.zeros((self.uv_vars_all.size, 1))
@@ -67,17 +78,35 @@ class ContactCostConstraintFactory:
 
     ### EDGE CONSTRAINT CREATION ###
 
-    def edge_constraint_position_continuity(self) -> LinearEqualityConstraint:
+    def edge_constraint_position_continuity(self) -> List[LinearEqualityConstraint]:
         """Creates a constraint that enforces position continuity between the last position in vertex u to
         the first position in vertex v, given there's an edge from u to v. Since this is an edge constraint,
         the decision variables will be those of both the u and v vertices.
         """
         # Get the last position in u and first position in v
-        u_last_pos = self.u_vars_pos[:, -1]
-        v_first_pos = self.v_vars_pos[:, 0]
+        u_last_pos = self.u_vars_pos[:, :, -1]
+        v_first_pos = self.v_vars_pos[:, :, 0]
 
-        exprs = v_first_pos - u_last_pos
+        exprs_list = (u_last_pos - v_first_pos).reshape(-1, 1)
+        # print(f"u_last_pos: {u_last_pos}")
+        # print(f"v_first_pos: {v_first_pos}")
+        print(f"exprs: {exprs_list}")
+        # print(f"uv_vars_all.shape: {self.uv_vars_all.shape}")
+        # print(f"uv_vars_all: {self.uv_vars_all}")
         # Linear equality constraint of the form: Ax = b
-        A = DecomposeLinearExpressions(exprs, self.uv_vars_all)
-        b = np.zeros(A.shape[0])
-        return LinearEqualityConstraint(A, b)
+        constraints = []
+        # var_map = {v.get_id(): i for i, v in enumerate(self.uv_vars_all)}
+        for exprs in exprs_list:
+            print(f"exprs: {exprs}")
+            # A = DecomposeLinearExpressions(exprs, self.uv_vars_all)
+            # b = np.zeros((A.shape[0],1))
+            # print(f"linear A: {A}")
+            # print(f"b: {b}")
+            A, b = DecomposeAffineExpressions(exprs, self.uv_vars_all)
+            print(f"Affine A: {A}")
+            print(f"b: {b}")
+            constraints.append(LinearEqualityConstraint(A, b))
+        # A = DecomposeLinearExpressions(exprs, self.uv_vars_all)
+        # b = np.zeros((A.shape[0],1))
+        print(f"constraints: {constraints}")
+        return constraints

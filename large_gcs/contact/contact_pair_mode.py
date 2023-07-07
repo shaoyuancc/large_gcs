@@ -204,7 +204,7 @@ def create_static_face_movable_face_signed_dist_surrog_exprs(
     ), "Only valid for opposing faces"
 
     exprs = []
-    for p_Mc in movable_face.body.vars_pos:
+    for p_Mc in movable_face.body.vars_pos.T:
         dist_surrog = _plane_to_point_dist_surrog_exprs(
             normal=static_face.normal,
             p_plane_point=static_face.adj_vertices[0],
@@ -222,7 +222,7 @@ def create_static_face_movable_vert_signed_dist_surrog_exprs(
     assert static_face.body.dim == movable_vertex.body.dim
 
     exprs = []
-    for p_Mc in movable_vertex.body.vars_pos:
+    for p_Mc in movable_vertex.body.vars_pos.T:
         dist_surrog = _plane_to_point_dist_surrog_exprs(
             normal=static_face.normal,
             p_plane_point=static_face.adj_vertices[0],
@@ -240,7 +240,7 @@ def create_static_vert_movable_face_signed_dist_surrog_exprs(
     assert static_vert.body.dim == movable_face.body.dim
 
     exprs = []
-    for p_Mc in movable_face.body.vars_pos:
+    for p_Mc in movable_face.body.vars_pos.T:
         dist_surrog = _plane_to_point_dist_surrog_exprs(
             normal=movable_face.normal,
             p_plane_point=p_Mc + movable_face.p_CF,
@@ -262,7 +262,7 @@ def create_movable_face_face_signed_dist_surrog_exprs(
 
     exprs = []
     # p_Mca is position of (M)ovable (c)enter of body_(a)
-    for p_Mca, p_Mcb in zip(face_a.body.vars_pos, face_b.body.vars_pos):
+    for p_Mca, p_Mcb in zip(face_a.body.vars_pos.T, face_b.body.vars_pos.T):
         dist_surrog = _plane_to_point_dist_surrog_exprs(
             normal=face_a.normal,
             p_plane_point=p_Mca + face_a.p_CF,
@@ -281,7 +281,7 @@ def create_movable_face_vert_signed_dist_surrog_exprs(
 
     exprs = []
     # p_Mca is position of (M)ovable (c)enter of body_(a)
-    for p_Mca, p_Mcb in zip(face_a.body.vars_pos, vert_b.body.vars_pos):
+    for p_Mca, p_Mcb in zip(face_a.body.vars_pos.T, vert_b.body.vars_pos.T):
         dist_surrog = _plane_to_point_dist_surrog_exprs(
             normal=face_a.normal,
             p_plane_point=p_Mca + face_a.p_CF,
@@ -312,7 +312,7 @@ def create_static_face_movable_face_horizontal_bounds_formulas(
     ), "Only valid for opposing faces"
 
     formulas = []
-    for p_Mc in movable_face.body.vars_pos:
+    for p_Mc in movable_face.body.vars_pos.T:
         formulas += _face_horizontal_bounds_formulas(
             p_Refleft=static_face.adj_vertices[1],
             p_Refright=static_face.adj_vertices[0],
@@ -331,7 +331,7 @@ def create_static_face_movable_vert_horizontal_bounds_formulas(
     assert static_face.body.dim == movable_vert.body.dim
 
     formulas = []
-    for p_Mc in movable_vert.body.vars_pos:
+    for p_Mc in movable_vert.body.vars_pos.T:
         formulas += _face_horizontal_bounds_formulas(
             p_Refleft=static_face.adj_vertices[1],
             p_Refright=static_face.adj_vertices[0],
@@ -350,7 +350,7 @@ def create_static_vert_movable_face_horizontal_bounds_formulas(
     assert static_vert.body.dim == movable_face.body.dim
 
     formulas = []
-    for p_Mc in movable_face.body.vars_pos:
+    for p_Mc in movable_face.body.vars_pos.T:
         formulas += _face_horizontal_bounds_formulas(
             p_Refleft=p_Mc + movable_face.p_CVleft,
             p_Refright=p_Mc + movable_face.p_CVright,
@@ -370,7 +370,7 @@ def create_movable_face_face_horizontal_bounds_formulas(
         face_a.unit_normal, -face_b.unit_normal
     ), "Only valid for opposing faces"
     formulas = []
-    for p_Mca, p_Mcb in zip(face_a.body.vars_pos, face_b.body.vars_pos):
+    for p_Mca, p_Mcb in zip(face_a.body.vars_pos.T, face_b.body.vars_pos.T):
         formulas += _face_horizontal_bounds_formulas(
             p_Refleft=p_Mca + face_a.p_CVleft,
             p_Refright=p_Mca + face_a.p_CVright,
@@ -388,7 +388,7 @@ def create_movable_face_vert_horizontal_bounds_formulas(
     assert face.body.dim == vert.body.dim
 
     formulas = []
-    for p_Mca, p_Mcb in zip(face.body.vars_pos, vert.body.vars_pos):
+    for p_Mca, p_Mcb in zip(face.body.vars_pos.T, vert.body.vars_pos.T):
         formulas += _face_horizontal_bounds_formulas(
             p_Refleft=p_Mca + face.p_CVleft,
             p_Refright=p_Mca + face.p_CVright,
