@@ -4,6 +4,7 @@ from itertools import combinations, permutations, product
 from typing import List
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from matplotlib.animation import FFMpegWriter
 
 from pydrake.all import (
     Variables,
@@ -42,14 +43,16 @@ from large_gcs.graph.graph import (
     Vertex,
     Edge,
 )
+from large_gcs.algorithms.search_algorithm import AlgVisParams
 
 
 @dataclass
 class ContactShortestPathSolution:
-    # shape: (n_objects, n_base_dimension, n_sets_in_path * n_pos_per_set)
+    # shape: (n_objects, n_sets_in_path, n_pos_per_set, n_base_dimension)
     object_pos_trajectories: np.ndarray
-    # shape: (n_robots, n_base_dimension, n_sets_in_path * n_pos_per_set)
+    # shape: (n_robots, n_sets_in_path, n_pos_per_set, n_base_dimension)
     robot_pos_trajectories: np.ndarray
+    vertex_path: List[str]
 
 
 class ContactGraph(Graph):
@@ -62,6 +65,7 @@ class ContactGraph(Graph):
         source_pos_robs: List[np.ndarray],
         target_pos_objs: List[np.ndarray],
         target_pos_robs: List[np.ndarray],
+        workspace: np.ndarray = None,
     ):
         """
         Args:
@@ -76,7 +80,7 @@ class ContactGraph(Graph):
         self._source_name = None
         self._target_name = None
         self._default_costs_constraints = None
-        self.workspace = None
+        self.workspace = workspace
         self._gcs = GraphOfConvexSets()
 
         for thing in static_obstacles:
@@ -267,20 +271,20 @@ class ContactGraph(Graph):
 
         # All the decision variables for a single vertex
         self.vars_all = ContactSet.flatten_set_vars(self.vars_pos)
-        print(f"vars_pos shape {self.vars_pos.shape}")
-        print(self.vars_pos)
-        print(f"vars_all shape {self.vars_all.shape}")
-        print(self.vars_all)
+        # print(f"vars_pos shape {self.vars_pos.shape}")
+        # print(self.vars_pos)
+        # print(f"vars_all shape {self.vars_all.shape}")
+        # print(self.vars_all)
 
     def _post_solve(self, sol):
         """Post solve hook that is called after solving by the base graph class"""
-        print("Post solve hook called...")
-        _vertex_names, ambient_path = zip(*sol.path)
+        vertex_path, ambient_path = zip(*sol.path)
         obj_pos_trajectories, rob_pos_trajectories = self.decompose_ambient_path(
             ambient_path
         )
+
         self.contact_spp_sol = ContactShortestPathSolution(
-            obj_pos_trajectories, rob_pos_trajectories
+            obj_pos_trajectories, rob_pos_trajectories, vertex_path
         )
 
     @property
@@ -295,26 +299,20 @@ class ContactGraph(Graph):
         base_dim = self.vars_pos.shape[1]
         n_pos_per_set = self.vars_pos.shape[2]
         obj_pos_trajectories = np.zeros(
-            (
-                self.n_objects,
-                base_dim,
-                len(ambient_path) * n_pos_per_set,
-            )
+            (self.n_objects, len(ambient_path), n_pos_per_set, base_dim)
         )
         rob_pos_trajectories = np.zeros(
-            (self.n_robots, base_dim, len(ambient_path) * n_pos_per_set)
+            (self.n_robots, len(ambient_path), n_pos_per_set, base_dim)
         )
         for i, x in enumerate(ambient_path):
             x = x.reshape(self.vars_pos.shape)
             # print(f"x shape {x.shape}")
             # print(x)
 
-            obj_pos_trajectories[:, :, i * n_pos_per_set : (i + 1) * n_pos_per_set] = x[
-                : self.n_objects
-            ]
-            rob_pos_trajectories[:, :, i * n_pos_per_set : (i + 1) * n_pos_per_set] = x[
-                self.n_objects : self.n_objects + self.n_robots
-            ]
+            x_objs_pos_transposed = np.transpose(x[: self.n_objects], (0, 2, 1))
+            obj_pos_trajectories[:, i, :, :] = x_objs_pos_transposed
+            x_robs_pos_transposed = np.transpose(x[self.n_objects :], (0, 2, 1))
+            rob_pos_trajectories[:, i, :, :] = x_robs_pos_transposed
         return obj_pos_trajectories, rob_pos_trajectories
 
     def plot_samples_in_set(self, set_name: str, n_samples: int = 100, **kwargs):
@@ -332,11 +330,11 @@ class ContactGraph(Graph):
         for j in range(len(samples)):
             # Plot object trajectories
             for i in range(obj_pos_trajectories.shape[0]):
-                self.objects[i].plot_at_position(obj_pos_trajectories[i, :, j])
-                print(f"obj_pos: {obj_pos_trajectories[i, :, j]}")
+                self.objects[i].plot_at_position(obj_pos_trajectories[i, j])
+                # print(f"obj_pos: {obj_pos_trajectories[i, j]}")
             for i in range(rob_pos_trajectories.shape[0]):
-                self.robots[i].plot_at_position(rob_pos_trajectories[i, :, j])
-                print(f"rob_pos: {rob_pos_trajectories[i, :, j]}")
+                self.robots[i].plot_at_position(rob_pos_trajectories[i, j])
+                # print(f"rob_pos: {rob_pos_trajectories[i, j]}")
         for obs in self.obstacles:
             obs.plot()
 
@@ -354,7 +352,15 @@ class ContactGraph(Graph):
         assert self.base_dim == 2, "Can only plot 2D paths"
         # Get the number of time steps
         sol = self.contact_spp_sol
-        n_time_steps = sol.object_pos_trajectories.shape[2]
+        traj = np.reshape(
+            sol.robot_pos_trajectories,
+            (
+                sol.robot_pos_trajectories.shape[0],
+                -1,
+                sol.robot_pos_trajectories.shape[-1],
+            ),
+        )
+        n_time_steps = traj.shape[1]
 
         # Create a color map
         colors = cm.rainbow(np.linspace(0, 1, n_time_steps))
@@ -364,28 +370,119 @@ class ContactGraph(Graph):
         )
         # Create a new figure
         plt.figure()
-
-        # Plot object trajectories
-        for i in range(sol.object_pos_trajectories.shape[0]):
-            for j in range(n_time_steps):
-                plt.scatter(*sol.object_pos_trajectories[i, :, j], color=colors[j])
-
-        plt.colorbar(sm)
-        plt.axis("equal")
-        # Show the plot
-        plt.grid()
-        plt.show()
-
         # Plot robot trajectories
-        for i in range(sol.robot_pos_trajectories.shape[0]):
+        for i in range(traj.shape[0]):
             for j in range(n_time_steps):
-                plt.scatter(*sol.robot_pos_trajectories[i, :, j], color=colors[j])
+                plt.scatter(*traj[i, j], color=colors[j])
+
+        traj = np.reshape(
+            sol.object_pos_trajectories,
+            (
+                sol.object_pos_trajectories.shape[0],
+                -1,
+                sol.object_pos_trajectories.shape[-1],
+            ),
+        )
+        # Plot object trajectories
+        for i in range(traj.shape[0]):
+            for j in range(n_time_steps):
+                plt.scatter(*traj[i, j], color=colors[j])
 
         plt.colorbar(sm)
         plt.axis("equal")
         # Show the plot
         plt.grid()
         plt.show()
+
+    def animate_solution(self):
+        import matplotlib.patches as patches
+        import matplotlib.animation as animation
+
+        fig = plt.figure()
+        ax = plt.axes(xlim=self.workspace[0], ylim=self.workspace[1])
+        ax.set_aspect("equal")
+        # Process position trajectories
+        # remove duplicate positions
+        trajs, transition_map = self._interpolate_positions(self.contact_spp_sol)
+
+        bodies = self.objects + self.robots
+        label_text = [body.name for body in bodies]
+
+        polygons = [patches.Polygon(body.geometry.vertices) for body in bodies]
+        poly_offset = [
+            poly.get_xy() - body.geometry.center for poly, body in zip(polygons, bodies)
+        ]
+        labels = [
+            ax.text(*body.geometry.center, label)
+            for body, label in zip(bodies, label_text)
+        ]
+        vertex_annotation = ax.annotate(
+            transition_map[0],
+            xy=(0.95, 0.95),
+            xycoords="axes fraction",
+            ha="right",
+            va="top",
+        )
+        for poly in polygons:
+            ax.add_patch(poly)
+
+        def animate(i):
+            for j in range(len(bodies)):
+                polygons[j].set_xy(poly_offset[j] + trajs[i][j])
+                labels[j].set_position(trajs[i][j])
+                if i in transition_map:
+                    vertex_annotation.set_text(transition_map[i])
+            return polygons
+
+        # Plot static obstacles
+        for obs in self.obstacles:
+            obs.plot()
+
+        anim = animation.FuncAnimation(
+            fig, animate, frames=trajs.shape[0], interval=50, blit=True
+        )
+        return anim
+
+    @staticmethod
+    def _interpolate_positions(contact_sol, max_gap: float = 0.1):
+        # Input has shape (n_movable bodies, n_sets_in_path, n_pos_per_set, n_base_dim)
+        trajs_in = np.vstack(
+            (contact_sol.object_pos_trajectories, contact_sol.robot_pos_trajectories)
+        )
+        # print(f"trajs_in shape {trajs_in.shape}")
+        transition_map = {}
+        # Final list is going to have shape (n_steps, n_movable bodies (objects then robots), n_base_dim)
+        trajs_out = []
+        # Loop over n_sets_in_path
+        for n_set in range(trajs_in.shape[1]):
+            # Add in the first position
+            trajs_out.append(trajs_in[:, n_set, 0])
+            transition_map[len(trajs_out) - 1] = contact_sol.vertex_path[n_set]
+            # Loop over n_pos_per_set which is the third index in pos_traj
+            for n_pos in range(1, trajs_in.shape[2]):
+                # Loop over all the bodies
+                m_gap = 0
+                for n_body in range(trajs_in.shape[0]):
+                    gap = np.linalg.norm(
+                        trajs_in[n_body, n_set, n_pos]
+                        - trajs_in[n_body, n_set, n_pos - 1]
+                    )
+                    if gap > m_gap:
+                        m_gap = gap
+                # If the gap is larger than the max gap, interpolate
+                if m_gap > max_gap:
+                    # Number of segments for interpolation
+                    num_segments = int(np.ceil(m_gap / max_gap))
+                    # Generate interpolated positions
+                    for j in range(1, num_segments):
+                        interp_pos = (j / num_segments) * (
+                            trajs_in[:, n_set, n_pos] - trajs_in[:, n_set, n_pos - 1]
+                        ) + trajs_in[:, n_set, n_pos - 1]
+                        trajs_out.append(interp_pos)
+                else:
+                    trajs_out.append(trajs_in[:, n_set, n_pos])
+
+        return np.array(trajs_out), transition_map
 
     @property
     def n_obstacles(self):

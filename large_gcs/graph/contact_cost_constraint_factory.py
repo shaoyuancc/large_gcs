@@ -33,7 +33,7 @@ class ContactCostConstraintFactory:
                 ContactSet.flatten_set_vars(self.v_vars_pos),
             ]
         ).flatten()
-        print(f"self.uv_vars_all: {self.uv_vars_all}")
+        # print(f"self.uv_vars_all: {self.uv_vars_all}")
 
     @staticmethod
     def create_vars_from_template(
@@ -58,7 +58,7 @@ class ContactCostConstraintFactory:
         exprs = np.diff(self.vars_pos).flatten()
         A = DecomposeLinearExpressions(exprs, self.vars_all)
         b = np.zeros(A.shape[0])
-        print(f"vertex_cost_position_path_length A: {A}")
+        # print(f"vertex_cost_position_path_length A: {A}")
         return L2NormCost(A, b)
 
     def vertex_cost_position_path_length_squared(self) -> QuadraticCost:
@@ -89,7 +89,7 @@ class ContactCostConstraintFactory:
         exprs = (u_last_pos - v_first_pos).flatten() * linear_scaling
         # print(f"u_last_pos: {u_last_pos}")
         # print(f"v_first_pos: {v_first_pos}")
-        print(f"edge_costs_position_continuity_norm exprs: {exprs}")
+        # print(f"edge_costs_position_continuity_norm exprs: {exprs}")
         A = DecomposeLinearExpressions(exprs, self.uv_vars_all)
         b = np.zeros(A.shape[0])
         return L2NormCost(A, b)
@@ -112,8 +112,8 @@ class ContactCostConstraintFactory:
         # print(f"uv_vars_all: {self.uv_vars_all}")
         # Linear equality constraint of the form: Ax = b
         A, b = DecomposeAffineExpressions(exprs, self.uv_vars_all)
-        print(f"Affine A: {A}")
-        print(f"b: {b}")
+        # print(f"Affine A: {A}")
+        # print(f"b: {b}")
         return LinearEqualityConstraint(A, b)
 
     def edge_constraint_position_continuity_linearconstraint(self) -> LinearConstraint:
@@ -126,10 +126,10 @@ class ContactCostConstraintFactory:
         v_first_pos = self.v_vars_pos[:, :, 0].flatten()
 
         exprs = u_last_pos - v_first_pos
-        print(f"edge_constraint_position_continuity_linearconstraint exprs: {exprs}")
+        # print(f"edge_constraint_position_continuity_linearconstraint exprs: {exprs}")
         A = DecomposeLinearExpressions(exprs, self.uv_vars_all)
         tol = 1e-6
         lb = np.ones((A.shape[0], 1)) * -tol
         ub = np.ones((A.shape[0], 1)) * tol
-        print(f"A: {A}")
+        # print(f"A: {A}")
         return LinearConstraint(A, lb, ub)
