@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import itertools
 from large_gcs.geometry.geometry_utils import *
-from pydrake.all import Expression, Formula, ge, le, eq
+from pydrake.all import Variable, Expression, Formula, ge, le, eq
 from large_gcs.contact.rigid_body import RigidBody, MobilityType
 from large_gcs.contact.contact_location import (
     ContactLocation,
@@ -36,7 +36,7 @@ class ContactPairMode(ABC):
             self.body_a.mobility_type == MobilityType.STATIC
             and self.body_b.mobility_type == MobilityType.STATIC
         ), "Static-static contact does not need to be considered"
-
+        self._create_decision_vars()
         self.constraint_formulas = self._create_constraint_formulas()
 
     def plot(self, **kwargs):
@@ -45,6 +45,9 @@ class ContactPairMode(ABC):
 
     @abstractmethod
     def _create_constraint_formulas(self) -> List[Formula]:
+        pass
+
+    def _create_decision_vars(self):
         pass
 
     def _create_signed_dist_surrog_constraint_exprs(self) -> List[Expression]:
@@ -112,8 +115,6 @@ class NoContactPairMode(ContactPairMode):
         signed_dist_exprs = self._create_signed_dist_surrog_constraint_exprs()
         constraints += [ge(expr, 0) for expr in signed_dist_exprs]
 
-        # TODO: Force and Velocity Constraints
-
         return constraints
 
     @property
@@ -135,6 +136,15 @@ class InContactPairMode(ContactPairMode):
         self.contact_location_a.plot(**kwargs)
         self.contact_location_b.plot(**kwargs)
 
+    def _create_decision_vars(self):
+        # Magnitude of the forces from body_a to body_b and vice versa
+        self.vars_force_mag_AB = Variable(
+            f"{self.id}_force_mag_AB", type=Variable.Type.CONTINUOUS
+        )
+        self.vars_force_mag_BA = Variable(
+            f"{self.id}_force_mag_BA", type=Variable.Type.CONTINUOUS
+        )
+
     def _create_constraint_formulas(self):
         constraints = []
         # Position Constraints
@@ -142,9 +152,21 @@ class InContactPairMode(ContactPairMode):
         constraints += [eq(expr, 0) for expr in pos_exprs]
         constraints += self._create_horizontal_bounds_formulas()
 
-        # TODO: Force and Velocity Constraints
+        # Force Constraints
+        constraints += self._create_force_constraint_formulas()
 
         return constraints
+
+    def _create_force_constraint_formulas(self):
+        eps = 1e-3
+        formulas = []
+        # If one of the bodies is static, whatever force is being exerted on it, it exerts back with the same magnitude
+        if (
+            self.body_a.mobility_type == MobilityType.STATIC
+            or self.body_b.mobility_type == MobilityType.STATIC
+        ):
+            formulas.append(eq(self.vars_force_mag_AB, self.vars_force_mag_BA))
+        return formulas
 
     def _create_horizontal_bounds_formulas(self):
         formulas = []
@@ -190,6 +212,16 @@ class InContactPairMode(ContactPairMode):
     @property
     def compact_class_name(self):
         return "IC"
+
+    @property
+    def unit_normal(self):
+        """Unit contact normal from body_a to body_b"""
+        if isinstance(self.contact_location_a, ContactLocationFace):
+            return self.contact_location_a.unit_normal
+        elif isinstance(self.contact_location_a, ContactLocationVertex) and isinstance(
+            self.contact_location_b, ContactLocationFace
+        ):
+            return -self.contact_location_b.unit_normal
 
 
 def create_static_face_movable_face_signed_dist_surrog_exprs(

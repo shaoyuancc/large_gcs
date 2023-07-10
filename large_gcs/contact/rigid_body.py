@@ -2,7 +2,13 @@ from dataclasses import dataclass
 import matplotlib.pyplot as plt
 from enum import Enum
 import numpy as np
-from pydrake.all import MakeMatrixContinuousVariable
+from pydrake.all import (
+    MakeMatrixContinuousVariable,
+    MakeVectorContinuousVariable,
+    Variable,
+    eq,
+    ge,
+)
 from large_gcs.geometry.polyhedron import Polyhedron
 from copy import copy
 
@@ -25,6 +31,10 @@ class RigidBody:
         if self.geometry.dim != 2:
             raise NotImplementedError
 
+        self._create_decision_vars()
+        self._create_constraints()
+
+    def _create_decision_vars(self):
         if self.mobility_type != MobilityType.STATIC:
             # Decision variables for positions
             self.vars_pos = MakeMatrixContinuousVariable(
@@ -40,8 +50,39 @@ class RigidBody:
             self.vars_pos_x = self.vars_pos[0, :]
             self.vars_pos_y = self.vars_pos[1, :]
 
+            # Decision variables for forces
+            # Resultant force on the body
+            self.vars_force_res = MakeVectorContinuousVariable(
+                self.dim, self.name + "_force_res"
+            )
+            self.vars_force_res_vel_slack = Variable(
+                f"{self.name}_force_res_vel_slack",
+                type=Variable.Type.CONTINUOUS,
+            )
+
+            if self.mobility_type == MobilityType.ACTUATED:
+                self.vars_force_act = MakeVectorContinuousVariable(
+                    self.dim, self.name + "_force_act"
+                )
+
+    def _create_constraints(self):
+        constraints = []
+        if self.mobility_type != MobilityType.STATIC:
+            # Force constraints
+            for vel in self.vars_vel.T:
+                # Ensures that the resultant force is in the same direction as the velocity,
+                # and that the velocity is 0 if the resultant force is 0
+                constraints.append(
+                    eq(self.vars_force_res * self.vars_force_res_vel_slack, vel)
+                )
+
+            eps = 1e-3
+            # Ensure that the ratio between the resultant force and velocity is greater than a small positive constant
+            constraints.append(ge(self.vars_force_res_vel_slack, eps))
+
     @property
     def dim(self):
+        """Dimension of the underlying geometry of the body, not the dimension of the configuration space"""
         return self.geometry.dim
 
     @property

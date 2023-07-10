@@ -11,29 +11,30 @@ from pydrake.all import (
     QuadraticCost,
     LinearEqualityConstraint,
     LinearConstraint,
+    BoundingBoxConstraint,
 )
-from large_gcs.contact.contact_set import ContactSet
+from large_gcs.contact.contact_set import ContactSetDecisionVariables
 
 
 class ContactCostConstraintFactory:
-    def __init__(self, vars_pos):
+    def __init__(self, set_vars: ContactSetDecisionVariables):
         """We aren't actually using the variables, we are just using them as templates"""
         # Variables for a given vertex/set
-        self.vars_pos = vars_pos
-        self.vars_all = ContactSet.flatten_set_vars(vars_pos)
+        assert isinstance(set_vars, ContactSetDecisionVariables)
+        self.vars = set_vars
 
         # Create dummy variables for u and v vertices of an edge
-        self.u_vars_pos = self.create_vars_from_template(vars_pos, "u")
-        self.v_vars_pos = self.create_vars_from_template(vars_pos, "v")
+        u_vars_all = self.create_vars_from_template(self.vars.all, "u")
+        v_vars_all = self.create_vars_from_template(self.vars.all, "v")
+        self.u_vars_pos = ContactSetDecisionVariables.vars_pos_from_vars_all(
+            self.vars.pos, u_vars_all
+        )
+        self.v_vars_pos = ContactSetDecisionVariables.vars_pos_from_vars_all(
+            self.vars.pos, v_vars_all
+        )
 
         # Flatten vertex variables
-        self.uv_vars_all = np.array(
-            [
-                ContactSet.flatten_set_vars(self.u_vars_pos),
-                ContactSet.flatten_set_vars(self.v_vars_pos),
-            ]
-        ).flatten()
-        # print(f"self.uv_vars_all: {self.uv_vars_all}")
+        self.uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
 
     @staticmethod
     def create_vars_from_template(
@@ -52,23 +53,37 @@ class ContactCostConstraintFactory:
 
     def vertex_cost_position_path_length(self) -> L2NormCost:
         """Creates a vertex cost that penalizes the length of the path in position space.
-        self.vars_pos has shape (Euclidean/base dim, num positions/pos order per set)
+        self.vars.pos has shape (Euclidean/base dim, num positions/pos order per set)
         So to get the path length we need to diff over the second axis.
         """
-        exprs = np.diff(self.vars_pos).flatten()
-        A = DecomposeLinearExpressions(exprs, self.vars_all)
+        exprs = np.diff(self.vars.pos).flatten()
+        A = DecomposeLinearExpressions(exprs, self.vars.all)
         b = np.zeros(A.shape[0])
         # print(f"vertex_cost_position_path_length A: {A}")
         return L2NormCost(A, b)
 
     def vertex_cost_position_path_length_squared(self) -> QuadraticCost:
-        path_length = np.diff(self.vars_pos).flatten()
+        path_length = np.diff(self.vars.pos).flatten()
         expr = np.dot(path_length, path_length)
-        var_map = {var.get_id(): i for i, var in enumerate(self.vars_all)}
+        var_map = {var.get_id(): i for i, var in enumerate(self.vars.all)}
+        Q, b, c = DecomposeQuadraticPolynomial(Polynomial(expr), var_map)
+        return QuadraticCost(Q, b, c)
+
+    def vertex_cost_force_actuation_norm_squared(self) -> QuadraticCost:
+        """Creates a vertex cost that penalizes the magnitude of the force actuation squared."""
+        expr = np.dot(self.vars.force_act.flatten(), self.vars.force_act.flatten())
+        var_map = {var.get_id(): i for i, var in enumerate(self.vars.all)}
         Q, b, c = DecomposeQuadraticPolynomial(Polynomial(expr), var_map)
         return QuadraticCost(Q, b, c)
 
     ### VERTEX CONSTRAINT CREATION ###
+
+    def vertex_constraint_force_act_limits(
+        self, lb: np.ndarray, ub: np.ndarray
+    ) -> LinearConstraint:
+        """Creates a constraint that limits the magnitude of the force actuation in each dimension."""
+        assert self.vars.force_act.size > 0
+        raise NotImplementedError
 
     ### EDGE COST CREATION ###
 

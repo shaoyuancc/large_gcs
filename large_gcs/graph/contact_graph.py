@@ -5,11 +5,10 @@ from typing import List
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib.animation import FFMpegWriter
-
+from collections import defaultdict
 from pydrake.all import (
     Variables,
     DecomposeLinearExpressions,
-    DecomposeAffineExpressions,
     HPolyhedron,
     Formula,
     FormulaKind,
@@ -21,16 +20,18 @@ from pydrake.all import (
     MathematicalProgramResult,
     L2NormCost,
     eq,
+    ge,
+    Expression,
 )
 from tqdm import tqdm
 import time
 from multiprocessing import Pool
 
 from large_gcs.contact.contact_pair_mode import (
-    ContactPairMode,
+    InContactPairMode,
     generate_contact_pair_modes,
 )
-from large_gcs.contact.contact_set import ContactSet
+from large_gcs.contact.contact_set import ContactSet, ContactSetDecisionVariables
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.point import Point
@@ -81,6 +82,10 @@ class ContactGraph(Graph):
         self._target_name = None
         self._default_costs_constraints = None
         self.workspace = workspace
+        self.vars = None
+        self.obstacles = None
+        self.objects = None
+        self.robots = None
         self._gcs = GraphOfConvexSets()
 
         for thing in static_obstacles:
@@ -102,15 +107,15 @@ class ContactGraph(Graph):
         self.source_pos = source_pos_objs + source_pos_robs
         self.target_pos = target_pos_objs + target_pos_robs
 
-        self._collect_all_variables()
         sets, set_ids = self._generate_contact_sets()
 
         # Assign costs and constraints
-        cc_factory = ContactCostConstraintFactory(self.vars_pos)
+        cc_factory = ContactCostConstraintFactory(self.vars)
         self._default_costs_constraints = DefaultGraphCostsConstraints(
             vertex_costs=[
                 cc_factory.vertex_cost_position_path_length(),
                 # cc_factory.vertex_cost_position_path_length_squared(),
+                cc_factory.vertex_cost_force_actuation_norm_squared(),
             ],
             vertex_constraints=[],
             edge_costs=[
@@ -146,19 +151,6 @@ class ContactGraph(Graph):
             len(self.incoming_edges(self.target_name)) > 0
         ), "Target is not reachable from any other set"
 
-        # self.add_edge_position_continuity_constraints()
-
-    def add_edge_position_continuity_constraints(self):
-        for edge in self.edges.values():
-            xu = edge.gcs_edge.xu().reshape(self.vars_pos.shape)
-            xv = edge.gcs_edge.xv().reshape(self.vars_pos.shape)
-            u_last_pos = xu[:, :, -1].flatten()
-            v_first_pos = xv[:, :, 0].flatten()
-            constraints = eq(u_last_pos, v_first_pos)
-            for c in constraints:
-                print(f"Adding edge pos continuity constraint {c}")
-                edge.gcs_edge.AddConstraint(c)
-
     ### SET & EDGE CREATION ###
     def _create_point_set_from_positions(self, obj_positions, rob_positions):
         """Creates a point set from a list of object positions and robot positions"""
@@ -169,8 +161,15 @@ class ContactGraph(Graph):
         assert len(set([pos.shape[0] for pos in positions])) == 1
         assert positions.shape[1] == self.robots[0].dim
         # Repeat each position for the number of position points per set
-        coords = np.repeat(positions, self.robots[0].n_pos_points)
-        # Note: if more variables are added to the set, e.g. forces this will need to be updated
+        pos_repeated_flattened = np.repeat(
+            positions, self.robots[0].n_pos_points
+        ).flatten()
+        # Assume all other decision variables are zero (forces)
+        coords = np.pad(
+            pos_repeated_flattened,
+            (0, self.vars.all.size - pos_repeated_flattened.size),
+            mode="constant",
+        )
         return Point(coords)
 
     def _generate_contact_graph_edges(self, contact_set_ids: List[str]):
@@ -238,17 +237,70 @@ class ContactGraph(Graph):
         mode_ids_to_mode = {
             mode.id: mode for modes in body_pair_to_modes.values() for mode in modes
         }
+        in_contact_pair_modes = [
+            mode
+            for mode in mode_ids_to_mode.values()
+            if isinstance(mode, InContactPairMode)
+        ]
+
+        # print(f"in_contact_pair_modes: {np.array([mode.id for mode in in_contact_pair_modes])}")
+
+        self.vars = ContactSetDecisionVariables(
+            self.objects, self.robots, in_contact_pair_modes
+        )
+
         # Each set is the cartesian product of the modes for each object pair
         set_ids = list(product(*body_pair_to_mode_names.values()))
 
-        # all_variables = [body.vars_pos for body in  unactuated_objects+actuated_robots]
-        # print(f"all_variables shape {np.array(all_variables).shape}")
-        # print(all_variables)
+        # Set force constraints
+        set_force_constraints_dict = defaultdict(list)
+        eps = 1e-3
+
+        for set_id in set_ids:
+            for in_contact_mode in in_contact_pair_modes:
+                # Enforce the active forces to be greater than a small constant
+                if in_contact_mode.id in set_id:
+                    # If bodies A and B are in contact, A must be exerting some positive force on B, and vice versa
+                    set_force_constraints_dict[set_id] += [
+                        ge(in_contact_mode.vars_force_mag_AB, eps).item(),
+                        ge(in_contact_mode.vars_force_mag_BA, eps).item(),
+                    ]
+                else:
+                    # Bodies not incontact must not exert any force on each other
+                    set_force_constraints_dict[set_id] += [
+                        eq(in_contact_mode.vars_force_mag_AB, 0).item(),
+                        eq(in_contact_mode.vars_force_mag_BA, 0).item(),
+                    ]
+
+            # Collect the forces acting on each body
+            body_force_sums = defaultdict(
+                lambda: np.full((self.base_dim,), Expression())
+            )
+            for mode_id in set_id:
+                mode = mode_ids_to_mode[mode_id]
+                if isinstance(mode, InContactPairMode):
+                    body_force_sums[mode.body_a.name] += (
+                        -mode.unit_normal * mode.vars_force_mag_BA
+                    )
+                    body_force_sums[mode.body_b.name] += (
+                        mode.unit_normal * mode.vars_force_mag_AB
+                    )
+
+            for body_name in movable:
+                set_force_constraints_dict[set_id].extend(
+                    eq(
+                        body_dict[body_name].vars_force_res, body_force_sums[body_name]
+                    ).tolist()
+                )
 
         print(f"Generating contact sets for {len(set_ids)} sets...")
 
         all_contact_sets = [
-            ContactSet([mode_ids_to_mode[mode_id] for mode_id in set_id], self.vars_all)
+            ContactSet(
+                [mode_ids_to_mode[mode_id] for mode_id in set_id],
+                set_force_constraints_dict[set_id],
+                self.vars.all,
+            )
             for set_id in tqdm(set_ids)
         ]
 
@@ -265,16 +317,6 @@ class ContactGraph(Graph):
         )
 
         return non_empty_sets, non_empty_set_ids
-
-    def _collect_all_variables(self):
-        self.vars_pos = np.array([body.vars_pos for body in self.objects + self.robots])
-
-        # All the decision variables for a single vertex
-        self.vars_all = ContactSet.flatten_set_vars(self.vars_pos)
-        # print(f"vars_pos shape {self.vars_pos.shape}")
-        # print(self.vars_pos)
-        # print(f"vars_all shape {self.vars_all.shape}")
-        # print(self.vars_all)
 
     def _post_solve(self, sol):
         """Post solve hook that is called after solving by the base graph class"""
@@ -296,16 +338,15 @@ class ContactGraph(Graph):
 
     def decompose_ambient_path(self, ambient_path):
         """An ambient path is a list of vertices in the higher dimensional space"""
-        base_dim = self.vars_pos.shape[1]
-        n_pos_per_set = self.vars_pos.shape[2]
+        n_pos_per_set = self.vars.pos.shape[2]
         obj_pos_trajectories = np.zeros(
-            (self.n_objects, len(ambient_path), n_pos_per_set, base_dim)
+            (self.n_objects, len(ambient_path), n_pos_per_set, self.base_dim)
         )
         rob_pos_trajectories = np.zeros(
-            (self.n_robots, len(ambient_path), n_pos_per_set, base_dim)
+            (self.n_robots, len(ambient_path), n_pos_per_set, self.base_dim)
         )
         for i, x in enumerate(ambient_path):
-            x = x.reshape(self.vars_pos.shape)
+            x = ContactSetDecisionVariables.vars_pos_from_vars_all(self.vars.pos, x)
             # print(f"x shape {x.shape}")
             # print(x)
 
@@ -350,43 +391,45 @@ class ContactGraph(Graph):
     def plot_path(self):
         assert self.contact_spp_sol is not None, "Must solve before plotting"
         assert self.base_dim == 2, "Can only plot 2D paths"
-        # Get the number of time steps
         sol = self.contact_spp_sol
-        traj = np.reshape(
-            sol.robot_pos_trajectories,
-            (
-                sol.robot_pos_trajectories.shape[0],
-                -1,
-                sol.robot_pos_trajectories.shape[-1],
-            ),
-        )
-        n_time_steps = traj.shape[1]
-
-        # Create a color map
-        colors = cm.rainbow(np.linspace(0, 1, n_time_steps))
-        # Add a color bar
-        sm = plt.cm.ScalarMappable(
-            cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=n_time_steps)
-        )
         # Create a new figure
         plt.figure()
-        # Plot robot trajectories
-        for i in range(traj.shape[0]):
-            for j in range(n_time_steps):
-                plt.scatter(*traj[i, j], color=colors[j])
+        if sol.robot_pos_trajectories.size > 0:
+            traj = np.reshape(
+                sol.robot_pos_trajectories,
+                (
+                    sol.robot_pos_trajectories.shape[0],
+                    -1,
+                    sol.robot_pos_trajectories.shape[-1],
+                ),
+            )
+            n_time_steps = traj.shape[1]
 
-        traj = np.reshape(
-            sol.object_pos_trajectories,
-            (
-                sol.object_pos_trajectories.shape[0],
-                -1,
-                sol.object_pos_trajectories.shape[-1],
-            ),
-        )
-        # Plot object trajectories
-        for i in range(traj.shape[0]):
-            for j in range(n_time_steps):
-                plt.scatter(*traj[i, j], color=colors[j])
+            # Create a color map
+            colors = cm.rainbow(np.linspace(0, 1, n_time_steps))
+            # Add a color bar
+            sm = plt.cm.ScalarMappable(
+                cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=n_time_steps)
+            )
+
+            # Plot robot trajectories
+            for i in range(traj.shape[0]):
+                for j in range(n_time_steps):
+                    plt.scatter(*traj[i, j], color=colors[j])
+
+        if sol.object_pos_trajectories.size > 0:
+            traj = np.reshape(
+                sol.object_pos_trajectories,
+                (
+                    sol.object_pos_trajectories.shape[0],
+                    -1,
+                    sol.object_pos_trajectories.shape[-1],
+                ),
+            )
+            # Plot object trajectories
+            for i in range(traj.shape[0]):
+                for j in range(n_time_steps):
+                    plt.scatter(*traj[i, j], color=colors[j])
 
         plt.colorbar(sm)
         plt.axis("equal")
@@ -498,4 +541,4 @@ class ContactGraph(Graph):
 
     @property
     def base_dim(self):
-        return self.vars_pos.shape[1]
+        return self.robots[0].dim

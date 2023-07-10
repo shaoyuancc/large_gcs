@@ -22,7 +22,7 @@ class ConvexSet(ABC):
             raise NotImplementedError
         options = {"facecolor": "mintcream", "edgecolor": "k", "zorder": 1}
         options.update(kwargs)
-        plt.axis("equal")
+        plt.gca().set_aspect("equal")
         self._plot(**options)
         if mark_center:
             plt.scatter(*self.center, color="k", zorder=2)

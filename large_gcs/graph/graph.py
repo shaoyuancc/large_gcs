@@ -12,6 +12,7 @@ from typing import Tuple, List, Optional
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from copy import copy
+from graphviz import Digraph
 from large_gcs.geometry.convex_set import ConvexSet
 
 
@@ -438,6 +439,18 @@ class Graph:
         }
         options.update(kwargs)
         plt.plot(*np.array([x for _, x in path]).T, **options)
+
+    def graphviz(self):
+        print(f"vertex names : {self.vertex_names}")
+        print(f"edge keys : {self.edge_keys}")
+        vertex_labels = [s.replace(":", "|") for s in self.vertex_names]
+
+        G = Digraph()
+        for label in vertex_labels:
+            G.node(label)
+        for u, v in self.edge_keys:
+            G.edge(u.replace(":", "|"), v.replace(":", "|"), "")
+        return G
 
     def edge_key_index(self, edge_key):
         return self.edge_keys.index(edge_key)
