@@ -8,6 +8,7 @@ from pydrake.all import (
     HPolyhedron,
     Formula,
     FormulaKind,
+    le,
 )
 
 from large_gcs.contact.contact_pair_mode import (
@@ -33,7 +34,11 @@ class ContactSet(ConvexSet):
         )
 
     def _construct_polyhedron_from_constraints(
-        self, constraints: List[Formula], variables: List[Variables]
+        self,
+        constraints: List[Formula],
+        variables: List[Variables],
+        make_bounded: bool = True,
+        BOUND: float = 1000.0,
     ):
         """
         Construct a polyhedron from a list of constraint formulas.
@@ -41,6 +46,12 @@ class ContactSet(ConvexSet):
             constraints: array of constraint formulas.
             variables: array of variables.
         """
+        if make_bounded:
+            ub = np.ones(variables.shape) * BOUND
+            upper_limits = le(variables, ub)
+            lower_limits = le(-ub, variables)
+            limits = np.concatenate((upper_limits, lower_limits))
+            constraints = np.append(constraints, limits)
 
         expressions = []
         for formula in constraints:
