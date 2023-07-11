@@ -24,7 +24,6 @@ from large_gcs.geometry.convex_set import ConvexSet
 class ContactSetDecisionVariables:
     pos: np.ndarray
     force_res: np.ndarray
-    force_res_vel_slack: np.ndarray
     force_act: np.ndarray
     force_mag_AB: np.ndarray
     force_mag_BA: np.ndarray
@@ -38,9 +37,7 @@ class ContactSetDecisionVariables:
     ):
         self.pos = np.array([body.vars_pos for body in objects + robots])
         self.force_res = np.array([body.vars_force_res for body in objects + robots])
-        self.force_res_vel_slack = np.array(
-            [body.vars_force_res_vel_slack for body in objects + robots]
-        )
+
         self.force_act = np.array([body.vars_force_act for body in robots])
         self.force_mag_AB = np.array(
             [mode.vars_force_mag_AB for mode in in_contact_pair_modes]
@@ -54,7 +51,6 @@ class ContactSetDecisionVariables:
             (
                 self.pos.flatten(),
                 self.force_res.flatten(),
-                self.force_res_vel_slack.flatten(),
                 self.force_act.flatten(),
                 self.force_mag_AB.flatten(),
                 self.force_mag_BA.flatten(),
@@ -117,7 +113,9 @@ class ContactSet(ConvexSet):
             constraints = np.append(constraints, limits)
 
         expressions = []
+        print(f"Constructing polyhedron for set {self.id}")
         for formula in constraints:
+            print(formula)
             kind = formula.get_kind()
             lhs, rhs = formula.Unapply()[1]
             if kind == FormulaKind.Eq:

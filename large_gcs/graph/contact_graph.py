@@ -257,7 +257,6 @@ class ContactGraph(Graph):
 
         # Set force constraints
         set_force_constraints_dict = defaultdict(list)
-        eps = 0
 
         for set_id in set_ids:
             # Add force constraints for each movable body
@@ -270,8 +269,8 @@ class ContactGraph(Graph):
                 if in_contact_mode.id in set_id:
                     # If bodies A and B are in contact, A must be exerting some positive force on B, and vice versa
                     set_force_constraints_dict[set_id] += [
-                        ge(in_contact_mode.vars_force_mag_AB, eps).item(),
-                        ge(in_contact_mode.vars_force_mag_BA, eps).item(),
+                        ge(in_contact_mode.vars_force_mag_AB, 0).item(),
+                        ge(in_contact_mode.vars_force_mag_BA, 0).item(),
                     ]
                 else:
                     # Bodies not incontact must not exert any force on each other
@@ -295,10 +294,11 @@ class ContactGraph(Graph):
                     )
 
             for body_name in movable:
+                body = body_dict[body_name]
+                if body.mobility_type == MobilityType.ACTUATED:
+                    body_force_sums[body_name] += body.vars_force_act
                 set_force_constraints_dict[set_id].extend(
-                    eq(
-                        body_dict[body_name].vars_force_res, body_force_sums[body_name]
-                    ).tolist()
+                    eq(body.vars_force_res, body_force_sums[body_name]).tolist()
                 )
 
         print(f"Generating contact sets for {len(set_ids)} sets...")
