@@ -61,10 +61,15 @@ class ContactSetDecisionVariables:
             )
         )
 
-    @staticmethod
-    def vars_pos_from_vars_all(vars_pos_template, vars_all):
+    def pos_from_all(self, vars_all):
         """Extracts the vars_pos from vars_all and reshapes it to match the template"""
-        return np.reshape(vars_all[: vars_pos_template.size], vars_pos_template.shape)
+        return np.reshape(vars_all[: self.pos.size], self.pos.shape)
+
+    def force_res_from_vars(self, vars_all):
+        return np.reshape(
+            vars_all[self.pos.size : self.pos.size + self.force_res.size],
+            self.force_res.shape,
+        )
 
 
 class ContactSet(ConvexSet):
@@ -87,7 +92,6 @@ class ContactSet(ConvexSet):
         self._polyhedron = self._construct_polyhedron_from_constraints(
             self.constraint_formulas, all_variables
         )
-        print(f"set id: {self.id} ambient dim: {self.set.ambient_dimension()}")
         # print(f"set id: {self.id}")
         # print(f"{all_variables}")
         # print()

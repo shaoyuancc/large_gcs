@@ -72,13 +72,16 @@ class RigidBody:
             for vel in self.vars_vel.T:
                 # Ensures that the resultant force is in the same direction as the velocity,
                 # and that the velocity is 0 if the resultant force is 0
-                constraints.append(
-                    eq(self.vars_force_res * self.vars_force_res_vel_slack, vel)
+                constraints.extend(
+                    eq(
+                        self.vars_force_res * self.vars_force_res_vel_slack, vel
+                    ).tolist()
                 )
 
             eps = 1e-3
             # Ensure that the ratio between the resultant force and velocity is greater than a small positive constant
-            constraints.append(ge(self.vars_force_res_vel_slack, eps))
+            constraints.append(ge(self.vars_force_res_vel_slack, eps).item())
+        self.constraints = constraints
 
     @property
     def dim(self):

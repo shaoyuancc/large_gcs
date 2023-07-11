@@ -90,7 +90,7 @@ class ContactPairMode(ABC):
 
     @property
     def id(self):
-        return f"{self.compact_class_name}:{self.body_a.name}_{self.contact_location_a.compact_name}-{self.body_b.name}_{self.contact_location_b.compact_name}"
+        return f"{self.compact_class_name}|{self.body_a.name}_{self.contact_location_a.compact_name}-{self.body_b.name}_{self.contact_location_b.compact_name}"
 
     @property
     @abstractmethod
@@ -158,7 +158,6 @@ class InContactPairMode(ContactPairMode):
         return constraints
 
     def _create_force_constraint_formulas(self):
-        eps = 1e-3
         formulas = []
         # If one of the bodies is static, whatever force is being exerted on it, it exerts back with the same magnitude
         if (
@@ -431,11 +430,11 @@ def create_movable_face_vert_horizontal_bounds_formulas(
 
 
 def _face_horizontal_bounds_formulas(
-    p_Refleft, p_Refright, p_Relv, rel_length=0, buffer_ratio=0.2
+    p_Refleft, p_Refright, p_Relv, rel_length=0, buffer_ratio=0
 ):
     """Formulas for the horizontal bounds of a face-face contact such that the relative face is within the horizontal bounds
     (viewing the reference face normal as pointing upwards) of the reference face.
-    Can also be used
+    Note that increasing the buffer_ratio will affect whether the sets intersect.
     Args:
         p_Refleft (np.array): Position of the "left" vertex on the reference face (when viewing the reference face normal as pointing upwards)
         p_Refright (np.array): Position of the "right" vertex on the reference face

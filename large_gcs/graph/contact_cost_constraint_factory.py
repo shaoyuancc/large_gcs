@@ -26,12 +26,8 @@ class ContactCostConstraintFactory:
         # Create dummy variables for u and v vertices of an edge
         u_vars_all = self.create_vars_from_template(self.vars.all, "u")
         v_vars_all = self.create_vars_from_template(self.vars.all, "v")
-        self.u_vars_pos = ContactSetDecisionVariables.vars_pos_from_vars_all(
-            self.vars.pos, u_vars_all
-        )
-        self.v_vars_pos = ContactSetDecisionVariables.vars_pos_from_vars_all(
-            self.vars.pos, v_vars_all
-        )
+        self.u_vars_pos = set_vars.pos_from_all(u_vars_all)
+        self.v_vars_pos = set_vars.pos_from_all(v_vars_all)
 
         # Flatten vertex variables
         self.uv_vars_all = np.concatenate((u_vars_all, v_vars_all))

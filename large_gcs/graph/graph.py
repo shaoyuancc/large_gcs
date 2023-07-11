@@ -441,15 +441,13 @@ class Graph:
         plt.plot(*np.array([x for _, x in path]).T, **options)
 
     def graphviz(self):
-        print(f"vertex names : {self.vertex_names}")
-        print(f"edge keys : {self.edge_keys}")
-        vertex_labels = [s.replace(":", "|") for s in self.vertex_names]
+        vertex_labels = self.vertex_names
 
         G = Digraph()
         for label in vertex_labels:
             G.node(label)
         for u, v in self.edge_keys:
-            G.edge(u.replace(":", "|"), v.replace(":", "|"), "")
+            G.edge(u, v, "")
         return G
 
     def edge_key_index(self, edge_key):

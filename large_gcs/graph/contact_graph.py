@@ -49,11 +49,14 @@ from large_gcs.algorithms.search_algorithm import AlgVisParams
 
 @dataclass
 class ContactShortestPathSolution:
+    vertex_path: List[str]
     # shape: (n_objects, n_sets_in_path, n_pos_per_set, n_base_dimension)
     object_pos_trajectories: np.ndarray
     # shape: (n_robots, n_sets_in_path, n_pos_per_set, n_base_dimension)
     robot_pos_trajectories: np.ndarray
-    vertex_path: List[str]
+    # shape: (n_objects, n_sets_in_path, n_base_dimension)
+    object_force_res_trajectories: np.ndarray
+    robot_force_res_trajectories: np.ndarray
 
 
 class ContactGraph(Graph):
@@ -254,9 +257,14 @@ class ContactGraph(Graph):
 
         # Set force constraints
         set_force_constraints_dict = defaultdict(list)
-        eps = 1e-3
+        eps = 0
 
         for set_id in set_ids:
+            # Add force constraints for each movable body
+            for body_name in movable:
+                set_force_constraints_dict[set_id] += body_dict[body_name].constraints
+
+            # Add force constraints for each In contact pair
             for in_contact_mode in in_contact_pair_modes:
                 # Enforce the active forces to be greater than a small constant
                 if in_contact_mode.id in set_id:
@@ -321,13 +329,8 @@ class ContactGraph(Graph):
     def _post_solve(self, sol):
         """Post solve hook that is called after solving by the base graph class"""
         vertex_path, ambient_path = zip(*sol.path)
-        obj_pos_trajectories, rob_pos_trajectories = self.decompose_ambient_path(
-            ambient_path
-        )
 
-        self.contact_spp_sol = ContactShortestPathSolution(
-            obj_pos_trajectories, rob_pos_trajectories, vertex_path
-        )
+        self.contact_spp_sol = self.create_contact_spp_sol(vertex_path, ambient_path)
 
     @property
     def params(self):
@@ -336,7 +339,7 @@ class ContactGraph(Graph):
         params.target = self.target_pos
         return params
 
-    def decompose_ambient_path(self, ambient_path):
+    def create_contact_spp_sol(self, vertex_path, ambient_path):
         """An ambient path is a list of vertices in the higher dimensional space"""
         n_pos_per_set = self.vars.pos.shape[2]
         obj_pos_trajectories = np.zeros(
@@ -345,16 +348,34 @@ class ContactGraph(Graph):
         rob_pos_trajectories = np.zeros(
             (self.n_robots, len(ambient_path), n_pos_per_set, self.base_dim)
         )
+        obj_force_res_trajectories = np.zeros(
+            (self.n_objects, len(ambient_path), self.base_dim)
+        )
+        rob_force_res_trajectories = np.zeros(
+            (self.n_robots, len(ambient_path), self.base_dim)
+        )
         for i, x in enumerate(ambient_path):
-            x = ContactSetDecisionVariables.vars_pos_from_vars_all(self.vars.pos, x)
-            # print(f"x shape {x.shape}")
-            # print(x)
+            x_pos = self.vars.pos_from_all(x)
 
-            x_objs_pos_transposed = np.transpose(x[: self.n_objects], (0, 2, 1))
+            x_objs_pos_transposed = np.transpose(x_pos[: self.n_objects], (0, 2, 1))
             obj_pos_trajectories[:, i, :, :] = x_objs_pos_transposed
-            x_robs_pos_transposed = np.transpose(x[self.n_objects :], (0, 2, 1))
+            x_robs_pos_transposed = np.transpose(x_pos[self.n_objects :], (0, 2, 1))
             rob_pos_trajectories[:, i, :, :] = x_robs_pos_transposed
-        return obj_pos_trajectories, rob_pos_trajectories
+
+            x_force_res = self.vars.force_res_from_vars(x)
+            obj_force_res_trajectories[:, i, :] = x_force_res[: self.n_objects]
+            rob_force_res_trajectories[:, i, :] = x_force_res[self.n_objects :]
+
+        print(f"obj_force_res_trajectories: {obj_force_res_trajectories}")
+        print(f"rob_force_res_trajectories: {rob_force_res_trajectories}")
+
+        return ContactShortestPathSolution(
+            vertex_path,
+            obj_pos_trajectories,
+            rob_pos_trajectories,
+            obj_force_res_trajectories,
+            rob_force_res_trajectories,
+        )
 
     def plot_samples_in_set(self, set_name: str, n_samples: int = 100, **kwargs):
         """Plots a single set"""
@@ -364,6 +385,8 @@ class ContactGraph(Graph):
         vertex = self.vertices[set_name]
         samples = vertex.convex_set.get_samples(n_samples)
         # print(samples)
+        raise NotImplementedError
+        # Need to modify decompose_ambient_path
         obj_pos_trajectories, rob_pos_trajectories = self.decompose_ambient_path(
             samples
         )
@@ -469,12 +492,26 @@ class ContactGraph(Graph):
         for poly in polygons:
             ax.add_patch(poly)
 
+        force_res_quivers = [ax.quiver([], [], [], []) for _ in range(len(bodies))]
+        force_res_vals = np.concatenate(
+            (
+                self.contact_spp_sol.object_force_res_trajectories,
+                self.contact_spp_sol.robot_force_res_trajectories,
+            )
+        )
+
         def animate(i):
             for j in range(len(bodies)):
                 polygons[j].set_xy(poly_offset[j] + trajs[i][j])
                 labels[j].set_position(trajs[i][j])
                 if i in transition_map:
-                    vertex_annotation.set_text(transition_map[i])
+                    force_res_quivers[j].set_offsets(poly_offset[j] + trajs[i][j])
+                    force_res_quivers[j].set_UVC(*force_res_vals[j][transition_map[i]])
+                    vertex_annotation.set_text(
+                        self.contact_spp_sol.vertex_path[transition_map[i]]
+                    )
+                else:
+                    force_res_quivers[j].set_offsets(poly_offset[j] + trajs[i][j])
             return polygons
 
         # Plot static obstacles
@@ -500,7 +537,7 @@ class ContactGraph(Graph):
         for n_set in range(trajs_in.shape[1]):
             # Add in the first position
             trajs_out.append(trajs_in[:, n_set, 0])
-            transition_map[len(trajs_out) - 1] = contact_sol.vertex_path[n_set]
+            transition_map[len(trajs_out) - 1] = n_set
             # Loop over n_pos_per_set which is the third index in pos_traj
             for n_pos in range(1, trajs_in.shape[2]):
                 # Loop over all the bodies
