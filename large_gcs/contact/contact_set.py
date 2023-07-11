@@ -113,9 +113,9 @@ class ContactSet(ConvexSet):
             constraints = np.append(constraints, limits)
 
         expressions = []
-        print(f"Constructing polyhedron for set {self.id}")
+        # print(f"Constructing polyhedron for set {self.id}")
         for formula in constraints:
-            print(formula)
+            # print(formula)
             kind = formula.get_kind()
             lhs, rhs = formula.Unapply()[1]
             if kind == FormulaKind.Eq:

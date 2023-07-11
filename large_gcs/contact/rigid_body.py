@@ -115,9 +115,9 @@ class RigidBody:
         offset_hat = offset_dir / np.linalg.norm(offset_dir)
         return pos + offset_hat * 0.1
 
-    def plot_at_position(self, pos):
+    def plot_at_position(self, pos, **kwargs):
         vertices = self.geometry.vertices
         p_CT = pos - self.geometry.center
         vertices_shifted = vertices + p_CT
-        plt.fill(*vertices_shifted.T)
+        plt.fill(*vertices_shifted.T, **kwargs)
         plt.text(*pos, self.name, ha="center", va="center")

@@ -246,7 +246,7 @@ class ContactGraph(Graph):
             if isinstance(mode, InContactPairMode)
         ]
 
-        # print(f"in_contact_pair_modes: {np.array([mode.id for mode in in_contact_pair_modes])}")
+        # print(f"in_contact_pair_modes and their unit normals: {np.array([f'{mode.id}: {mode.unit_normal}' for mode in in_contact_pair_modes])}")
 
         self.vars = ContactSetDecisionVariables(
             self.objects, self.robots, in_contact_pair_modes
@@ -366,8 +366,8 @@ class ContactGraph(Graph):
             obj_force_res_trajectories[:, i, :] = x_force_res[: self.n_objects]
             rob_force_res_trajectories[:, i, :] = x_force_res[self.n_objects :]
 
-        print(f"obj_force_res_trajectories: {obj_force_res_trajectories}")
-        print(f"rob_force_res_trajectories: {rob_force_res_trajectories}")
+        # print(f"obj_force_res_trajectories: {obj_force_res_trajectories}")
+        # print(f"rob_force_res_trajectories: {rob_force_res_trajectories}")
 
         return ContactShortestPathSolution(
             vertex_path,
@@ -472,14 +472,31 @@ class ContactGraph(Graph):
         trajs, transition_map = self._interpolate_positions(self.contact_spp_sol)
 
         bodies = self.objects + self.robots
+
+        # Plot static obstacles
+        for obs in self.obstacles:
+            obs.plot()
+
+        # Plot goal positions
+        for i, body in enumerate(bodies):
+            body.plot_at_position(self.target_pos[i], color="lightgreen")
+
         label_text = [body.name for body in bodies]
 
-        polygons = [patches.Polygon(body.geometry.vertices) for body in bodies]
+        polygons = [
+            patches.Polygon(
+                body.geometry.vertices,
+                color="blue"
+                if body.mobility_type == MobilityType.UNACTUATED
+                else "red",
+            )
+            for body in bodies
+        ]
         poly_offset = [
             poly.get_xy() - body.geometry.center for poly, body in zip(polygons, bodies)
         ]
         labels = [
-            ax.text(*body.geometry.center, label)
+            ax.text(*body.geometry.center, label, ha="center", va="center")
             for body, label in zip(bodies, label_text)
         ]
         vertex_annotation = ax.annotate(
@@ -505,18 +522,15 @@ class ContactGraph(Graph):
                 polygons[j].set_xy(poly_offset[j] + trajs[i][j])
                 labels[j].set_position(trajs[i][j])
                 if i in transition_map:
-                    force_res_quivers[j].set_offsets(poly_offset[j] + trajs[i][j])
-                    force_res_quivers[j].set_UVC(*force_res_vals[j][transition_map[i]])
+                    # force_res_quivers[j].set_offsets(poly_offset[j] + trajs[i][j])
+                    # force_res_quivers[j].set_UVC(*force_res_vals[j][transition_map[i]])
                     vertex_annotation.set_text(
                         self.contact_spp_sol.vertex_path[transition_map[i]]
                     )
                 else:
-                    force_res_quivers[j].set_offsets(poly_offset[j] + trajs[i][j])
+                    pass
+                    # force_res_quivers[j].set_offsets(poly_offset[j] + trajs[i][j])
             return polygons
-
-        # Plot static obstacles
-        for obs in self.obstacles:
-            obs.plot()
 
         anim = animation.FuncAnimation(
             fig, animate, frames=trajs.shape[0], interval=50, blit=True
