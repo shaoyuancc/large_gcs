@@ -176,6 +176,10 @@ class InContactPairMode(ContactPairMode):
 
     def _create_force_constraint_formulas(self):
         formulas = []
+        # If bodies A and B are in contact, A must be exerting some positive force on B, and vice versa
+        formulas.append(ge(self.vars_force_mag_AB, 0))
+        formulas.append(ge(self.vars_force_mag_BA, 0))
+
         # If one of the bodies is static, whatever force is being exerted on it, it exerts back with the same magnitude
         if (
             self.body_a.mobility_type == MobilityType.STATIC

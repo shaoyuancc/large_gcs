@@ -1,7 +1,7 @@
 import numpy as np
 from dataclasses import dataclass
 from itertools import combinations, permutations, product
-from typing import List, Dict
+from typing import List, Dict, Tuple
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib.animation import FFMpegWriter
@@ -33,12 +33,19 @@ from large_gcs.contact.contact_pair_mode import (
     InContactPairMode,
     generate_contact_pair_modes,
 )
-from large_gcs.contact.contact_set import ContactSet, ContactSetDecisionVariables
+from large_gcs.contact.contact_set import (
+    ContactSet,
+    ContactPointSet,
+    ContactSetDecisionVariables,
+)
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
-from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.point import Point
-from large_gcs.graph.cost_factory import create_l2norm_edge_cost
-from large_gcs.graph.contact_cost_constraint_factory import ContactCostConstraintFactory
+from large_gcs.graph.contact_cost_constraint_factory import (
+    vertex_cost_position_path_length,
+    vertex_cost_force_actuation_norm_squared,
+    edge_constraint_position_continuity,
+    edge_cost_constant,
+)
 from large_gcs.graph.graph import (
     DefaultGraphCostsConstraints,
     Graph,
@@ -52,13 +59,10 @@ from large_gcs.algorithms.search_algorithm import AlgVisParams
 @dataclass
 class ContactShortestPathSolution:
     vertex_path: List[str]
-    # shape: (n_objects, n_sets_in_path, n_pos_per_set, n_base_dimension)
-    object_pos_trajectories: np.ndarray
-    # shape: (n_robots, n_sets_in_path, n_pos_per_set, n_base_dimension)
-    robot_pos_trajectories: np.ndarray
-    # shape: (n_objects, n_sets_in_path, n_base_dimension)
-    object_force_res_trajectories: np.ndarray
-    robot_force_res_trajectories: np.ndarray
+    # shape: (n_pos, n_bodies, n_base_dim)
+    pos_trajs: np.ndarray
+    # Maps the n_pos index to the index in vertex_path
+    pos_transition_map: Dict[int, int] = None
 
 
 class ContactGraph(Graph):
@@ -113,49 +117,33 @@ class ContactGraph(Graph):
         self.target_pos = target_pos_objs + target_pos_robs
 
         sets, set_ids = self._generate_contact_sets()
-        base_convex_sets = {
-            id: base_set.base_set for id, base_set in zip(set_ids, sets)
-        }
-
-        # Assign costs and constraints
-        cc_factory = ContactCostConstraintFactory(self.vars)
-        self._default_costs_constraints = DefaultGraphCostsConstraints(
-            vertex_costs=[
-                cc_factory.vertex_cost_position_path_length(),
-                # cc_factory.vertex_cost_position_path_length_squared(),
-                cc_factory.vertex_cost_force_actuation_norm_squared(),
-            ],
-            vertex_constraints=[],
-            edge_costs=[
-                cc_factory.edge_cost_constant(),
-                # cc_factory.edge_costs_position_continuity_norm(),
-            ],
-            edge_constraints=[
-                cc_factory.edge_constraint_position_continuity(),
-                # cc_factory.edge_constraint_position_continuity_linearconstraint(),
-            ],
-        )
-        self.cc_factory = cc_factory
 
         sets += [
-            self._create_point_set_from_positions(source_pos_objs, source_pos_robs),
-            self._create_point_set_from_positions(target_pos_objs, target_pos_robs),
+            ContactPointSet(
+                "s", self.objects, self.robots, source_pos_objs, source_pos_robs
+            ),
+            ContactPointSet(
+                "t", self.objects, self.robots, target_pos_objs, target_pos_robs
+            ),
         ]
         set_ids += ["s", "t"]
-        base_convex_sets["s"] = DrakePoint(
-            np.array(source_pos_objs + source_pos_robs).flatten()
-        )
-        base_convex_sets["t"] = DrakePoint(
-            np.array(target_pos_objs + target_pos_robs).flatten()
-        )
 
         # Add convex sets to graph (Need to do this before generating edges)
-        self.add_vertices_from_sets(sets, names=set_ids)
+        self.add_vertices_from_sets(
+            sets,
+            costs=self._create_vertex_costs(sets),
+            constraints=self._create_vertex_constraints(sets),
+            names=set_ids,
+        )
         self.set_source("s")
         self.set_target("t")
 
-        edges = self._generate_contact_graph_edges(set_ids, base_convex_sets)
-        self.add_edges_from_vertex_names(*zip(*edges))
+        edges = self._generate_contact_graph_edges(set_ids)
+        self.add_edges_from_vertex_names(
+            *zip(*edges),
+            costs=self._create_edge_costs(edges),
+            constraints=self._create_edge_constraints(edges),
+        )
 
         # Check that the source and target are reachable
         assert (
@@ -165,37 +153,65 @@ class ContactGraph(Graph):
             len(self.incoming_edges(self.target_name)) > 0
         ), "Target is not reachable from any other set"
 
+    ### VERTEX AND EDGE COSTS AND CONSTRAINTS ###
+    def _create_vertex_costs(self, sets: List[ContactSet]) -> List[List[Cost]]:
+        costs = [
+            [
+                vertex_cost_position_path_length(set.vars),
+                vertex_cost_force_actuation_norm_squared(set.vars),
+            ]
+            if not isinstance(set, ContactPointSet)
+            else []
+            for set in sets
+        ]
+        return costs
+
+    def _create_vertex_constraints(
+        self, sets: List[ContactSet]
+    ) -> List[List[Constraint]]:
+        return [[] for set in sets]
+
+    def _create_edge_costs(self, edges: List[Tuple[str, str]]) -> List[List[Cost]]:
+        return [
+            [
+                edge_cost_constant(
+                    self.vertices[u].convex_set.vars, self.vertices[v].convex_set.vars
+                )
+            ]
+            for u, v in edges
+        ]
+
+    def _create_edge_constraints(
+        self, edges: List[Tuple[str, str]]
+    ) -> List[List[Constraint]]:
+        constraints = []
+        for u, v in edges:
+            constraints.append(
+                [
+                    edge_constraint_position_continuity(
+                        self.vertices[u].convex_set.vars,
+                        self.vertices[v].convex_set.vars,
+                    )
+                ]
+            )
+        return constraints
+
     ### SET & EDGE CREATION ###
-    def _create_point_set_from_positions(self, obj_positions, rob_positions):
-        """Creates a point set from a list of object positions and robot positions"""
-        assert len(obj_positions) == self.n_objects
-        assert len(rob_positions) == self.n_robots
-        positions = np.array(obj_positions + rob_positions)
-        # Check that all object and robot positions have the same dimension
-        assert len(set([pos.shape[0] for pos in positions])) == 1
-        assert positions.shape[1] == self.robots[0].dim
-        # Repeat each position for the number of position points per set
-        pos_repeated_flattened = np.repeat(
-            positions, self.robots[0].n_pos_points
-        ).flatten()
-        # Assume all other decision variables are zero (forces)
-        coords = np.pad(
-            pos_repeated_flattened,
-            (0, self.vars.all.size - pos_repeated_flattened.size),
-            mode="constant",
-        )
-        point = Point(coords)
-        point.base_set = Point(positions.flatten())
-        return Point(coords)
 
     def _generate_contact_graph_edges(
-        self, contact_set_ids: List[str], base_contact_sets: Dict[str, DrakeConvexSet]
-    ):
+        self, contact_set_ids: List[str]
+    ) -> List[Tuple[str, str]]:
         """Generates all possible edges given a set of contact sets."""
         print("Generating edges...(parallel)")
         with Pool() as pool:
             pairs = list(combinations(contact_set_ids, 2))
-            sets = [(base_contact_sets[u], base_contact_sets[v]) for u, v in pairs]
+            sets = [
+                (
+                    self.vertices[u].convex_set.base_set,
+                    self.vertices[v].convex_set.base_set,
+                )
+                for u, v in pairs
+            ]
             intersections = list(
                 tqdm(pool.imap(self._check_intersection, sets), total=len(sets))
             )
@@ -252,17 +268,6 @@ class ContactGraph(Graph):
         mode_ids_to_mode = {
             mode.id: mode for modes in body_pair_to_modes.values() for mode in modes
         }
-        in_contact_pair_modes = [
-            mode
-            for mode in mode_ids_to_mode.values()
-            if isinstance(mode, InContactPairMode)
-        ]
-
-        # print(f"in_contact_pair_modes and their unit normals: {np.array([f'{mode.id}: {mode.unit_normal}' for mode in in_contact_pair_modes])}")
-
-        self.vars = ContactSetDecisionVariables(
-            self.objects, self.robots, in_contact_pair_modes
-        )
 
         # Each set is the cartesian product of the modes for each object pair
         set_ids = list(product(*body_pair_to_mode_names.values()))
@@ -274,22 +279,6 @@ class ContactGraph(Graph):
             # Add force constraints for each movable body
             for body_name in movable:
                 set_force_constraints_dict[set_id] += body_dict[body_name].constraints
-
-            # Add force constraints for each In contact pair
-            for in_contact_mode in in_contact_pair_modes:
-                # Enforce the active forces to be greater than a small constant
-                if in_contact_mode.id in set_id:
-                    # If bodies A and B are in contact, A must be exerting some positive force on B, and vice versa
-                    set_force_constraints_dict[set_id] += [
-                        ge(in_contact_mode.vars_force_mag_AB, 0).item(),
-                        ge(in_contact_mode.vars_force_mag_BA, 0).item(),
-                    ]
-                else:
-                    # Bodies not incontact must not exert any force on each other
-                    set_force_constraints_dict[set_id] += [
-                        eq(in_contact_mode.vars_force_mag_AB, 0).item(),
-                        eq(in_contact_mode.vars_force_mag_BA, 0).item(),
-                    ]
 
             # Collect the forces acting on each body
             body_force_sums = defaultdict(
@@ -319,8 +308,8 @@ class ContactGraph(Graph):
             ContactSet(
                 [mode_ids_to_mode[mode_id] for mode_id in set_id],
                 set_force_constraints_dict[set_id],
-                self.vars.all,
-                self.vars.base_all,
+                self.objects,
+                self.robots,
             )
             for set_id in tqdm(set_ids)
         ]
@@ -341,9 +330,10 @@ class ContactGraph(Graph):
 
     def _post_solve(self, sol):
         """Post solve hook that is called after solving by the base graph class"""
-        vertex_path, ambient_path = zip(*sol.path)
 
-        self.contact_spp_sol = self.create_contact_spp_sol(vertex_path, ambient_path)
+        self.contact_spp_sol = self.create_contact_spp_sol(
+            sol.vertex_path, sol.ambient_path
+        )
 
     @property
     def params(self):
@@ -354,40 +344,22 @@ class ContactGraph(Graph):
 
     def create_contact_spp_sol(self, vertex_path, ambient_path):
         """An ambient path is a list of vertices in the higher dimensional space"""
-        n_pos_per_set = self.vars.pos.shape[2]
-        obj_pos_trajectories = np.zeros(
-            (self.n_objects, len(ambient_path), n_pos_per_set, self.base_dim)
-        )
-        rob_pos_trajectories = np.zeros(
-            (self.n_robots, len(ambient_path), n_pos_per_set, self.base_dim)
-        )
-        obj_force_res_trajectories = np.zeros(
-            (self.n_objects, len(ambient_path), self.base_dim)
-        )
-        rob_force_res_trajectories = np.zeros(
-            (self.n_robots, len(ambient_path), self.base_dim)
-        )
+        pos_transition_map = {}
+        pos_list = []
         for i, x in enumerate(ambient_path):
-            x_pos = self.vars.pos_from_all(x)
+            x_vars = self.vertices[vertex_path[i]].convex_set.vars
+            x_pos = x_vars.pos_from_all(x)
+            # shape: (n_pos, base_dim, n_bodies)
+            pos_transition_map[len(pos_list)] = i
+            pos_list.extend(x_pos.T.tolist())
 
-            x_objs_pos_transposed = np.transpose(x_pos[: self.n_objects], (0, 2, 1))
-            obj_pos_trajectories[:, i, :, :] = x_objs_pos_transposed
-            x_robs_pos_transposed = np.transpose(x_pos[self.n_objects :], (0, 2, 1))
-            rob_pos_trajectories[:, i, :, :] = x_robs_pos_transposed
-
-            x_force_res = self.vars.force_res_from_vars(x)
-            obj_force_res_trajectories[:, i, :] = x_force_res[: self.n_objects]
-            rob_force_res_trajectories[:, i, :] = x_force_res[self.n_objects :]
-
-        # print(f"obj_force_res_trajectories: {obj_force_res_trajectories}")
-        # print(f"rob_force_res_trajectories: {rob_force_res_trajectories}")
+        # reshapes pos_list to (n_pos, n_bodies, base_dim)
+        pos_trajs = np.array(pos_list).transpose(0, 2, 1)
 
         return ContactShortestPathSolution(
             vertex_path,
-            obj_pos_trajectories,
-            rob_pos_trajectories,
-            obj_force_res_trajectories,
-            rob_force_res_trajectories,
+            pos_trajs,
+            pos_transition_map,
         )
 
     def plot_samples_in_set(self, set_name: str, n_samples: int = 100, **kwargs):
@@ -428,44 +400,18 @@ class ContactGraph(Graph):
         assert self.contact_spp_sol is not None, "Must solve before plotting"
         assert self.base_dim == 2, "Can only plot 2D paths"
         sol = self.contact_spp_sol
-        # Create a new figure
         plt.figure()
-        if sol.robot_pos_trajectories.size > 0:
-            traj = np.reshape(
-                sol.robot_pos_trajectories,
-                (
-                    sol.robot_pos_trajectories.shape[0],
-                    -1,
-                    sol.robot_pos_trajectories.shape[-1],
-                ),
-            )
-            n_time_steps = traj.shape[1]
+        n_steps = sol.pos_trajs.shape[0]
+        for i in range(n_steps):
+            obj_pos = sol.pos_trajs[i, : self.n_objects]
+            rob_pos = sol.pos_trajs[i, self.n_objects :]
+            plt.scatter(*obj_pos.T, marker="+", color=cm.rainbow(i / n_steps))
+            plt.scatter(*rob_pos.T, marker=".", color=cm.rainbow(i / n_steps))
 
-            # Create a color map
-            colors = cm.rainbow(np.linspace(0, 1, n_time_steps))
-            # Add a color bar
-            sm = plt.cm.ScalarMappable(
-                cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=n_time_steps)
-            )
-
-            # Plot robot trajectories
-            for i in range(traj.shape[0]):
-                for j in range(n_time_steps):
-                    plt.scatter(*traj[i, j], color=colors[j])
-
-        if sol.object_pos_trajectories.size > 0:
-            traj = np.reshape(
-                sol.object_pos_trajectories,
-                (
-                    sol.object_pos_trajectories.shape[0],
-                    -1,
-                    sol.object_pos_trajectories.shape[-1],
-                ),
-            )
-            # Plot object trajectories
-            for i in range(traj.shape[0]):
-                for j in range(n_time_steps):
-                    plt.scatter(*traj[i, j], color=colors[j])
+        # Add a color bar
+        sm = plt.cm.ScalarMappable(
+            cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=n_steps)
+        )
 
         plt.colorbar(sm)
         plt.axis("equal")
@@ -481,7 +427,6 @@ class ContactGraph(Graph):
         ax = plt.axes(xlim=self.workspace[0], ylim=self.workspace[1])
         ax.set_aspect("equal")
         # Process position trajectories
-        # remove duplicate positions
         trajs, transition_map = self._interpolate_positions(self.contact_spp_sol)
 
         bodies = self.objects + self.robots
@@ -522,13 +467,13 @@ class ContactGraph(Graph):
         for poly in polygons:
             ax.add_patch(poly)
 
-        force_res_quivers = [ax.quiver([], [], [], []) for _ in range(len(bodies))]
-        force_res_vals = np.concatenate(
-            (
-                self.contact_spp_sol.object_force_res_trajectories,
-                self.contact_spp_sol.robot_force_res_trajectories,
-            )
-        )
+        # force_res_quivers = [ax.quiver([], [], [], []) for _ in range(len(bodies))]
+        # force_res_vals = np.concatenate(
+        #     (
+        #         self.contact_spp_sol.object_force_res_trajectories,
+        #         self.contact_spp_sol.robot_force_res_trajectories,
+        #     )
+        # )
 
         def animate(i):
             for j in range(len(bodies)):
@@ -552,42 +497,35 @@ class ContactGraph(Graph):
 
     @staticmethod
     def _interpolate_positions(contact_sol, max_gap: float = 0.1):
-        # Input has shape (n_movable bodies, n_sets_in_path, n_pos_per_set, n_base_dim)
-        trajs_in = np.vstack(
-            (contact_sol.object_pos_trajectories, contact_sol.robot_pos_trajectories)
-        )
+        # Input has shape (n_movable bodies, n_sets_in_path, n_pos_per_set, n_base_dim) OLD
+        # Input has shape (n_pos, n_bodies, n_base_dim)
+        trajs_in = contact_sol.pos_trajs
         # print(f"trajs_in shape {trajs_in.shape}")
         transition_map = {}
-        # Final list is going to have shape (n_steps, n_movable bodies (objects then robots), n_base_dim)
+        # Final list is going to have shape (n_pos, n_movable bodies (objects then robots), n_base_dim)
         trajs_out = []
-        # Loop over n_sets_in_path
-        for n_set in range(trajs_in.shape[1]):
-            # Add in the first position
-            trajs_out.append(trajs_in[:, n_set, 0])
-            transition_map[len(trajs_out) - 1] = n_set
-            # Loop over n_pos_per_set which is the third index in pos_traj
-            for n_pos in range(1, trajs_in.shape[2]):
-                # Loop over all the bodies
-                m_gap = 0
-                for n_body in range(trajs_in.shape[0]):
-                    gap = np.linalg.norm(
-                        trajs_in[n_body, n_set, n_pos]
-                        - trajs_in[n_body, n_set, n_pos - 1]
-                    )
-                    if gap > m_gap:
-                        m_gap = gap
-                # If the gap is larger than the max gap, interpolate
-                if m_gap > max_gap:
-                    # Number of segments for interpolation
-                    num_segments = int(np.ceil(m_gap / max_gap))
-                    # Generate interpolated positions
-                    for j in range(1, num_segments):
-                        interp_pos = (j / num_segments) * (
-                            trajs_in[:, n_set, n_pos] - trajs_in[:, n_set, n_pos - 1]
-                        ) + trajs_in[:, n_set, n_pos - 1]
-                        trajs_out.append(interp_pos)
-                else:
-                    trajs_out.append(trajs_in[:, n_set, n_pos])
+
+        # Add in the first position
+        trajs_out.append(trajs_in[0])
+        transition_map[0] = 0
+        for n_pos in range(1, trajs_in.shape[0]):
+            if n_pos in contact_sol.pos_transition_map:
+                transition_map[len(trajs_out)] = contact_sol.pos_transition_map[n_pos]
+            # Loop over all the bodies
+            m_gaps = np.linalg.norm(trajs_in[n_pos] - trajs_in[n_pos - 1], axis=1)
+            m_gap = np.max(m_gaps)
+            # If the gap is larger than the max gap, interpolate
+            if m_gap > max_gap:
+                # Number of segments for interpolation
+                num_segments = int(np.ceil(m_gap / max_gap))
+                # Generate interpolated positions
+                for j in range(1, num_segments):
+                    interp_pos = (j / num_segments) * (
+                        trajs_in[n_pos] - trajs_in[n_pos - 1]
+                    ) + trajs_in[n_pos - 1]
+                    trajs_out.append(interp_pos)
+            else:
+                trajs_out.append(trajs_in[n_pos])
 
         return np.array(trajs_out), transition_map
 

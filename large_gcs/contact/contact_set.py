@@ -7,6 +7,7 @@ from pydrake.all import (
     Variables,
     DecomposeAffineExpressions,
     HPolyhedron,
+    Point as DrakePoint,
     Formula,
     FormulaKind,
     le,
@@ -30,36 +31,43 @@ class ContactSetDecisionVariables:
     all: np.ndarray
     base_all: np.ndarray
 
-    def __init__(
-        self,
+    @classmethod
+    def from_contact_pair_modes(
+        cls,
         objects: List[RigidBody],
         robots: List[RigidBody],
-        in_contact_pair_modes: List[InContactPairMode],
+        contact_pair_modes: List[ContactPairMode],
     ):
-        self.pos = np.array([body.vars_pos for body in objects + robots])
-        self.force_res = np.array([body.vars_force_res for body in objects + robots])
+        pos = np.array([body.vars_pos for body in objects + robots])
+        force_res = np.array([body.vars_force_res for body in objects + robots])
 
-        self.force_act = np.array([body.vars_force_act for body in robots])
-        self.force_mag_AB = np.array(
+        force_act = np.array([body.vars_force_act for body in robots])
+        in_contact_pair_modes = [
+            mode for mode in contact_pair_modes if isinstance(mode, InContactPairMode)
+        ]
+        force_mag_AB = np.array(
             [mode.vars_force_mag_AB for mode in in_contact_pair_modes]
         )
-        self.force_mag_BA = np.array(
+        force_mag_BA = np.array(
             [mode.vars_force_mag_BA for mode in in_contact_pair_modes]
         )
 
         # All the decision variables for a single vertex
-        self.all = np.concatenate(
+        all = np.concatenate(
             (
-                self.pos.flatten(),
-                self.force_res.flatten(),
-                self.force_act.flatten(),
-                self.force_mag_AB.flatten(),
-                self.force_mag_BA.flatten(),
+                pos.flatten(),
+                force_res.flatten(),
+                force_act.flatten(),
+                force_mag_AB.flatten(),
+                force_mag_BA.flatten(),
             )
         )
         # Extract the first point in n_pos_points_per_set
-        base_pos = np.array([body.vars_pos[:, 0] for body in objects + robots])
-        self.base_all = base_pos.flatten()
+        base_all = np.array(
+            [body.vars_pos[:, 0] for body in objects + robots]
+        ).flatten()
+
+        return cls(pos, force_res, force_act, force_mag_AB, force_mag_BA, all, base_all)
 
     def pos_from_all(self, vars_all):
         """Extracts the vars_pos from vars_all and reshapes it to match the template"""
@@ -71,15 +79,67 @@ class ContactSetDecisionVariables:
             self.force_res.shape,
         )
 
+    @classmethod
+    def from_pos_singleton(cls, objects, robots):
+        pos = np.array([body.vars_pos[:, 0] for body in objects + robots])
+        pos = pos[:, :, np.newaxis]
+        empty = np.array([])
+        return cls(pos, empty, empty, empty, empty, pos.flatten(), pos.flatten())
+
+
+class ContactPointSet(ConvexSet):
+    def __init__(
+        self,
+        id: str,
+        objects: List[RigidBody],
+        robots: List[RigidBody],
+        object_positions: List[np.ndarray],
+        robot_positions: List[np.ndarray],
+    ):
+        assert len(objects) == len(object_positions)
+        assert len(robots) == len(robot_positions)
+        # Check that all object and robot positions have the same dimension
+        positions = np.array(object_positions + robot_positions)
+        assert len(set([pos.shape[0] for pos in positions])) == 1
+        assert positions.shape[1] == robots[0].dim
+
+        self.vars = ContactSetDecisionVariables.from_pos_singleton(objects, robots)
+        self._point = DrakePoint(positions.flatten())
+
+        self._id = id
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def dim(self):
+        return self.set.ambient_dimension()
+
+    @property
+    def set(self):
+        return self._point
+
+    @property
+    def base_set(self):
+        return self._point
+
+    @property
+    def center(self):
+        return None
+
 
 class ContactSet(ConvexSet):
     def __init__(
         self,
         contact_pair_modes: List[ContactPairMode],
         set_force_constraints: List[Formula],
-        all_variables: np.ndarray,
-        base_all_variables: np.ndarray,
+        objects: List[RigidBody],
+        robots: List[RigidBody],
     ):
+        self.vars = ContactSetDecisionVariables.from_contact_pair_modes(
+            objects, robots, contact_pair_modes
+        )
         # print(f"set_force_constraints shape: {np.array(set_force_constraints).shape}")
         # print(f"set_force_constraints: {set_force_constraints}")
 
@@ -96,10 +156,10 @@ class ContactSet(ConvexSet):
         ]
         self.constraint_formulas.extend(set_force_constraints)
         self._polyhedron = self._construct_polyhedron_from_constraints(
-            self.constraint_formulas, all_variables
+            self.constraint_formulas, self.vars.all
         )
         self._base_polyhedron = self._construct_polyhedron_from_constraints(
-            self.base_constraint_formulas, base_all_variables
+            self.base_constraint_formulas, self.vars.base_all
         )
         # print(f"set id: {self.id}")
         # print(f"all vars {all_variables}")
@@ -128,6 +188,7 @@ class ContactSet(ConvexSet):
 
         expressions = []
         # print(f"Constructing polyhedron for set {self.id}")
+        # print(f"variables: {variables}")
         for formula in constraints:
             # print(formula)
             kind = formula.get_kind()

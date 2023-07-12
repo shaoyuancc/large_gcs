@@ -22,7 +22,8 @@ class ShortestPathSolution:
     # Time to solve the optimization problem
     time: float
     # List of vertex names and discrete coordinates in the path
-    path: List[Tuple[str, np.ndarray]]
+    vertex_path: List[str]
+    ambient_path: List[np.ndarray]
     # Flows along the edges (range [0, 1])
     flows: List[float]
     # Result of the optimization
@@ -68,8 +69,8 @@ class Edge:
 
 @dataclass
 class GraphParams:
-    # Dimension of the ambient space of the graph
-    dim: int
+    # Tuple of the smallest and largest ambient dimension of the vertices
+    dim_bounds: Tuple[int, int]
     # Number of vertices/convex sets
     n_vertices: int
     # Number of edges
@@ -218,12 +219,12 @@ class Graph:
         # Add costs and constraints to gcs edge
         if e.costs:
             for cost in e.costs:
-                x = np.array([e.gcs_edge.xu(), e.gcs_edge.xv()]).flatten()
+                x = np.concatenate([e.gcs_edge.xu(), e.gcs_edge.xv()])
                 binding = Binding[Cost](cost, x)
                 e.gcs_edge.AddCost(binding)
         if e.constraints:
             for constraint in e.constraints:
-                x = np.array([e.gcs_edge.xu(), e.gcs_edge.xv()]).flatten()
+                x = np.concatenate([e.gcs_edge.xu(), e.gcs_edge.xv()])
                 binding = Binding[Constraint](constraint, x)
                 e.gcs_edge.AddConstraint(binding)
 
@@ -344,12 +345,13 @@ class Graph:
             self.source_name, self.target_name, edge_path
         )
         # vertex_path = [self.source_name]
-        path = [
-            (v, result.GetSolution(self.vertices[v].gcs_vertex.x()))
-            for v in vertex_path
+        ambient_path = [
+            result.GetSolution(self.vertices[v].gcs_vertex.x()) for v in vertex_path
         ]
 
-        return ShortestPathSolution(cost, time, path, flows, result)
+        return ShortestPathSolution(
+            cost, time, vertex_path, ambient_path, flows, result
+        )
 
     @staticmethod
     def _convert_active_edges_to_vertex_path(source_name, target_name, edges):
@@ -431,7 +433,7 @@ class Graph:
         options.update(kwargs)
         plt.scatter(*x.T, **options)
 
-    def plot_path(self, path: List[Tuple[str, np.ndarray]], **kwargs):
+    def plot_path(self, path: List[np.ndarray], **kwargs):
         options = {
             "color": "g",
             "marker": "o",
@@ -439,7 +441,7 @@ class Graph:
             "markerfacecolor": "w",
         }
         options.update(kwargs)
-        plt.plot(*np.array([x for _, x in path]).T, **options)
+        plt.plot(*np.array([x for x in path]).T, **options)
 
     def graphviz(self):
         vertex_labels = self.vertex_names
@@ -498,9 +500,11 @@ class Graph:
         return self.vertices[self.target_name]
 
     @property
-    def dim(self):
-        assert len(set(V.convex_set.dim for V in self.vertices.values())) == 1
-        return self.vertices[self.vertex_names[0]].convex_set.dim
+    def dim_bounds(self):
+        # Return a tuple of the smallest and largest dimension of the vertices
+        smallest_dim = min([v.convex_set.dim for v in self.vertices.values()])
+        largest_dim = max([v.convex_set.dim for v in self.vertices.values()])
+        return (smallest_dim, largest_dim)
 
     @property
     def n_vertices(self):
@@ -513,7 +517,7 @@ class Graph:
     @property
     def params(self):
         return GraphParams(
-            dim=self.dim,
+            dim_bounds=self.dim_bounds,
             n_vertices=self.n_vertices,
             n_edges=self.n_edges,
             source=self.source.convex_set.center,
