@@ -116,12 +116,11 @@ class NoContactPairMode(ContactPairMode):
         constraints = []
         base_constraints = []
         # Position Constraints
-        sd_exprs = self._create_signed_dist_surrog_constraint_exprs()
-        sd_constraints = [eq(expr, 0) for expr in sd_exprs]
-        constraints += sd_constraints
+        signed_dist_exprs = self._create_signed_dist_surrog_constraint_exprs()
+        constraints += [ge(expr, 0) for expr in signed_dist_exprs]
         # Extract the base signed distance constraint which is the one that involves the base position variables
         # i.e. pos 0 of n_pos_per_set. For sd, each pos produces one expression
-        base_constraints += [sd_constraints[0]]
+        base_constraints = [constraints[0]]
 
         return constraints, base_constraints
 
