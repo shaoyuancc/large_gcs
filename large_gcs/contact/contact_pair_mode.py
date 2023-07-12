@@ -430,7 +430,7 @@ def create_movable_face_vert_horizontal_bounds_formulas(
 
 
 def _face_horizontal_bounds_formulas(
-    p_Refleft, p_Refright, p_Relv, rel_length=0, buffer_ratio=0
+    p_Refleft, p_Refright, p_Relv, rel_length=0, buffer_ratio=0.0
 ):
     """Formulas for the horizontal bounds of a face-face contact such that the relative face is within the horizontal bounds
     (viewing the reference face normal as pointing upwards) of the reference face.
@@ -456,7 +456,9 @@ def _face_horizontal_bounds_formulas(
     return [ge(dist, lb), le(dist, ub)]
 
 
-def generate_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):
+def generate_contact_pair_modes(
+    body_a: RigidBody, body_b: RigidBody, ignore_static_actuated_contact=True
+):
     """Generate all possible contact pair modes between two rigid bodies"""
     contact_pair_modes = []
 
@@ -521,4 +523,10 @@ def generate_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):
         )
         no_contact_pair_modes.append(in_contact_pair.to_no_contact_pair_mode())
 
-    return contact_pair_modes + no_contact_pair_modes
+    if ignore_static_actuated_contact and (
+        body_a.mobility_type == MobilityType.STATIC
+        or body_b.mobility_type == MobilityType.STATIC
+    ):
+        return no_contact_pair_modes
+    else:
+        return contact_pair_modes + no_contact_pair_modes

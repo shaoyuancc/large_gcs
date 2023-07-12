@@ -24,18 +24,18 @@ if __name__ == "__main__":
     target_rob_pos = [[-3, 0]]
 
     # # 2 movable items
-    obs_vertices = []
-    obj_vertices = [np.array([[0, 0], [1, 0], [1, 1], [0, 1]]) + np.array([2.5, 0.5])]
-    rob_vertices = [np.array([[-1, -1], [-1.5, -0.5], [-1.2, -1.5]])]
-    source_obj_pos = [[0, 0]]
-    source_rob_pos = [[-2, -2]]
-    target_obj_pos = [[2, 0]]
-    target_rob_pos = [[2.5, 2]]
+    # obs_vertices = []
+    # obj_vertices = [np.array([[0, 0], [1, 0], [1, 1], [0, 1]]) + np.array([2.5, 0.5])]
+    # rob_vertices = [np.array([[-1, -1], [-1.5, -0.5], [-1.2, -1.5]])]
+    # source_obj_pos = [[0, 0]]
+    # source_rob_pos = [[-2, -2]]
+    # target_obj_pos = [[2, 0]]
+    # target_rob_pos = [[2.5, 2]]
 
     obs = []
     objs = []
     robs = []
-    n_pos_per_set = 3
+    n_pos_per_set = 2
     for i in range(len(obs_vertices)):
         obs.append(
             RigidBody(

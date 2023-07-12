@@ -302,10 +302,11 @@ class Graph:
         assert self._target_name is not None
 
         options = GraphOfConvexSetsOptions()
-        options.preprocessing = False
+
         options.convex_relaxation = use_convex_relaxation
         if use_convex_relaxation is True:
-            options.max_rounded_paths = 10
+            options.preprocessing = True
+            options.max_rounded_paths = 100
 
         # print(f"target: {self._target_name}, {self.vertices[self._target_name].gcs_vertex}")
         result = self._gcs.SolveShortestPath(
