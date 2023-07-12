@@ -1,7 +1,7 @@
 import numpy as np
 from dataclasses import dataclass
 from itertools import combinations, permutations, product
-from typing import List
+from typing import List, Dict
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib.animation import FFMpegWriter
@@ -12,6 +12,8 @@ from pydrake.all import (
     HPolyhedron,
     Formula,
     FormulaKind,
+    ConvexSet as DrakeConvexSet,
+    Point as DrakePoint,
     GraphOfConvexSets,
     GraphOfConvexSetsOptions,
     Cost,
@@ -111,6 +113,9 @@ class ContactGraph(Graph):
         self.target_pos = target_pos_objs + target_pos_robs
 
         sets, set_ids = self._generate_contact_sets()
+        base_convex_sets = {
+            id: base_set.base_set for id, base_set in zip(set_ids, sets)
+        }
 
         # Assign costs and constraints
         cc_factory = ContactCostConstraintFactory(self.vars)
@@ -137,13 +142,19 @@ class ContactGraph(Graph):
             self._create_point_set_from_positions(target_pos_objs, target_pos_robs),
         ]
         set_ids += ["s", "t"]
+        base_convex_sets["s"] = DrakePoint(
+            np.array(source_pos_objs + source_pos_robs).flatten()
+        )
+        base_convex_sets["t"] = DrakePoint(
+            np.array(target_pos_objs + target_pos_robs).flatten()
+        )
 
         # Add convex sets to graph (Need to do this before generating edges)
         self.add_vertices_from_sets(sets, names=set_ids)
         self.set_source("s")
         self.set_target("t")
 
-        edges = self._generate_contact_graph_edges(set_ids)
+        edges = self._generate_contact_graph_edges(set_ids, base_convex_sets)
         self.add_edges_from_vertex_names(*zip(*edges))
 
         # Check that the source and target are reachable
@@ -173,17 +184,18 @@ class ContactGraph(Graph):
             (0, self.vars.all.size - pos_repeated_flattened.size),
             mode="constant",
         )
+        point = Point(coords)
+        point.base_set = Point(positions.flatten())
         return Point(coords)
 
-    def _generate_contact_graph_edges(self, contact_set_ids: List[str]):
+    def _generate_contact_graph_edges(
+        self, contact_set_ids: List[str], base_contact_sets: Dict[str, DrakeConvexSet]
+    ):
         """Generates all possible edges given a set of contact sets."""
         print("Generating edges...(parallel)")
         with Pool() as pool:
             pairs = list(combinations(contact_set_ids, 2))
-            sets = [
-                (self.vertices[u].convex_set.set, self.vertices[v].convex_set.set)
-                for u, v in pairs
-            ]
+            sets = [(base_contact_sets[u], base_contact_sets[v]) for u, v in pairs]
             intersections = list(
                 tqdm(pool.imap(self._check_intersection, sets), total=len(sets))
             )

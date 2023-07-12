@@ -89,22 +89,22 @@ class ContactSet(ConvexSet):
             for mode in contact_pair_modes
             for constraint in mode.constraint_formulas
         ]
-        # self.base_constraint_formulas = [
-        #     constraint.item()
-        #     for mode in contact_pair_modes
-        #     for constraint in mode.base_constraint_formulas
-        # ]
+        self.base_constraint_formulas = [
+            constraint.item()
+            for mode in contact_pair_modes
+            for constraint in mode.base_constraint_formulas
+        ]
         self.constraint_formulas.extend(set_force_constraints)
         self._polyhedron = self._construct_polyhedron_from_constraints(
             self.constraint_formulas, all_variables
         )
-        # self._base_polyhedron = self._construct_polyhedron_from_constraints(
-        #     self.base_constraint_formulas, base_all_variables
-        # )
-        print(f"set id: {self.id}")
-        print(f"all vars {all_variables}")
-        print(f"base all vars {base_all_variables}")
-        print()
+        self._base_polyhedron = self._construct_polyhedron_from_constraints(
+            self.base_constraint_formulas, base_all_variables
+        )
+        # print(f"set id: {self.id}")
+        # print(f"all vars {all_variables}")
+        # print(f"base all vars {base_all_variables}")
+        # print()
 
     def _construct_polyhedron_from_constraints(
         self,
@@ -169,6 +169,10 @@ class ContactSet(ConvexSet):
     @property
     def set(self):
         return self._polyhedron
+
+    @property
+    def base_set(self):
+        return self._base_polyhedron
 
     @property
     def center(self):
