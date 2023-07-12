@@ -308,6 +308,7 @@ class ContactGraph(Graph):
                 [mode_ids_to_mode[mode_id] for mode_id in set_id],
                 set_force_constraints_dict[set_id],
                 self.vars.all,
+                self.vars.base_all,
             )
             for set_id in tqdm(set_ids)
         ]

@@ -28,6 +28,7 @@ class ContactSetDecisionVariables:
     force_mag_AB: np.ndarray
     force_mag_BA: np.ndarray
     all: np.ndarray
+    base_all: np.ndarray
 
     def __init__(
         self,
@@ -56,6 +57,9 @@ class ContactSetDecisionVariables:
                 self.force_mag_BA.flatten(),
             )
         )
+        # Extract the first point in n_pos_points_per_set
+        base_pos = np.array([body.vars_pos[:, 0] for body in objects + robots])
+        self.base_all = base_pos.flatten()
 
     def pos_from_all(self, vars_all):
         """Extracts the vars_pos from vars_all and reshapes it to match the template"""
@@ -74,6 +78,7 @@ class ContactSet(ConvexSet):
         contact_pair_modes: List[ContactPairMode],
         set_force_constraints: List[Formula],
         all_variables: np.ndarray,
+        base_all_variables: np.ndarray,
     ):
         # print(f"set_force_constraints shape: {np.array(set_force_constraints).shape}")
         # print(f"set_force_constraints: {set_force_constraints}")
@@ -84,13 +89,22 @@ class ContactSet(ConvexSet):
             for mode in contact_pair_modes
             for constraint in mode.constraint_formulas
         ]
+        # self.base_constraint_formulas = [
+        #     constraint.item()
+        #     for mode in contact_pair_modes
+        #     for constraint in mode.base_constraint_formulas
+        # ]
         self.constraint_formulas.extend(set_force_constraints)
         self._polyhedron = self._construct_polyhedron_from_constraints(
             self.constraint_formulas, all_variables
         )
-        # print(f"set id: {self.id}")
-        # print(f"{all_variables}")
-        # print()
+        # self._base_polyhedron = self._construct_polyhedron_from_constraints(
+        #     self.base_constraint_formulas, base_all_variables
+        # )
+        print(f"set id: {self.id}")
+        print(f"all vars {all_variables}")
+        print(f"base all vars {base_all_variables}")
+        print()
 
     def _construct_polyhedron_from_constraints(
         self,

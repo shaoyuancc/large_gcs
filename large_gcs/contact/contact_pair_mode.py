@@ -37,14 +37,17 @@ class ContactPairMode(ABC):
             and self.body_b.mobility_type == MobilityType.STATIC
         ), "Static-static contact does not need to be considered"
         self._create_decision_vars()
-        self.constraint_formulas = self._create_constraint_formulas()
+        (
+            self.constraint_formulas,
+            self.base_constraint_formulas,
+        ) = self._create_constraint_formulas()
 
     def plot(self, **kwargs):
         self._plot(**kwargs)
         plt.show()
 
     @abstractmethod
-    def _create_constraint_formulas(self) -> List[Formula]:
+    def _create_constraint_formulas(self) -> Tuple[List[Formula], List[Formula]]:
         pass
 
     def _create_decision_vars(self):
@@ -111,11 +114,16 @@ class NoContactPairMode(ContactPairMode):
 
     def _create_constraint_formulas(self):
         constraints = []
+        base_constraints = []
         # Position Constraints
-        signed_dist_exprs = self._create_signed_dist_surrog_constraint_exprs()
-        constraints += [ge(expr, 0) for expr in signed_dist_exprs]
+        sd_exprs = self._create_signed_dist_surrog_constraint_exprs()
+        sd_constraints = [eq(expr, 0) for expr in sd_exprs]
+        constraints += sd_constraints
+        # Extract the base signed distance constraint which is the one that involves the base position variables
+        # i.e. pos 0 of n_pos_per_set. For sd, each pos produces one expression
+        base_constraints += [sd_constraints[0]]
 
-        return constraints
+        return constraints, base_constraints
 
     @property
     def compact_class_name(self):
@@ -147,15 +155,25 @@ class InContactPairMode(ContactPairMode):
 
     def _create_constraint_formulas(self):
         constraints = []
+        base_constraints = []
         # Position Constraints
-        pos_exprs = self._create_signed_dist_surrog_constraint_exprs()
-        constraints += [eq(expr, 0) for expr in pos_exprs]
-        constraints += self._create_horizontal_bounds_formulas()
+        sd_exprs = self._create_signed_dist_surrog_constraint_exprs()
+        sd_constraints = [eq(expr, 0) for expr in sd_exprs]
+        constraints += sd_constraints
+        # Extract the base signed distance constraint which is the one that involves the base position variables
+        # i.e. pos 0 of n_pos_per_set. For sd, each pos produces one expression
+        base_constraints += [sd_constraints[0]]
+
+        hb_constraints = self._create_horizontal_bounds_formulas()
+        constraints += hb_constraints
+        # Extract the base horizontal bound constraint which is the one that involves the base position variables
+        # i.e. pos 0 of n_pos_per_set. For hb, each pos produces two formulas (lower and upper bound)
+        base_constraints += [hb_constraints[0], hb_constraints[1]]
 
         # Force Constraints
         constraints += self._create_force_constraint_formulas()
 
-        return constraints
+        return constraints, base_constraints
 
     def _create_force_constraint_formulas(self):
         formulas = []
