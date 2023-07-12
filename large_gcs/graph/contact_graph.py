@@ -1,4 +1,5 @@
 import numpy as np
+import re
 from dataclasses import dataclass
 from itertools import combinations, permutations, product
 from typing import List, Dict, Tuple
@@ -76,6 +77,7 @@ class ContactGraph(Graph):
         target_pos_objs: List[np.ndarray],
         target_pos_robs: List[np.ndarray],
         workspace: np.ndarray = None,
+        vertex_exclusion_regex_pattern: str = None,
     ):
         """
         Args:
@@ -116,7 +118,7 @@ class ContactGraph(Graph):
         self.source_pos = source_pos_objs + source_pos_robs
         self.target_pos = target_pos_objs + target_pos_robs
 
-        sets, set_ids = self._generate_contact_sets()
+        sets, set_ids = self._generate_contact_sets(vertex_exclusion_regex_pattern)
 
         sets += [
             ContactPointSet(
@@ -228,7 +230,7 @@ class ContactGraph(Graph):
         u_set, v_set = args
         return u_set.IntersectsWith(v_set)
 
-    def _generate_contact_sets(self):
+    def _generate_contact_sets(self, vertex_exclusion_regex_pattern: str = None):
         """Generates all possible contact sets given a set of static obstacles, unactuated objects, and actuated robots."""
         static_obstacles = self.obstacles
         unactuated_objects = self.objects
@@ -325,6 +327,18 @@ class ContactGraph(Graph):
         print(
             f"{len(non_empty_sets)} sets remain after removing {len(all_contact_sets) - len(non_empty_sets)} empty sets"
         )
+
+        if vertex_exclusion_regex_pattern is not None:
+            print(
+                f"Removing sets matching regex pattern {vertex_exclusion_regex_pattern}"
+            )
+            non_empty_sets = [
+                contact_set
+                for contact_set in tqdm(non_empty_sets)
+                if not re.search(vertex_exclusion_regex_pattern, str(contact_set.id))
+            ]
+            non_empty_set_ids = [str(contact_set.id) for contact_set in non_empty_sets]
+            print(f"{len(non_empty_sets)} sets remain after removing excluded sets")
 
         return non_empty_sets, non_empty_set_ids
 
