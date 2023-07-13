@@ -77,7 +77,8 @@ class ContactGraph(Graph):
         target_pos_objs: List[np.ndarray],
         target_pos_robs: List[np.ndarray],
         workspace: np.ndarray = None,
-        vertex_exclusion_regex_pattern: str = None,
+        vertex_exclusion: List[str] = None,
+        vertex_inclusion: List[str] = None,
     ):
         """
         Args:
@@ -118,17 +119,17 @@ class ContactGraph(Graph):
         self.source_pos = source_pos_objs + source_pos_robs
         self.target_pos = target_pos_objs + target_pos_robs
 
-        sets, set_ids = self._generate_contact_sets(vertex_exclusion_regex_pattern)
+        sets, set_ids = self._generate_contact_sets(vertex_exclusion, vertex_inclusion)
 
         sets += [
             ContactPointSet(
-                "s", self.objects, self.robots, source_pos_objs, source_pos_robs
+                "source", self.objects, self.robots, source_pos_objs, source_pos_robs
             ),
             ContactPointSet(
-                "t", self.objects, self.robots, target_pos_objs, target_pos_robs
+                "target", self.objects, self.robots, target_pos_objs, target_pos_robs
             ),
         ]
-        set_ids += ["s", "t"]
+        set_ids += ["source", "target"]
 
         # Add convex sets to graph (Need to do this before generating edges)
         self.add_vertices_from_sets(
@@ -137,8 +138,8 @@ class ContactGraph(Graph):
             constraints=self._create_vertex_constraints(sets),
             names=set_ids,
         )
-        self.set_source("s")
-        self.set_target("t")
+        self.set_source("source")
+        self.set_target("target")
 
         edges = self._generate_contact_graph_edges(set_ids)
         self.add_edges_from_vertex_names(
@@ -230,7 +231,9 @@ class ContactGraph(Graph):
         u_set, v_set = args
         return u_set.IntersectsWith(v_set)
 
-    def _generate_contact_sets(self, vertex_exclusion_regex_pattern: str = None):
+    def _generate_contact_sets(
+        self, vertex_exlcusion: List[str] = None, vertex_inclusion: List[str] = None
+    ) -> Tuple[List[ContactSet], List[str]]:
         """Generates all possible contact sets given a set of static obstacles, unactuated objects, and actuated robots."""
         static_obstacles = self.obstacles
         unactuated_objects = self.objects
@@ -317,30 +320,42 @@ class ContactGraph(Graph):
         ]
 
         print(f"Pruning empty sets...")
-        non_empty_sets = [
+        sets_to_keep = [
             contact_set
             for contact_set in tqdm(all_contact_sets)
             if not contact_set.set.IsEmpty()
         ]
-        non_empty_set_ids = [str(contact_set.id) for contact_set in non_empty_sets]
 
         print(
-            f"{len(non_empty_sets)} sets remain after removing {len(all_contact_sets) - len(non_empty_sets)} empty sets"
+            f"{len(sets_to_keep)} sets remain after removing {len(all_contact_sets) - len(sets_to_keep)} empty sets"
         )
 
-        if vertex_exclusion_regex_pattern is not None:
-            print(
-                f"Removing sets matching regex pattern {vertex_exclusion_regex_pattern}"
-            )
-            non_empty_sets = [
+        if vertex_exlcusion is not None:
+            print(f"Removing sets matching exclusion strings {vertex_exlcusion}")
+            sets_to_keep = [
                 contact_set
-                for contact_set in tqdm(non_empty_sets)
-                if not re.search(vertex_exclusion_regex_pattern, str(contact_set.id))
+                for contact_set in tqdm(sets_to_keep)
+                if not any(
+                    vertex_exlcusion in str(contact_set.id)
+                    for vertex_exlcusion in vertex_exlcusion
+                )
             ]
-            non_empty_set_ids = [str(contact_set.id) for contact_set in non_empty_sets]
-            print(f"{len(non_empty_sets)} sets remain after removing excluded sets")
+            print(f"{len(sets_to_keep)} sets remain after removing excluded sets")
 
-        return non_empty_sets, non_empty_set_ids
+        if vertex_inclusion is not None:
+            print(f"Filtering sets for inclusion strings {vertex_inclusion}")
+            sets_to_keep = [
+                contact_set
+                for contact_set in tqdm(sets_to_keep)
+                if any(
+                    vertex_inclusion in str(contact_set.id)
+                    for vertex_inclusion in vertex_inclusion
+                )
+            ]
+            print(f"{len(sets_to_keep)} sets remain after filtering for inclusion sets")
+
+        sets_to_keep_ids = [str(contact_set.id) for contact_set in sets_to_keep]
+        return sets_to_keep, sets_to_keep_ids
 
     def _post_solve(self, sol):
         """Post solve hook that is called after solving by the base graph class"""
@@ -458,9 +473,9 @@ class ContactGraph(Graph):
         polygons = [
             patches.Polygon(
                 body.geometry.vertices,
-                color="blue"
+                color="lightblue"
                 if body.mobility_type == MobilityType.UNACTUATED
-                else "red",
+                else "lightsalmon",
             )
             for body in bodies
         ]

@@ -545,8 +545,14 @@ def generate_contact_pair_modes(
         no_contact_pair_modes.append(in_contact_pair.to_no_contact_pair_mode())
 
     if ignore_static_actuated_contact and (
-        body_a.mobility_type == MobilityType.STATIC
-        or body_b.mobility_type == MobilityType.STATIC
+        (
+            body_a.mobility_type == MobilityType.STATIC
+            or body_b.mobility_type == MobilityType.STATIC
+        )
+        and (
+            body_a.mobility_type == MobilityType.ACTUATED
+            or body_b.mobility_type == MobilityType.ACTUATED
+        )
     ):
         return no_contact_pair_modes
     else:
