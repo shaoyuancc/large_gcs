@@ -1,6 +1,7 @@
 from collections import defaultdict
 import numpy as np
 import heapq as heap
+import queue
 from IPython.display import clear_output
 from matplotlib.animation import FFMpegWriter
 import matplotlib.pyplot as plt
@@ -20,18 +21,29 @@ class GcsAstar(SearchAlgorithm):
     admissible heuristic (e.g. L2NormSquaredEdgeCost).
     """
 
-    def __init__(self, graph: Graph, vis_params: AlgVisParams = AlgVisParams()):
-        assert (
-            graph._default_costs_constraints.edge_costs is not None
-        ), "Edge costs must be specified in the graph's default costs constraints."
+    def __init__(
+        self,
+        graph: Graph,
+        shortcut_edge_cost_factory,
+        vis_params: AlgVisParams = AlgVisParams(),
+    ):
+        if (
+            shortcut_edge_cost_factory is None
+            and graph._default_costs_constraints.edge_costs is None
+        ):
+            raise ValueError(
+                "If no shortcut_edge_cost_factory is specified, edge costs must be specified in the graph's default costs constraints."
+            )
 
         self._graph = graph
+        self._shortcut_edge_cost_factory = shortcut_edge_cost_factory
         self._vis_params = vis_params
         self._writer = None
         self._alg_metrics = AlgMetrics()
         self._gcs_solve_times = np.empty((0,))
         self._candidate_sol = None
         self._pq = []
+        self._infeasible_edge_q = queue.Queue()
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
         # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
@@ -57,15 +69,31 @@ class GcsAstar(SearchAlgorithm):
                 fig, self._vis_params.vid_output_path, self._vis_params.dpi
             )
 
-        while (
-            len(self._pq) > 0
-            and (self._pq[0][1], self._graph.target_name) not in self._graph.edges
-        ):
-            self._run_iteration(verbose=verbose)
+        while self._candidate_sol is None:
+            if len(self._pq) > 0:
+                self._run_iteration(verbose=verbose)
+            elif not self._infeasible_edge_q.empty():
+                edge = self._infeasible_edge_q.get()
+                while edge.v in self._visited.vertex_names:
+                    if verbose:
+                        print(
+                            f"previously unreachable vertex {edge.v} already in visited subgraph"
+                        )
+                    edge = self._infeasible_edge_q.get()
+                if verbose:
+                    print(f"exploring previously unreachable vertex {edge.v}")
+                self._explore_edge(edge, verbose=verbose)
 
+        print(f"pq is not empty {len(self._pq) > 0}")
+        print(
+            f"next node in pq has edge to target {(self._pq[0][1], self._graph.target_name) in self._graph.edges}"
+        )
+        print(f"candidate sol is None {self._candidate_sol is None}")
         sol = self._candidate_sol
-        clear_output(wait=True)
-        print(f"Gcs A* complete! \n{sol}\n{self.alg_metrics}")
+        # clear_output(wait=True)
+        print(
+            f"Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
+        )
         if self._writer:
             self._writer.fig.clear()
             self.plot_graph(path=sol.ambient_path, is_final_path=True)
@@ -82,9 +110,8 @@ class GcsAstar(SearchAlgorithm):
 
     def _run_iteration(self, verbose: bool = False):
         _, node = heap.heappop(self._pq)
-        sol = None
         if node in self._visited.vertex_names and node != self._graph.target_name:
-            return sol
+            return
 
         self._add_vertex_and_edges_to_visited_except_edges_to_target(node)
 
@@ -92,8 +119,8 @@ class GcsAstar(SearchAlgorithm):
             self._visited.set_source(self._graph.source_name)
 
         if verbose:
-            clear_output(wait=True)
-            print(f"{self.alg_metrics}, now relaxing node {node}'s neighbors")
+            # clear_output(wait=True)
+            print(f"\n{self.alg_metrics}\nnow exploring node {node}'s neighbors")
         if self._writer:
             self._writer.fig.clear()
             self.plot_graph()
@@ -106,39 +133,64 @@ class GcsAstar(SearchAlgorithm):
                 neighbor not in self._visited.vertex_names
                 or neighbor == self._graph.target_name
             ):
-                if neighbor != self._graph.target_name:
-                    # Add neighbor and edge temporarily to the visited subgraph
-                    self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
-                    # Add an edge from the neighbor to the target
-                    direct_to_target = Edge(neighbor, self._graph.target_name)
-                    self._visited.add_edge(direct_to_target)
+                self._explore_edge(edge, verbose=verbose)
 
-                self._visited.add_edge(edge)
-                sol = self._visited.solve()
-                new_dist = sol.cost
+    def _explore_edge(self, edge: Edge, verbose: bool = False):
+        neighbor = edge.v
+        if neighbor != self._graph.target_name:
+            # Add neighbor and edge temporarily to the visited subgraph
+            self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
+            # Check if this neighbor actually has an edge to the target
+            # If so, add that edge instead of the shortcut
+            if (neighbor, self._graph.target_name) in self._graph.edges:
+                self._visited.add_edge(
+                    self._graph.edges[(neighbor, self._graph.target_name)]
+                )
+            else:
+                # Add an edge from the neighbor to the target
+                direct_edge_costs = None
+                if self._shortcut_edge_cost_factory:
+                    # Note for now this only works with ContactSet and ContactPointSet because
+                    # they have the vars attribute, and convex_sets in general do not.
+                    direct_edge_costs = self._shortcut_edge_cost_factory(
+                        self._graph.vertices[neighbor].convex_set.vars,
+                        self._graph.vertices[self._graph.target_name].convex_set.vars,
+                    )
+                direct_to_target = Edge(
+                    neighbor, self._graph.target_name, costs=direct_edge_costs
+                )
+                self._visited.add_edge(direct_to_target)
 
-                self._update_alg_metrics_after_gcs_solve(sol.time)
+        self._visited.add_edge(edge)
+        sol = self._visited.solve()
 
-                if neighbor != self._graph.target_name:
-                    # Remove neighbor and associated edges from the visited subgraph
-                    self._visited.remove_vertex(neighbor)
-                else:
-                    # Just remove the edge from the neighbor to the target from the visited subgraph
-                    # because the target node must be kept in the visited subgraph
-                    self._visited.remove_edge((edge.u, edge.v))
+        self._update_alg_metrics_after_gcs_solve(sol.time)
 
-                if new_dist < self._node_dists[neighbor]:
-                    self._node_dists[neighbor] = new_dist
-                    heap.heappush(self._pq, (new_dist, neighbor))
-                    # Check if this neighbor actually has an edge to the target
-                    if (neighbor, self._graph.target_name) in self._graph.edges:
-                        self._candidate_sol = sol
+        if neighbor != self._graph.target_name:
+            # Remove neighbor and associated edges from the visited subgraph
+            self._visited.remove_vertex(neighbor)
+        else:
+            # Just remove the edge from the neighbor to the target from the visited subgraph
+            # because the target node must be kept in the visited subgraph
+            self._visited.remove_edge((edge.u, edge.v))
 
-                if self._writer:
-                    self._writer.fig.clear()
-                    self.plot_graph(sol.ambient_path, edge)
-                    self._writer.grab_frame()
-        return sol
+        if sol.is_success:
+            new_dist = sol.cost
+            if new_dist < self._node_dists[neighbor]:
+                self._node_dists[neighbor] = new_dist
+                heap.heappush(self._pq, (new_dist, neighbor))
+                # Check if this neighbor actually has an edge to the target
+                if (neighbor, self._graph.target_name) in self._graph.edges:
+                    self._candidate_sol = sol
+
+            if self._writer:
+                self._writer.fig.clear()
+                self.plot_graph(sol.ambient_path, edge)
+                self._writer.grab_frame()
+        else:
+            self._infeasible_edge_q.put(edge)
+            if verbose:
+                print(f"edge {edge.u} -> {edge.v} not actually feasible")
 
     def _add_vertex_and_edges_to_visited_except_edges_to_target(self, vertex_name):
         # Add node to the visited subgraph along with all of its incoming and outgoing edges to the visited subgraph
