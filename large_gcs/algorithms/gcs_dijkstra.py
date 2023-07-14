@@ -74,7 +74,7 @@ class GcsDijkstra(SearchAlgorithm):
 
         if verbose:
             clear_output(wait=True)
-            print(f"{self.alg_metrics}, now relaxing node {node}'s neighbors")
+            print(f"{self.alg_metrics}, now exploring node {node}'s neighbors")
 
         if self._writer:
             self._writer.fig.clear()

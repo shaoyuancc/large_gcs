@@ -1,6 +1,8 @@
 from pydrake.all import (
     GraphOfConvexSets,
     GraphOfConvexSetsOptions,
+    SolverOptions,
+    MosekSolver,
     Cost,
     Constraint,
     Binding,
@@ -193,7 +195,7 @@ class Graph:
 
         print(f"Adding {len(sets)} vertices to graph...")
         for set, name, cost_list, constraint_list in tqdm(
-            zip(sets, names, costs, constraints)
+            list(zip(sets, names, costs, constraints))
         ):
             self.add_vertex(Vertex(set, cost_list, constraint_list), name)
 
@@ -264,7 +266,9 @@ class Graph:
             assert len(constraints) == len(us)
 
         print(f"Adding {len(us)} edges to graph...")
-        for u, v, cost_list, constraint_list in tqdm(zip(us, vs, costs, constraints)):
+        for u, v, cost_list, constraint_list in tqdm(
+            list(zip(us, vs, costs, constraints))
+        ):
             self.add_edge(Edge(u, v, cost_list, constraint_list))
 
     def set_source(self, vertex_name: str):
@@ -309,10 +313,14 @@ class Graph:
 
         options = GraphOfConvexSetsOptions()
 
+        # TURN OFF PRESOLVE debugging
+        options.solver_options.SetOption(MosekSolver.id(), "MSK_IPAR_PRESOLVE_USE", 0)
+
         options.convex_relaxation = use_convex_relaxation
         if use_convex_relaxation is True:
             options.preprocessing = True
             options.max_rounded_paths = 100
+            # options.max_rounding_trials = 50
 
         # print(f"target: {self._target_name}, {self.vertices[self._target_name].gcs_vertex}")
         result = self._gcs.SolveShortestPath(
