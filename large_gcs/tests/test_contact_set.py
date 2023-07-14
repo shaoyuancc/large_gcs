@@ -23,15 +23,21 @@ def test_create_incontactpairmode_static_tri_movable_tri():
     body_b = RigidBody(
         "obj_b",
         Polyhedron.from_vertices([[-1, -1], [-1.5, -0.5], [-1.2, -1.5]]),
-        MobilityType.UNACTUATED,
+        MobilityType.ACTUATED,
         n_pos_points=n_pos_points,
     )
     contact_loc_a = ContactLocationVertex(body_a, 0)
     contact_loc_b = ContactLocationFace(body_b, 0)
     contact_pair_mode = InContactPairMode(body_a, body_b, contact_loc_a, contact_loc_b)
 
-    all_vars = ContactSet.flatten_set_vars(body_b.vars_pos)
-    contact_set = ContactSet([contact_pair_mode], all_vars)
+    contact_set = ContactSet(
+        [contact_pair_mode],
+        additional_constraints=[],
+        objects=[],
+        robots=[body_b],
+    )
     xy = [0.12666955, 0.90001547]
     vals = np.repeat(xy, n_pos_points)
-    assert not contact_set.set.PointInSet(vals)
+    vars_template = np.zeros_like(contact_set.vars.all)
+    vars_template[: len(vals)] = vals
+    assert not contact_set.set.PointInSet(vars_template)
