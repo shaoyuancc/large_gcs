@@ -44,6 +44,7 @@ from large_gcs.geometry.point import Point
 from large_gcs.graph.contact_cost_constraint_factory import (
     vertex_cost_position_path_length,
     vertex_cost_force_actuation_norm_squared,
+    vertex_cost_force_actuation_norm,
     edge_constraint_position_continuity,
     edge_cost_constant,
 )
@@ -161,7 +162,7 @@ class ContactGraph(Graph):
         costs = [
             [
                 vertex_cost_position_path_length(set.vars),
-                vertex_cost_force_actuation_norm_squared(set.vars),
+                vertex_cost_force_actuation_norm(set.vars),
             ]
             if not isinstance(set, ContactPointSet)
             else []

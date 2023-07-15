@@ -56,6 +56,7 @@ class RigidBody:
                 self.dim, self.name + "_force_res"
             )
 
+            # Actuation force on/of the body
             if self.mobility_type == MobilityType.ACTUATED:
                 self.vars_force_act = MakeVectorContinuousVariable(
                     self.dim, self.name + "_force_act"

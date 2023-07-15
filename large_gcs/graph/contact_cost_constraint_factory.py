@@ -53,6 +53,14 @@ def vertex_cost_position_path_length_squared(
     return QuadraticCost(Q, b, c)
 
 
+def vertex_cost_force_actuation_norm(vars: ContactSetDecisionVariables) -> L2NormCost:
+    """Creates a vertex cost that penalizes the magnitude of the force actuation."""
+    exprs = vars.force_act.flatten()
+    A = DecomposeLinearExpressions(exprs, vars.all)
+    b = np.zeros(A.shape[0])
+    return L2NormCost(A, b)
+
+
 def vertex_cost_force_actuation_norm_squared(
     vars: ContactSetDecisionVariables,
 ) -> QuadraticCost:
