@@ -13,13 +13,8 @@ from large_gcs.algorithms.search_algorithm import (
 from large_gcs.graph.graph import Edge, Graph
 
 
-class GcsAstar(SearchAlgorithm):
-    """A* search algorithm for GCS. This implementation is very similar to GCS Dijkstra,
-    but the the target node is always added to the visited subgraph, and an edge from the
-    node being relaxed to the target is also added.
-    Therefore, this will not work for edge costs for which this would not lead to an
-    admissible heuristic (e.g. L2NormSquaredEdgeCost).
-    """
+class GcsAstarSubOpt(SearchAlgorithm):
+    """Suboptimal version of GCS A*"""
 
     def __init__(
         self,
@@ -46,6 +41,7 @@ class GcsAstar(SearchAlgorithm):
         self._candidate_sol = None
         self._pq = []
         self._infeasible_edge_q = queue.Queue()
+        self._feasible_edges = set()
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
         # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
@@ -94,7 +90,7 @@ class GcsAstar(SearchAlgorithm):
         sol = self._candidate_sol
         # clear_output(wait=True)
         print(
-            f"Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
+            f"Suboptimal Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
         )
         if self._writer:
             self._writer.fig.clear()
@@ -181,6 +177,7 @@ class GcsAstar(SearchAlgorithm):
             self._visited.remove_edge((edge.u, edge.v))
 
         if sol.is_success:
+            self._feasible_edges.add((edge.u, edge.v))
             new_dist = sol.cost
             if verbose:
                 print(
@@ -213,6 +210,8 @@ class GcsAstar(SearchAlgorithm):
                 edge.u in self._visited.vertex_names
                 and edge.v in self._visited.vertex_names
                 and edge.v != self._graph.target_name
+                and (edge.u, edge.v)
+                in self._feasible_edges  # Experimental, only add edges we've verified are feasible
             ):
                 self._visited.add_edge(edge)
 

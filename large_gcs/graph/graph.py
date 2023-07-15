@@ -1,11 +1,14 @@
 from pydrake.all import (
     GraphOfConvexSets,
     GraphOfConvexSetsOptions,
+    SolverOptions,
+    MosekSolver,
     Cost,
     Constraint,
     Binding,
     MathematicalProgramResult,
 )
+from tqdm import tqdm
 import numpy as np
 from dataclasses import dataclass
 from typing import Tuple, List, Optional
@@ -18,6 +21,8 @@ from large_gcs.geometry.convex_set import ConvexSet
 
 @dataclass
 class ShortestPathSolution:
+    # Whether the optimization was successful
+    is_success: bool
     cost: float
     # Time to solve the optimization problem
     time: float
@@ -188,8 +193,9 @@ class Graph:
         else:
             assert len(constraints) == len(sets)
 
-        for set, name, cost_list, constraint_list in zip(
-            sets, names, costs, constraints
+        print(f"Adding {len(sets)} vertices to graph...")
+        for set, name, cost_list, constraint_list in tqdm(
+            list(zip(sets, names, costs, constraints))
         ):
             self.add_vertex(Vertex(set, cost_list, constraint_list), name)
 
@@ -259,7 +265,10 @@ class Graph:
         else:
             assert len(constraints) == len(us)
 
-        for u, v, cost_list, constraint_list in zip(us, vs, costs, constraints):
+        print(f"Adding {len(us)} edges to graph...")
+        for u, v, cost_list, constraint_list in tqdm(
+            list(zip(us, vs, costs, constraints))
+        ):
             self.add_edge(Edge(u, v, cost_list, constraint_list))
 
     def set_source(self, vertex_name: str):
@@ -304,10 +313,14 @@ class Graph:
 
         options = GraphOfConvexSetsOptions()
 
+        # TURN OFF PRESOLVE debugging
+        options.solver_options.SetOption(MosekSolver.id(), "MSK_IPAR_PRESOLVE_USE", 0)
+
         options.convex_relaxation = use_convex_relaxation
         if use_convex_relaxation is True:
             options.preprocessing = True
             options.max_rounded_paths = 100
+            # options.max_rounding_trials = 50
 
         # print(f"target: {self._target_name}, {self.vertices[self._target_name].gcs_vertex}")
         result = self._gcs.SolveShortestPath(
@@ -315,7 +328,6 @@ class Graph:
             self.vertices[self._target_name].gcs_vertex,
             options,
         )
-        assert result.is_success()
 
         sol = self._parse_result(result)
 
@@ -331,26 +343,28 @@ class Graph:
     def _parse_result(self, result: MathematicalProgramResult) -> ShortestPathSolution:
         cost = result.get_optimal_cost()
         time = result.get_solver_details().optimizer_time
-
-        flow_variables = [e.phi() for e in self._gcs.Edges()]
-        flows = [result.GetSolution(p) for p in flow_variables]
-        edge_path = []
-        for k, flow in enumerate(flows):
-            if flow >= 0.99:
-                edge_path.append(self.edge_keys[k])
-        assert len(self._gcs.Edges()) == self.n_edges
-
-        # Edges are in order they were added to the graph and not in order of the path
-        vertex_path = self._convert_active_edges_to_vertex_path(
-            self.source_name, self.target_name, edge_path
-        )
-        # vertex_path = [self.source_name]
-        ambient_path = [
-            result.GetSolution(self.vertices[v].gcs_vertex.x()) for v in vertex_path
-        ]
+        vertex_path = []
+        ambient_path = []
+        flows = []
+        if result.is_success():
+            flow_variables = [e.phi() for e in self._gcs.Edges()]
+            flows = [result.GetSolution(p) for p in flow_variables]
+            edge_path = []
+            for k, flow in enumerate(flows):
+                if flow >= 0.99:
+                    edge_path.append(self.edge_keys[k])
+            assert len(self._gcs.Edges()) == self.n_edges
+            # Edges are in order they were added to the graph and not in order of the path
+            vertex_path = self._convert_active_edges_to_vertex_path(
+                self.source_name, self.target_name, edge_path
+            )
+            # vertex_path = [self.source_name]
+            ambient_path = [
+                result.GetSolution(self.vertices[v].gcs_vertex.x()) for v in vertex_path
+            ]
 
         return ShortestPathSolution(
-            cost, time, vertex_path, ambient_path, flows, result
+            result.is_success(), cost, time, vertex_path, ambient_path, flows, result
         )
 
     @staticmethod

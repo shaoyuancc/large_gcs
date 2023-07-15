@@ -80,6 +80,7 @@ class ContactGraph(Graph):
         workspace: np.ndarray = None,
         vertex_exclusion: List[str] = None,
         vertex_inclusion: List[str] = None,
+        edge_keys: List[Tuple[str, str]] = None,  # For loading a saved graph
     ):
         """
         Args:
@@ -95,6 +96,8 @@ class ContactGraph(Graph):
         self._target_name = None
         self._default_costs_constraints = None
         self.workspace = workspace
+        self.vertex_inclusion = vertex_inclusion
+        self.vertex_exclusion = vertex_exclusion
         self.vars = None
         self.obstacles = None
         self.objects = None
@@ -119,7 +122,6 @@ class ContactGraph(Graph):
 
         self.source_pos = source_pos_objs + source_pos_robs
         self.target_pos = target_pos_objs + target_pos_robs
-
         sets, set_ids = self._generate_contact_sets(vertex_exclusion, vertex_inclusion)
 
         sets += [
@@ -142,7 +144,11 @@ class ContactGraph(Graph):
         self.set_source("source")
         self.set_target("target")
 
-        edges = self._generate_contact_graph_edges(set_ids)
+        if edge_keys is None:
+            edges = self._generate_contact_graph_edges(set_ids)
+        else:
+            edges = edge_keys
+
         self.add_edges_from_vertex_names(
             *zip(*edges),
             costs=self._create_edge_costs(edges),
@@ -156,6 +162,41 @@ class ContactGraph(Graph):
         assert (
             len(self.incoming_edges(self.target_name)) > 0
         ), "Target is not reachable from any other set"
+
+    def save_to_file(self, path: str):
+        np.save(
+            path,
+            {
+                "obs_params": [obs.params for obs in self.obstacles],
+                "objs_params": [obj.params for obj in self.objects],
+                "robs_params": [rob.params for rob in self.robots],
+                "source_pos_objs": self.source_pos[: self.n_objects],
+                "source_pos_robs": self.source_pos[self.n_objects :],
+                "target_pos_objs": self.target_pos[: self.n_objects],
+                "target_pos_robs": self.target_pos[self.n_objects :],
+                "workspace": self.workspace,
+                "vertex_exclusion": self.vertex_exclusion,
+                "vertex_inclusion": self.vertex_inclusion,
+                "edge_keys": self.edge_keys,
+            },
+        )
+
+    @classmethod
+    def load_from_file(cls, path: str):
+        data = np.load(path, allow_pickle=True).item()
+        return cls(
+            [RigidBody.from_params(params) for params in data["obs_params"]],
+            [RigidBody.from_params(params) for params in data["objs_params"]],
+            [RigidBody.from_params(params) for params in data["robs_params"]],
+            data["source_pos_objs"],
+            data["source_pos_robs"],
+            data["target_pos_objs"],
+            data["target_pos_robs"],
+            data["workspace"],
+            data["vertex_exclusion"],
+            data["vertex_inclusion"],
+            data["edge_keys"],
+        )
 
     ### VERTEX AND EDGE COSTS AND CONSTRAINTS ###
     def _create_vertex_costs(self, sets: List[ContactSet]) -> List[List[Cost]]:

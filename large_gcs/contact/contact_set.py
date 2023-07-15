@@ -17,7 +17,7 @@ from large_gcs.contact.contact_pair_mode import (
     ContactPairMode,
     InContactPairMode,
 )
-from large_gcs.contact.rigid_body import RigidBody
+from large_gcs.contact.rigid_body import RigidBody, MobilityType
 from large_gcs.geometry.convex_set import ConvexSet
 
 
@@ -133,10 +133,15 @@ class ContactSet(ConvexSet):
     def __init__(
         self,
         contact_pair_modes: List[ContactPairMode],
-        set_force_constraints: List[Formula],
+        additional_constraints: List[Formula],
         objects: List[RigidBody],
         robots: List[RigidBody],
     ):
+        if not all(obj.mobility_type == MobilityType.UNACTUATED for obj in objects):
+            raise ValueError("All objects must be unactuated")
+        if not all(robot.mobility_type == MobilityType.ACTUATED for robot in robots):
+            raise ValueError("All robots must be actuated")
+
         self.vars = ContactSetDecisionVariables.from_contact_pair_modes(
             objects, robots, contact_pair_modes
         )
@@ -154,7 +159,7 @@ class ContactSet(ConvexSet):
             for mode in contact_pair_modes
             for constraint in mode.base_constraint_formulas
         ]
-        self.constraint_formulas.extend(set_force_constraints)
+        self.constraint_formulas.extend(additional_constraints)
         self._polyhedron = self._construct_polyhedron_from_constraints(
             self.constraint_formulas, self.vars.all
         )

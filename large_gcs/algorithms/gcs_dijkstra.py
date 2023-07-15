@@ -50,14 +50,14 @@ class GcsDijkstra(SearchAlgorithm):
         print(f"Gcs Dijkstra complete! \n{sol}\n{self.alg_metrics}")
         if self._writer:
             self._writer.fig.clear()
-            self.plot_graph(path=sol.path)
+            self.plot_graph(path=sol.ambient_path)
             self._writer.grab_frame()
             self._writer.finish()
             self._writer = None
         if final_plot:
             if not animate:
                 fig = plt.figure(figsize=self._vis_params.figsize)
-                self.plot_graph(path=sol.path, is_final_path=True)
+                self.plot_graph(path=sol.ambient_path, is_final_path=True)
             plt.savefig(self._vis_params.plot_output_path)
             plt.show()
         return sol
@@ -74,7 +74,7 @@ class GcsDijkstra(SearchAlgorithm):
 
         if verbose:
             clear_output(wait=True)
-            print(f"{self.alg_metrics}, now relaxing node {node}'s neighbors")
+            print(f"{self.alg_metrics}, now exploring node {node}'s neighbors")
 
         if self._writer:
             self._writer.fig.clear()
@@ -104,7 +104,7 @@ class GcsDijkstra(SearchAlgorithm):
 
                 if self._writer:
                     self._writer.fig.clear()
-                    self.plot_graph(sol.path, edge)
+                    self.plot_graph(sol.ambient_path, edge)
                     self._writer.grab_frame()
 
     def _add_vertex_and_edges_to_visited(self, vertex_name):

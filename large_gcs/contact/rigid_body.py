@@ -20,6 +20,14 @@ class MobilityType(Enum):
 
 
 @dataclass
+class RigidBodyParams:
+    name: str
+    vertices: np.ndarray
+    mobility_type: MobilityType
+    n_pos_points: int
+
+
+@dataclass
 class RigidBody:
     name: str
     geometry: Polyhedron  # For now, only allow convex sets, and specifically polyhedra
@@ -33,6 +41,14 @@ class RigidBody:
 
         self._create_decision_vars()
         self._create_constraints()
+
+    def from_params(params: RigidBodyParams):
+        return RigidBody(
+            params.name,
+            Polyhedron.from_vertices(params.vertices),
+            params.mobility_type,
+            params.n_pos_points,
+        )
 
     def _create_decision_vars(self):
         if self.mobility_type != MobilityType.STATIC:
@@ -87,6 +103,12 @@ class RigidBody:
     @property
     def n_faces(self):
         return len(self.geometry.set.b())
+
+    @property
+    def params(self):
+        return RigidBodyParams(
+            self.name, self.geometry.vertices, self.mobility_type, self.n_pos_points
+        )
 
     def plot(self):
         plt.rc("axes", axisbelow=True)
