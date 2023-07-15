@@ -34,14 +34,18 @@ class AlgMetrics:
     n_vertices_visited: int = 0
     # Note that this is not the number of edges relaxed. It is the number of edges in the visited subgraph.
     n_edges_visited: int = 0
-    vertex_coverage: float = 0.0
-    edge_coverage: float = 0.0
+    n_edges_explored: int = 0
+    vertex_coverage: float = 0
+    edge_coverage: float = 0
+    time_wall_clock: float = 0.0
     n_gcs_solves: int = 0
     gcs_solve_time_total: float = 0.0
     gcs_solve_time_iter_mean: float = 0.0
     gcs_solve_time_iter_std: float = 0.0
     gcs_solve_time_iter_min: float = inf
     gcs_solve_time_iter_max: float = 0.0
+    n_vertex_revisits: int = 0
+    n_edges_reexplored: int = 0
 
 
 class SearchAlgorithm(ABC):

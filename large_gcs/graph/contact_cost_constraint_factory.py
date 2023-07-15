@@ -30,7 +30,7 @@ def create_vars_from_template(
     return vars_new
 
 
-def contact_shortcut_edge_cost_factory(
+def contact_shortcut_edge_cost_factory_under(
     u_vars: ContactSetDecisionVariables, v_vars: ContactSetDecisionVariables
 ) -> List[Cost]:
     """Creates a list of costs for the shortcut between set u and set v"""
@@ -47,6 +47,34 @@ def contact_shortcut_edge_cost_factory(
     A = DecomposeLinearExpressions(exprs, uv_vars_all)
     b = np.zeros(A.shape[0])
     costs = [L2NormCost(A, b)]
+
+    # Constant cost for the edge
+    a = np.zeros((uv_vars_all.size, 1))
+    constant_cost = 1
+    costs.append(LinearCost(a, constant_cost))
+
+    return costs
+
+
+def contact_shortcut_edge_cost_factory_over(
+    u_vars: ContactSetDecisionVariables, v_vars: ContactSetDecisionVariables
+) -> List[Cost]:
+    """Creates a list of costs for the shortcut between set u and set v"""
+    u_vars_all = create_vars_from_template(u_vars.all, "u")
+    v_vars_all = create_vars_from_template(v_vars.all, "v")
+
+    # Position continuity cost
+    u_pos = u_vars.pos_from_all(u_vars_all)
+    v_pos = v_vars.pos_from_all(v_vars_all)
+    u_last_pos = u_pos[:, :, -1].flatten()
+    v_first_pos = v_pos[:, :, 0].flatten()
+    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
+    diff = (u_last_pos - v_first_pos).flatten()
+
+    expr = np.dot(diff, diff)
+    var_map = {var.get_id(): i for i, var in enumerate(uv_vars_all)}
+    Q, b, c = DecomposeQuadraticPolynomial(Polynomial(expr), var_map)
+    costs = [QuadraticCost(Q, b, c)]
 
     # Constant cost for the edge
     a = np.zeros((uv_vars_all.size, 1))

@@ -314,12 +314,12 @@ class Graph:
         options = GraphOfConvexSetsOptions()
 
         # TURN OFF PRESOLVE debugging
-        options.solver_options.SetOption(MosekSolver.id(), "MSK_IPAR_PRESOLVE_USE", 0)
+        # options.solver_options.SetOption(MosekSolver.id(), "MSK_IPAR_PRESOLVE_USE", 0)
 
         options.convex_relaxation = use_convex_relaxation
         if use_convex_relaxation is True:
-            options.preprocessing = True
-            options.max_rounded_paths = 100
+            options.preprocessing = False
+            options.max_rounded_paths = 10
             # options.max_rounding_trials = 50
 
         # print(f"target: {self._target_name}, {self.vertices[self._target_name].gcs_vertex}")

@@ -1,8 +1,8 @@
 from collections import defaultdict
-import time
 import numpy as np
 import heapq as heap
 import queue
+import time
 from IPython.display import clear_output
 from matplotlib.animation import FFMpegWriter
 import matplotlib.pyplot as plt
@@ -14,7 +14,7 @@ from large_gcs.algorithms.search_algorithm import (
 from large_gcs.graph.graph import Edge, Graph
 
 
-class GcsAstarSubOpt(SearchAlgorithm):
+class GcsAstarSubOptRevisit(SearchAlgorithm):
     """Suboptimal version of GCS A*"""
 
     def __init__(
@@ -82,13 +82,12 @@ class GcsAstarSubOpt(SearchAlgorithm):
                 if verbose:
                     print(f"exploring previously unreachable vertex {edge.v}")
                 self._explore_edge(edge, verbose=verbose)
-
-            self._alg_metrics.time_wall_clock = time.time() - self._start_time
+        self._alg_metrics.time_wall_clock = time.time() - self._start_time
 
         sol = self._candidate_sol
         # clear_output(wait=True)
         print(
-            f"Suboptimal Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
+            f"Suboptimal Gcs A* complete! \ncost: {sol.cost} \nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
         )
         if self._writer:
             self._writer.fig.clear()
@@ -106,9 +105,9 @@ class GcsAstarSubOpt(SearchAlgorithm):
 
     def _run_iteration(self, verbose: bool = False):
         heuristic_cost, node = heap.heappop(self._pq)
-        if node in self._visited.vertex_names and node != self._graph.target_name:
-            return
-
+        # if node in self._visited.vertex_names and node != self._graph.target_name:
+        #     return
+        # else:
         self._add_vertex_and_edges_to_visited_except_edges_to_target(node)
 
         if node == self._graph.source_name:
@@ -129,21 +128,31 @@ class GcsAstarSubOpt(SearchAlgorithm):
 
         for edge in edges:
             neighbor = edge.v
-            if neighbor not in self._visited.vertex_names:
+            if neighbor != self._graph.source_name:
+                # if (
+                #     neighbor not in self._visited.vertex_names
+                #     or neighbor == self._graph.target_name
+                # ):
                 self._explore_edge(edge, verbose=verbose)
 
     def _explore_edge(self, edge: Edge, verbose: bool = False):
-        self._alg_metrics.n_edges_explored += 1
         neighbor = edge.v
+        neighbor_in_visited = neighbor in self._visited.vertices
+        edge_in_visited = (edge.u, edge.v) in self._visited.edges
+
         assert neighbor != self._graph.target_name
         # Add neighbor and edge temporarily to the visited subgraph
-        self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
+        if neighbor in self._visited.vertices:
+            self._alg_metrics.n_edges_explored += 1
+        else:
+            self._alg_metrics.n_edges_reexplored += 1
+            self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
         # Check if this neighbor actually has an edge to the target
         # If so, add that edge instead of the shortcut
         if (neighbor, self._graph.target_name) in self._graph.edges:
-            self._visited.add_edge(
-                self._graph.edges[(neighbor, self._graph.target_name)]
-            )
+            neighbor_to_target_edge = self._graph.edges[
+                (neighbor, self._graph.target_name)
+            ]
         else:
             # Add an edge from the neighbor to the target
             direct_edge_costs = None
@@ -154,18 +163,26 @@ class GcsAstarSubOpt(SearchAlgorithm):
                     self._graph.vertices[neighbor].convex_set.vars,
                     self._graph.vertices[self._graph.target_name].convex_set.vars,
                 )
-            direct_to_target = Edge(
+            neighbor_to_target_edge = Edge(
                 neighbor, self._graph.target_name, costs=direct_edge_costs
             )
-            self._visited.add_edge(direct_to_target)
-
-        self._visited.add_edge(edge)
+        self._visited.add_edge(neighbor_to_target_edge)
+        if not edge_in_visited:
+            self._visited.add_edge(edge)
         sol = self._visited.solve(self._use_convex_relaxation)
 
         self._update_alg_metrics_after_gcs_solve(sol.time)
 
-        # Remove neighbor and associated edges from the visited subgraph
-        self._visited.remove_vertex(neighbor)
+        if not neighbor_in_visited and neighbor != self._graph.target_name:
+            # Remove neighbor and associated edges from the visited subgraph
+            self._visited.remove_vertex(neighbor)
+        elif edge_in_visited:
+            self._visited.remove_edge((neighbor, self._graph.target_name))
+        else:
+            # Just remove the edge from the neighbor to the target from the visited subgraph
+            # because the target node must be kept in the visited subgraph
+            self._visited.remove_edge((edge.u, edge.v))
+            self._visited.remove_edge((neighbor, self._graph.target_name))
 
         if sol.is_success:
             new_dist = sol.cost
@@ -193,16 +210,21 @@ class GcsAstarSubOpt(SearchAlgorithm):
 
     def _add_vertex_and_edges_to_visited_except_edges_to_target(self, vertex_name):
         # Add node to the visited subgraph along with all of its incoming and outgoing edges to the visited subgraph
-        self._visited.add_vertex(self._graph.vertices[vertex_name], vertex_name)
-        self._alg_metrics.n_vertices_visited += 1
+        if vertex_name not in self._visited.vertices:
+            self._visited.add_vertex(self._graph.vertices[vertex_name], vertex_name)
+            self._alg_metrics.n_vertices_visited += 1
+        else:
+            self._alg_metrics.n_vertex_revisits += 1
         edges = self._graph.incident_edges(vertex_name)
         for edge in edges:
             if (
                 edge.u in self._visited.vertex_names
                 and edge.v in self._visited.vertex_names
                 and edge.v != self._graph.target_name
-                and (edge.u, edge.v)
-                in self._feasible_edges  # Experimental, only add edges we've verified are feasible
+                # Experimental, only add edges we've verified are feasible
+                and (edge.u, edge.v) in self._feasible_edges
+                # Since we are now allowing revisits, don't add edges that are already in the visited subgraph
+                and (edge.u, edge.v) not in self._visited.edges
             ):
                 self._visited.add_edge(edge)
 
