@@ -56,6 +56,43 @@ def contact_shortcut_edge_cost_factory_under(
     return costs
 
 
+def contact_shortcut_edge_cost_factory_under_obj_weighted(
+    u_vars: ContactSetDecisionVariables, v_vars: ContactSetDecisionVariables
+) -> List[Cost]:
+    """Creates a list of costs for the shortcut between set u and set v"""
+    u_vars_all = create_vars_from_template(u_vars.all, "u")
+    v_vars_all = create_vars_from_template(v_vars.all, "v")
+    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
+    u_pos = u_vars.pos_from_all(u_vars_all)
+    v_pos = v_vars.pos_from_all(v_vars_all)
+
+    # Hacky way to separate the object and robot positions variables
+    # I know that v will be the target, and so will not have force variables
+    # I know that only robots have actuation force variables
+    n_robs = u_vars.force_act.shape[0]
+    n_objs = u_vars.pos.shape[0] - n_robs
+
+    def create_l2norm_cost(u_pos, v_pos, scaling=1):
+        u_last_pos = u_pos[:, :, -1].flatten()
+        v_first_pos = v_pos[:, :, 0].flatten()
+        exprs = (u_last_pos - v_first_pos).flatten() * scaling
+        A = DecomposeLinearExpressions(exprs, uv_vars_all)
+        b = np.zeros(A.shape[0])
+        return L2NormCost(A, b)
+
+    costs = [
+        create_l2norm_cost(u_pos[:n_objs], v_pos[:n_objs], scaling=1),
+        create_l2norm_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=0.1),
+    ]
+
+    # Constant cost for the edge
+    a = np.zeros((uv_vars_all.size, 1))
+    constant_cost = 1
+    costs.append(LinearCost(a, constant_cost))
+
+    return costs
+
+
 def contact_shortcut_edge_cost_factory_over(
     u_vars: ContactSetDecisionVariables, v_vars: ContactSetDecisionVariables
 ) -> List[Cost]:
