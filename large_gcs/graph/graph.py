@@ -8,6 +8,7 @@ from pydrake.all import (
     Binding,
     MathematicalProgramResult,
 )
+import time
 from tqdm import tqdm
 import numpy as np
 from dataclasses import dataclass
@@ -336,13 +337,67 @@ class Graph:
 
         return sol
 
+    def solve_convex_restriction(
+        self, active_edges: List[Edge]
+    ) -> ShortestPathSolution:
+        options = GraphOfConvexSetsOptions()
+
+        # TURN OFF PRESOLVE debugging
+        # options.solver_options.SetOption(MosekSolver.id(), "MSK_IPAR_PRESOLVE_USE", 0)
+        gcs_edges = set([edge.gcs_edge.id() for edge in active_edges])
+        start_time = time.time()
+        result = self._gcs.SolveConvexRestriction(
+            gcs_edges,
+            options,
+        )
+
+        sol = self._parse_convex_restriction_result(
+            result, active_edges, time.time() - start_time
+        )
+
+        # Optional post solve hook for subclasses
+        self._post_solve(sol)
+
+        return sol
+
     def _post_solve(self, sol: ShortestPathSolution):
         """Optional post solve hook for subclasses"""
         pass
 
-    def _parse_result(self, result: MathematicalProgramResult) -> ShortestPathSolution:
+    def _parse_convex_restriction_result(
+        self, result: MathematicalProgramResult, active_edges: List[Edge], duration=None
+    ) -> ShortestPathSolution:
         cost = result.get_optimal_cost()
-        time = result.get_solver_details().optimizer_time
+        time = (
+            duration
+            if duration is not None
+            else result.get_solver_details().optimizer_time
+        )
+        vertex_path = []
+        ambient_path = []
+        flows = []
+        if result.is_success():
+            edge_path = [(e.u, e.v) for e in active_edges]
+            vertex_path = self._convert_active_edges_to_vertex_path(
+                self.source_name, self.target_name, edge_path
+            )
+            ambient_path = [
+                result.GetSolution(self.vertices[v].gcs_vertex.x()) for v in vertex_path
+            ]
+
+        return ShortestPathSolution(
+            result.is_success(), cost, time, vertex_path, ambient_path, flows, result
+        )
+
+    def _parse_result(
+        self, result: MathematicalProgramResult, duration=None
+    ) -> ShortestPathSolution:
+        cost = result.get_optimal_cost()
+        time = (
+            duration
+            if duration is not None
+            else result.get_solver_details().optimizer_time
+        )
         vertex_path = []
         ambient_path = []
         flows = []
