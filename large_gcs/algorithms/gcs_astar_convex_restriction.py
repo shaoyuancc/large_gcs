@@ -14,8 +14,8 @@ from large_gcs.algorithms.search_algorithm import (
 from large_gcs.graph.graph import Edge, Graph
 
 
-class GcsAstarSubOpt(SearchAlgorithm):
-    """Suboptimal version of GCS A*. This algorithm is not complete, a solution is not guaranteed to be found even if it exists."""
+class GcsAstarConvexRestriction(SearchAlgorithm):
+    """Convex Restriction version of GCS A*, where in the subroutine, the order of vertices is fixed."""
 
     def __init__(
         self,
@@ -41,11 +41,13 @@ class GcsAstarSubOpt(SearchAlgorithm):
         self._gcs_solve_times = np.empty((0,))
         self._candidate_sol = None
         self._pq = []
+        self._infeasible_edge_q = queue.Queue()
         self._feasible_edges = set()
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
+        self._visited_vertices = set()
         # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
-        heap.heappush(self._pq, (0, self._graph.source_name))
+        heap.heappush(self._pq, (0, self._graph.source_name, []))
 
         # Add the target to the visited subgraph
         self._visited.add_vertex(
@@ -60,7 +62,7 @@ class GcsAstarSubOpt(SearchAlgorithm):
         self, verbose: bool = False, animate: bool = False, final_plot: bool = False
     ):
         if animate:
-            metadata = dict(title="GCS A*", artist="Matplotlib")
+            metadata = dict(title="Convex Restriction GCS A*", artist="Matplotlib")
             self._writer = FFMpegWriter(fps=self._vis_params.fps, metadata=metadata)
             fig = plt.figure(figsize=self._vis_params.figsize)
             self._writer.setup(
@@ -72,36 +74,31 @@ class GcsAstarSubOpt(SearchAlgorithm):
             self._alg_metrics.time_wall_clock = time.time() - self._start_time
 
         sol = self._candidate_sol
-        if sol is None:
-            print(f"No solution found! {self.alg_metrics}")
-        else:
-            # clear_output(wait=True)
-            print(
-                f"Suboptimal Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
-            )
-            if self._writer:
-                self._writer.fig.clear()
+        # clear_output(wait=True)
+        print(
+            f"Convex Restriction Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
+        )
+        if self._writer:
+            self._writer.fig.clear()
+            self.plot_graph(path=sol.ambient_path, is_final_path=True)
+            self._writer.grab_frame()
+            self._writer.finish()
+            self._writer = None
+        if final_plot:
+            if not animate:
+                fig = plt.figure(figsize=self._vis_params.figsize)
                 self.plot_graph(path=sol.ambient_path, is_final_path=True)
-                self._writer.grab_frame()
-                self._writer.finish()
-                self._writer = None
-            if final_plot:
-                if not animate:
-                    fig = plt.figure(figsize=self._vis_params.figsize)
-                    self.plot_graph(path=sol.ambient_path, is_final_path=True)
-                plt.savefig(self._vis_params.plot_output_path)
-                plt.show()
+            plt.savefig(self._vis_params.plot_output_path)
+            plt.show()
         return sol
 
     def _run_iteration(self, verbose: bool = False):
-        heuristic_cost, node = heap.heappop(self._pq)
-        if node in self._visited.vertex_names and node != self._graph.target_name:
+        heuristic_cost, node, active_edges = heap.heappop(self._pq)
+        if node in self._visited_vertices:
             return
-
-        self._add_vertex_and_edges_to_visited_except_edges_to_target(node)
-
-        if node == self._graph.source_name:
-            self._visited.set_source(self._graph.source_name)
+        self._visited_vertices.add(node)
+        self._alg_metrics.n_vertices_visited += 1
+        self._set_visited_vertices_and_edges(active_edges)
 
         edges = self._graph.outgoing_edges(node)
 
@@ -110,29 +107,26 @@ class GcsAstarSubOpt(SearchAlgorithm):
             print(
                 f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({heuristic_cost})"
             )
-            print(f"Current vertices: {self._visited.vertex_names}")
         if self._writer:
             self._writer.fig.clear()
             self.plot_graph()
             self._writer.grab_frame()
 
         for edge in edges:
-            neighbor = edge.v
-            if neighbor not in self._visited.vertex_names:
+            if edge.v not in self._visited_vertices:
                 self._explore_edge(edge, verbose=verbose)
 
     def _explore_edge(self, edge: Edge, verbose: bool = False):
         self._alg_metrics.n_edges_explored += 1
         neighbor = edge.v
         assert neighbor != self._graph.target_name
+
         # Add neighbor and edge temporarily to the visited subgraph
         self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
         # Check if this neighbor actually has an edge to the target
         # If so, add that edge instead of the shortcut
         if (neighbor, self._graph.target_name) in self._graph.edges:
-            self._visited.add_edge(
-                self._graph.edges[(neighbor, self._graph.target_name)]
-            )
+            edge_to_target = self._graph.edges[(neighbor, self._graph.target_name)]
         else:
             # Add an edge from the neighbor to the target
             direct_edge_costs = None
@@ -143,17 +137,19 @@ class GcsAstarSubOpt(SearchAlgorithm):
                     self._graph.vertices[neighbor].convex_set.vars,
                     self._graph.vertices[self._graph.target_name].convex_set.vars,
                 )
-            direct_to_target = Edge(
+            edge_to_target = Edge(
                 neighbor, self._graph.target_name, costs=direct_edge_costs
             )
-            self._visited.add_edge(direct_to_target)
-
         self._visited.add_edge(edge)
-        sol = self._visited.solve(self._use_convex_relaxation)
+        self._visited.add_edge(edge_to_target)
+
+        sol = self._visited.solve_convex_restriction(self._visited.edges.values())
 
         self._update_alg_metrics_after_gcs_solve(sol.time)
 
-        # Remove neighbor and associated edges from the visited subgraph
+        self._visited.remove_edge((edge_to_target.u, edge_to_target.v))
+        tmp_active_edges = list(self._visited.edges.values()).copy()
+
         self._visited.remove_vertex(neighbor)
 
         if sol.is_success:
@@ -163,9 +159,10 @@ class GcsAstarSubOpt(SearchAlgorithm):
                     f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {new_dist < self._node_dists[neighbor]}"
                 )
             if new_dist < self._node_dists[neighbor]:
-                self._feasible_edges.add((edge.u, edge.v))
                 self._node_dists[neighbor] = new_dist
-                heap.heappush(self._pq, (new_dist, neighbor))
+                # Remove the edge from the explored node to the target
+
+                heap.heappush(self._pq, (new_dist, neighbor, tmp_active_edges))
                 # Check if this neighbor actually has an edge to the target
                 if (neighbor, self._graph.target_name) in self._graph.edges:
                     self._candidate_sol = sol
@@ -176,23 +173,22 @@ class GcsAstarSubOpt(SearchAlgorithm):
                 self._writer.grab_frame()
 
         else:
+            self._infeasible_edge_q.put(edge)
             if verbose:
                 print(f"edge {edge.u} -> {edge.v} not actually feasible")
 
-    def _add_vertex_and_edges_to_visited_except_edges_to_target(self, vertex_name):
-        # Add node to the visited subgraph along with all of its incoming and outgoing edges to the visited subgraph
-        self._visited.add_vertex(self._graph.vertices[vertex_name], vertex_name)
-        self._alg_metrics.n_vertices_visited += 1
-        edges = self._graph.incident_edges(vertex_name)
+    def _set_visited_vertices_and_edges(self, edges):
+        """Also adds source and target regardless of whether they are in edges"""
+        self._visited = Graph(self._graph._default_costs_constraints)
+        vertex_list = [self._graph.target_name, self._graph.source_name]
         for edge in edges:
-            if (
-                edge.u in self._visited.vertex_names
-                and edge.v in self._visited.vertex_names
-                and edge.v != self._graph.target_name
-                and (edge.u, edge.v)
-                in self._feasible_edges  # Experimental, only add edges we've verified are feasible
-            ):
-                self._visited.add_edge(edge)
+            vertex_list.append(edge.v)
+        for v in vertex_list:
+            self._visited.add_vertex(self._graph.vertices[v], v)
+        self._visited.set_source(self._graph.source_name)
+        self._visited.set_target(self._graph.target_name)
+        for edge in edges:
+            self._visited.add_edge(edge)
 
     def _update_alg_metrics_after_gcs_solve(self, solve_time: float):
         m = self._alg_metrics
@@ -259,9 +255,9 @@ class GcsAstarSubOpt(SearchAlgorithm):
         The rest are computed from the manually updated metrics.
         """
         m = self._alg_metrics
-        m.vertex_coverage = round(m.n_vertices_visited / self._graph.n_vertices, 2)
+        m.vertex_coverage = round(m.n_vertices_visited / self._graph.n_vertices, 4)
         m.n_edges_visited = self._visited.n_edges
-        m.edge_coverage = round(m.n_edges_visited / self._graph.n_edges, 2)
+        m.edge_coverage = round(m.n_edges_visited / self._graph.n_edges, 4)
         if m.n_gcs_solves > 0:
             m.gcs_solve_time_iter_mean = m.gcs_solve_time_total / m.n_gcs_solves
             m.gcs_solve_time_iter_std = np.std(self._gcs_solve_times)

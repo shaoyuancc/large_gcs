@@ -315,7 +315,7 @@ class Graph:
         options = GraphOfConvexSetsOptions()
 
         # TURN OFF PRESOLVE debugging
-        options.solver_options.SetOption(MosekSolver.id(), "MSK_IPAR_PRESOLVE_USE", 0)
+        # options.solver_options.SetOption(MosekSolver.id(), "MSK_IPAR_PRESOLVE_USE", 0)
 
         options.convex_relaxation = use_convex_relaxation
         if use_convex_relaxation is True:
