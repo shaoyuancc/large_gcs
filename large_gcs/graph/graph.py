@@ -11,7 +11,7 @@ from pydrake.all import (
 import time
 from tqdm import tqdm
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Tuple, List, Optional
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -34,6 +34,16 @@ class ShortestPathSolution:
     flows: List[float]
     # Result of the optimization
     result: MathematicalProgramResult
+
+    def __str__(self):
+        result = []
+        for field in fields(self):
+            value = getattr(self, field.name)
+            if isinstance(value, float):
+                # Format the float to 3 significant figures
+                value = "{:.3g}".format(value)
+            result.append(f"{field.name}: {value}")
+        return ", ".join(result)
 
 
 @dataclass

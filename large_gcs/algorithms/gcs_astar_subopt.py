@@ -122,7 +122,7 @@ class GcsAstarSubOpt(SearchAlgorithm):
                 self._explore_edge(edge, verbose=verbose)
 
     def _explore_edge(self, edge: Edge, verbose: bool = False):
-        self._alg_metrics.n_edges_explored += 1
+        self._alg_metrics.n_vertices_explored += 1
         neighbor = edge.v
         assert neighbor != self._graph.target_name
         # Add neighbor and edge temporarily to the visited subgraph

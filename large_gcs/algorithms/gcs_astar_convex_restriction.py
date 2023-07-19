@@ -20,6 +20,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
     def __init__(
         self,
         graph: Graph,
+        should_reexplore: bool = False,
         use_convex_relaxation: bool = False,
         shortcut_edge_cost_factory=None,
         vis_params: AlgVisParams = AlgVisParams(),
@@ -33,6 +34,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             )
 
         self._graph = graph
+        self._should_reexplore = should_reexplore
         self._use_convex_relaxation = use_convex_relaxation
         self._shortcut_edge_cost_factory = shortcut_edge_cost_factory
         self._vis_params = vis_params
@@ -41,8 +43,6 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         self._gcs_solve_times = np.empty((0,))
         self._candidate_sol = None
         self._pq = []
-        self._infeasible_edge_q = queue.Queue()
-        self._feasible_edges = set()
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
         self._visited_vertices = set()
@@ -61,6 +61,9 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
     def run(
         self, verbose: bool = False, animate: bool = False, final_plot: bool = False
     ):
+        print(
+            f"Running {self.__class__.__name__}, should_rexplore: {self._should_reexplore}, use_convex_relaxation: {self._use_convex_relaxation}, shortcut_edge_cost_factory: {self._shortcut_edge_cost_factory.__name__}"
+        )
         if animate:
             metadata = dict(title="Convex Restriction GCS A*", artist="Matplotlib")
             self._writer = FFMpegWriter(fps=self._vis_params.fps, metadata=metadata)
@@ -74,30 +77,37 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             self._alg_metrics.time_wall_clock = time.time() - self._start_time
 
         sol = self._candidate_sol
-        # clear_output(wait=True)
-        print(
-            f"Convex Restriction Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
-        )
-        if self._writer:
-            self._writer.fig.clear()
-            self.plot_graph(path=sol.ambient_path, is_final_path=True)
-            self._writer.grab_frame()
-            self._writer.finish()
-            self._writer = None
-        if final_plot:
-            if not animate:
-                fig = plt.figure(figsize=self._vis_params.figsize)
+        if sol is None:
+            print(f"Convex Restriction Gcs A* failed to find a solution.")
+        else:
+            # clear_output(wait=True)
+            print(
+                f"Convex Restriction Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
+            )
+            if self._writer:
+                self._writer.fig.clear()
                 self.plot_graph(path=sol.ambient_path, is_final_path=True)
-            plt.savefig(self._vis_params.plot_output_path)
-            plt.show()
+                self._writer.grab_frame()
+                self._writer.finish()
+                self._writer = None
+            if final_plot:
+                if not animate:
+                    fig = plt.figure(figsize=self._vis_params.figsize)
+                    self.plot_graph(path=sol.ambient_path, is_final_path=True)
+                plt.savefig(self._vis_params.plot_output_path)
+                plt.show()
         return sol
 
     def _run_iteration(self, verbose: bool = False):
         heuristic_cost, node, active_edges = heap.heappop(self._pq)
-        if node in self._visited_vertices:
+        if not self._should_reexplore and node in self._visited_vertices:
             return
+        if node in self._visited_vertices:
+            self._alg_metrics.n_vertices_revisited += 1
+        else:
+            self._alg_metrics.n_vertices_visited += 1
+
         self._visited_vertices.add(node)
-        self._alg_metrics.n_vertices_visited += 1
         self._set_visited_vertices_and_edges(active_edges)
 
         edges = self._graph.outgoing_edges(node)
@@ -113,11 +123,19 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             self._writer.grab_frame()
 
         for edge in edges:
-            if edge.v not in self._visited_vertices:
+            neighbor_in_path = any(
+                (e.u == edge.v or e.v == edge.v) for e in active_edges
+            )
+            if (
+                not self._should_reexplore and edge.v not in self._visited_vertices
+            ) or (self._should_reexplore and not neighbor_in_path):
+                if edge.v in self._visited_vertices:
+                    self._alg_metrics.n_vertices_reexplored += 1
+                else:
+                    self._alg_metrics.n_vertices_explored += 1
                 self._explore_edge(edge, verbose=verbose)
 
     def _explore_edge(self, edge: Edge, verbose: bool = False):
-        self._alg_metrics.n_edges_explored += 1
         neighbor = edge.v
         assert neighbor != self._graph.target_name
 
@@ -173,7 +191,6 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 self._writer.grab_frame()
 
         else:
-            self._infeasible_edge_q.put(edge)
             if verbose:
                 print(f"edge {edge.u} -> {edge.v} not actually feasible")
 
@@ -261,4 +278,6 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         if m.n_gcs_solves > 0:
             m.gcs_solve_time_iter_mean = m.gcs_solve_time_total / m.n_gcs_solves
             m.gcs_solve_time_iter_std = np.std(self._gcs_solve_times)
+        if m.n_gcs_solves > 10:
+            m.gcs_solve_time_last_10_mean = np.mean(self._gcs_solve_times[-10:])
         return m

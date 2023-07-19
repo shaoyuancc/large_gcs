@@ -143,9 +143,9 @@ class GcsAstarSubOptRevisit(SearchAlgorithm):
         assert neighbor != self._graph.target_name
         # Add neighbor and edge temporarily to the visited subgraph
         if neighbor in self._visited.vertices:
-            self._alg_metrics.n_edges_explored += 1
+            self._alg_metrics.n_vertices_explored += 1
         else:
-            self._alg_metrics.n_edges_reexplored += 1
+            self._alg_metrics.n_vertices_reexplored += 1
             self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
         # Check if this neighbor actually has an edge to the target
         # If so, add that edge instead of the shortcut
@@ -214,7 +214,7 @@ class GcsAstarSubOptRevisit(SearchAlgorithm):
             self._visited.add_vertex(self._graph.vertices[vertex_name], vertex_name)
             self._alg_metrics.n_vertices_visited += 1
         else:
-            self._alg_metrics.n_vertex_revisits += 1
+            self._alg_metrics.n_vertices_revisited += 1
         edges = self._graph.incident_edges(vertex_name)
         for edge in edges:
             if (

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from math import inf
 
 
@@ -34,18 +34,29 @@ class AlgMetrics:
     n_vertices_visited: int = 0
     # Note that this is not the number of edges relaxed. It is the number of edges in the visited subgraph.
     n_edges_visited: int = 0
-    n_edges_explored: int = 0
+    n_vertices_explored: int = 0
     vertex_coverage: float = 0
     edge_coverage: float = 0
     time_wall_clock: float = 0.0
     n_gcs_solves: int = 0
     gcs_solve_time_total: float = 0.0
     gcs_solve_time_iter_mean: float = 0.0
+    gcs_solve_time_last_10_mean: float = 0.0
     gcs_solve_time_iter_std: float = 0.0
     gcs_solve_time_iter_min: float = inf
     gcs_solve_time_iter_max: float = 0.0
-    n_vertex_revisits: int = 0
-    n_edges_reexplored: int = 0
+    n_vertices_revisited: int = 0
+    n_vertices_reexplored: int = 0
+
+    def __str__(self):
+        result = []
+        for field in fields(self):
+            value = getattr(self, field.name)
+            if isinstance(value, float):
+                # Format the float to 3 significant figures
+                value = "{:.3g}".format(value)
+            result.append(f"{field.name}: {value}")
+        return ", ".join(result)
 
 
 class SearchAlgorithm(ABC):
