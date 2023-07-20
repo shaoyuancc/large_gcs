@@ -1,0 +1,4 @@
+job_logging:
+  loggers:
+    large_gcs:
+      level: DEBUG

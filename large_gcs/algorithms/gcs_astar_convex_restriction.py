@@ -14,6 +14,8 @@ from large_gcs.algorithms.search_algorithm import (
 )
 from large_gcs.graph.graph import Edge, Graph
 
+logger = logging.getLogger(__name__)
+
 
 class GcsAstarConvexRestriction(SearchAlgorithm):
     """Convex Restriction version of GCS A*, where in the subroutine, the order of vertices is fixed."""
@@ -60,7 +62,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         )
 
     def run(self, animate: bool = False, final_plot: bool = False):
-        logging.info(
+        logger.info(
             f"Running {self.__class__.__name__}, should_rexplore: {self._should_reexplore}, use_convex_relaxation: {self._use_convex_relaxation}, shortcut_edge_cost_factory: {self._shortcut_edge_cost_factory.__name__}"
         )
         if animate:
@@ -77,10 +79,10 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
         sol = self._candidate_sol
         if sol is None:
-            logging.warn(f"Convex Restriction Gcs A* failed to find a solution.")
+            logger.warn(f"Convex Restriction Gcs A* failed to find a solution.")
         else:
             # clear_output(wait=True)
-            logging.info(
+            logger.info(
                 f"Convex Restriction Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
             )
             self._graph._post_solve(sol)
@@ -101,7 +103,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         edges = self._graph.outgoing_edges(node)
 
         # clear_output(wait=True)
-        logging.info(
+        logger.info(
             f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({heuristic_cost})"
         )
         if self._writer:
@@ -159,7 +161,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
         if sol.is_success:
             new_dist = sol.cost
-            logging.debug(
+            logger.debug(
                 f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {new_dist < self._node_dists[neighbor]}"
             )
             if new_dist < self._node_dists[neighbor]:
@@ -177,7 +179,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 self._writer.grab_frame()
 
         else:
-            logging.debug(f"edge {edge.u} -> {edge.v} not actually feasible")
+            logger.debug(f"edge {edge.u} -> {edge.v} not actually feasible")
 
     def _set_visited_vertices_and_edges(self, edges):
         """Also adds source and target regardless of whether they are in edges"""

@@ -1,3 +1,0 @@
-job_logging:
-  root:
-    level: DEBUG

@@ -60,9 +60,7 @@ class ContactGraphGeneratorParams:
 
     @staticmethod
     def graph_file_path_from_name(name: str):
-        return os.path.join(
-            os.environ["PROJECT_ROOT"], "large_gcs", "example_graphs", name + ".npy"
-        )
+        return os.path.join(os.environ["PROJECT_ROOT"], "example_graphs", name + ".npy")
 
 
 class ContactGraphGenerator:

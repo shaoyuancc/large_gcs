@@ -20,6 +20,8 @@ from copy import copy
 from graphviz import Digraph
 from large_gcs.geometry.convex_set import ConvexSet
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class ShortestPathSolution:
@@ -214,7 +216,7 @@ class Graph:
         else:
             assert len(constraints) == len(sets)
 
-        logging.info(f"Adding {len(sets)} vertices to graph...")
+        logger.info(f"Adding {len(sets)} vertices to graph...")
         for set, name, cost_list, constraint_list in tqdm(
             list(zip(sets, names, costs, constraints))
         ):
@@ -286,7 +288,7 @@ class Graph:
         else:
             assert len(constraints) == len(us)
 
-        logging.info(f"Adding {len(us)} edges to graph...")
+        logger.info(f"Adding {len(us)} edges to graph...")
         for u, v, cost_list, constraint_list in tqdm(
             list(zip(us, vs, costs, constraints))
         ):

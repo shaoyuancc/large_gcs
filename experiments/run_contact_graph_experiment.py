@@ -10,9 +10,11 @@ import logging
 from datetime import datetime
 import os
 from large_gcs.graph.contact_graph import ContactGraph
-from large_gcs.example_graphs.utils.contact_graph_generator import (
+from large_gcs.graph_generators.contact_graph_generator import (
     ContactGraphGeneratorParams,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @hydra.main(version_base=None, config_path="../config", config_name="basic")
@@ -38,14 +40,17 @@ def main(cfg: OmegaConf) -> None:
                 name=cfg.log_dir,
                 config=wandb_config,
                 group=hydra_config.job.config_name + "_" + folder_name,
+                save_code=True,
             )
         else:
             wandb.init(
                 project="large_gcs",
                 name=cfg.log_dir,
                 config=wandb_config,
+                save_code=True,
             )
-    logging.info(cfg)
+
+    logger.info(cfg)
 
     graph_file = ContactGraphGeneratorParams.graph_file_path_from_name(cfg.graph_name)
     cg = ContactGraph.load_from_file(graph_file)
@@ -56,20 +61,27 @@ def main(cfg: OmegaConf) -> None:
     alg = instantiate(cfg.algorithm, graph=cg, shortcut_edge_cost_factory=shortcut_cost)
     sol = alg.run(animate=False)
 
-    # vid_file = os.path.join(full_log_dir, f"{method_modifier}_{base_filename}.mp4")
-    # graphviz_file = os.path.join(output_dir, f"{method_modifier}_{base_filename}")
-    # gviz = gcs_astar._visited.graphviz()
-    # gviz.format = "pdf"
-    # gviz.render(graphviz_file, view=False)
+    if cfg.save_visualization:
+        output_base = f"{alg.__class__.__name__}_{function_name}_{cfg.graph_name}"
+        vid_file = os.path.join(full_log_dir, f"{output_base}.mp4")
+        graphviz_file = os.path.join(full_log_dir, f"{output_base}_visited_subgraph")
+        gviz = alg._visited.graphviz()
+        gviz.format = "pdf"
+        gviz.render(graphviz_file, view=False)
 
-    # anim = cg.animate_solution()
-    # anim.save(vid_file)
+        anim = cg.animate_solution()
+        anim.save(vid_file)
+        if cfg.save_to_wandb:
+            wandb.log({"animation": wandb.Video(vid_file)})
+            wandb.save(graphviz_file + ".pdf")
 
-    logging.info(f"hydra log dir: {full_log_dir}")
+    logger.info(f"hydra log dir: {full_log_dir}")
 
     if cfg.save_to_wandb:
         wandb.run.summary["final_sol"] = sol.to_serializable_dict()
         wandb.run.summary["alg_metrics"] = asdict(alg.alg_metrics)
+
+        wandb.run.log_code(root=os.path.join(os.environ["PROJECT_ROOT"], "large_gcs"))
         wandb.finish()
 
 
