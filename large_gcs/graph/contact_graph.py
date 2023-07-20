@@ -39,7 +39,10 @@ from large_gcs.graph.contact_cost_constraint_factory import (
     edge_constraint_position_continuity,
     edge_cost_constant,
 )
-from large_gcs.graph.graph import Graph
+from large_gcs.graph.graph import (
+    Graph,
+    ShortestPathSolution,
+)
 from large_gcs.algorithms.search_algorithm import AlgVisParams
 
 
@@ -374,7 +377,7 @@ class ContactGraph(Graph):
 
     ### POST SOLVE ###
 
-    def _post_solve(self, sol):
+    def _post_solve(self, sol: ShortestPathSolution):
         """Post solve hook that is called after solving by the base graph class"""
 
         self.contact_spp_sol = self.create_contact_spp_sol(
@@ -537,7 +540,9 @@ class ContactGraph(Graph):
         return anim
 
     @staticmethod
-    def _interpolate_positions(contact_sol, max_gap: float = 0.1):
+    def _interpolate_positions(
+        contact_sol: ContactShortestPathSolution, max_gap: float = 0.1
+    ):
         # Input has shape (n_movable bodies, n_sets_in_path, n_pos_per_set, n_base_dim) OLD
         # Input has shape (n_pos, n_bodies, n_base_dim)
         trajs_in = contact_sol.pos_trajs

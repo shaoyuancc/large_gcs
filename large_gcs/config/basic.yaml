@@ -6,3 +6,5 @@ graph_name: "cg_trichal2"
 contact_shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted"
 algorithm:
   should_reexplore: true
+
+save_to_wandb: true

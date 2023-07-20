@@ -83,18 +83,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             logging.info(
                 f"Convex Restriction Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
             )
-            if self._writer:
-                self._writer.fig.clear()
-                self.plot_graph(path=sol.ambient_path, is_final_path=True)
-                self._writer.grab_frame()
-                self._writer.finish()
-                self._writer = None
-            if final_plot:
-                if not animate:
-                    fig = plt.figure(figsize=self._vis_params.figsize)
-                    self.plot_graph(path=sol.ambient_path, is_final_path=True)
-                plt.savefig(self._vis_params.plot_output_path)
-                plt.show()
+            self._graph._post_solve(sol)
         return sol
 
     def _run_iteration(self):

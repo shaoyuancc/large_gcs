@@ -46,6 +46,15 @@ class ShortestPathSolution:
             result.append(f"{field.name}: {value}")
         return ", ".join(result)
 
+    def to_serializable_dict(self) -> dict:
+        result = {}
+        for field in fields(self):
+            value = getattr(self, field.name)
+            if isinstance(value, MathematicalProgramResult):
+                continue
+            result[field.name] = value
+        return result
+
 
 @dataclass
 class DefaultGraphCostsConstraints:
