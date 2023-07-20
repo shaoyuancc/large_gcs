@@ -81,7 +81,6 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         if sol is None:
             logger.warn(f"Convex Restriction Gcs A* failed to find a solution.")
         else:
-            # clear_output(wait=True)
             logger.info(
                 f"Convex Restriction Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
             )
@@ -102,7 +101,6 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
         edges = self._graph.outgoing_edges(node)
 
-        # clear_output(wait=True)
         logger.info(
             f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({heuristic_cost})"
         )
@@ -164,14 +162,14 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             logger.debug(
                 f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {new_dist < self._node_dists[neighbor]}"
             )
-            if new_dist < self._node_dists[neighbor]:
-                self._node_dists[neighbor] = new_dist
-                # Remove the edge from the explored node to the target
-
+            if self._should_reexplore or new_dist < self._node_dists[neighbor]:
                 heap.heappush(self._pq, (new_dist, neighbor, tmp_active_edges))
                 # Check if this neighbor actually has an edge to the target
                 if (neighbor, self._graph.target_name) in self._graph.edges:
                     self._candidate_sol = sol
+
+            if new_dist < self._node_dists[neighbor]:
+                self._node_dists[neighbor] = new_dist
 
             if self._writer:
                 self._writer.fig.clear()

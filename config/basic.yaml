@@ -7,5 +7,5 @@ contact_shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_fac
 algorithm:
   should_reexplore: true
 
-save_visualization: false
+save_visualization: true
 save_to_wandb: true
