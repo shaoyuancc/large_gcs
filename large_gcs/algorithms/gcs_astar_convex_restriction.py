@@ -1,4 +1,5 @@
 from collections import defaultdict
+import logging
 import time
 import numpy as np
 import heapq as heap
@@ -58,10 +59,8 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             1  # Start with the target node in the visited subgraph
         )
 
-    def run(
-        self, verbose: bool = False, animate: bool = False, final_plot: bool = False
-    ):
-        print(
+    def run(self, animate: bool = False, final_plot: bool = False):
+        logging.info(
             f"Running {self.__class__.__name__}, should_rexplore: {self._should_reexplore}, use_convex_relaxation: {self._use_convex_relaxation}, shortcut_edge_cost_factory: {self._shortcut_edge_cost_factory.__name__}"
         )
         if animate:
@@ -73,15 +72,15 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             )
         self._start_time = time.time()
         while self._candidate_sol is None and len(self._pq) > 0:
-            self._run_iteration(verbose=verbose)
+            self._run_iteration()
             self._alg_metrics.time_wall_clock = time.time() - self._start_time
 
         sol = self._candidate_sol
         if sol is None:
-            print(f"Convex Restriction Gcs A* failed to find a solution.")
+            logging.warn(f"Convex Restriction Gcs A* failed to find a solution.")
         else:
             # clear_output(wait=True)
-            print(
+            logging.info(
                 f"Convex Restriction Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
             )
             if self._writer:
@@ -98,7 +97,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 plt.show()
         return sol
 
-    def _run_iteration(self, verbose: bool = False):
+    def _run_iteration(self):
         heuristic_cost, node, active_edges = heap.heappop(self._pq)
         if not self._should_reexplore and node in self._visited_vertices:
             return
@@ -112,11 +111,10 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
         edges = self._graph.outgoing_edges(node)
 
-        if verbose:
-            # clear_output(wait=True)
-            print(
-                f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({heuristic_cost})"
-            )
+        # clear_output(wait=True)
+        logging.info(
+            f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({heuristic_cost})"
+        )
         if self._writer:
             self._writer.fig.clear()
             self.plot_graph()
@@ -133,9 +131,9 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                     self._alg_metrics.n_vertices_reexplored += 1
                 else:
                     self._alg_metrics.n_vertices_explored += 1
-                self._explore_edge(edge, verbose=verbose)
+                self._explore_edge(edge)
 
-    def _explore_edge(self, edge: Edge, verbose: bool = False):
+    def _explore_edge(self, edge: Edge):
         neighbor = edge.v
         assert neighbor != self._graph.target_name
 
@@ -172,10 +170,9 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
         if sol.is_success:
             new_dist = sol.cost
-            if verbose:
-                print(
-                    f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {new_dist < self._node_dists[neighbor]}"
-                )
+            logging.debug(
+                f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {new_dist < self._node_dists[neighbor]}"
+            )
             if new_dist < self._node_dists[neighbor]:
                 self._node_dists[neighbor] = new_dist
                 # Remove the edge from the explored node to the target
@@ -191,8 +188,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 self._writer.grab_frame()
 
         else:
-            if verbose:
-                print(f"edge {edge.u} -> {edge.v} not actually feasible")
+            logging.debug(f"edge {edge.u} -> {edge.v} not actually feasible")
 
     def _set_visited_vertices_and_edges(self, edges):
         """Also adds source and target regardless of whether they are in edges"""

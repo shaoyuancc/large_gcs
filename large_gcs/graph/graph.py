@@ -8,6 +8,7 @@ from pydrake.all import (
     Binding,
     MathematicalProgramResult,
 )
+import logging
 import time
 from tqdm import tqdm
 import numpy as np
@@ -204,7 +205,7 @@ class Graph:
         else:
             assert len(constraints) == len(sets)
 
-        print(f"Adding {len(sets)} vertices to graph...")
+        logging.info(f"Adding {len(sets)} vertices to graph...")
         for set, name, cost_list, constraint_list in tqdm(
             list(zip(sets, names, costs, constraints))
         ):
@@ -276,7 +277,7 @@ class Graph:
         else:
             assert len(constraints) == len(us)
 
-        print(f"Adding {len(us)} edges to graph...")
+        logging.info(f"Adding {len(us)} edges to graph...")
         for u, v, cost_list, constraint_list in tqdm(
             list(zip(us, vs, costs, constraints))
         ):
@@ -333,7 +334,6 @@ class Graph:
             options.max_rounded_paths = 10
             # options.max_rounding_trials = 50
 
-        # print(f"target: {self._target_name}, {self.vertices[self._target_name].gcs_vertex}")
         result = self._gcs.SolveShortestPath(
             self.vertices[self._source_name].gcs_vertex,
             self.vertices[self._target_name].gcs_vertex,
@@ -354,7 +354,7 @@ class Graph:
 
         # TURN OFF PRESOLVE debugging
         # options.solver_options.SetOption(MosekSolver.id(), "MSK_IPAR_PRESOLVE_USE", 0)
-        gcs_edges = set([edge.gcs_edge.id() for edge in active_edges])
+        gcs_edges = [edge.gcs_edge for edge in active_edges]
         start_time = time.time()
         result = self._gcs.SolveConvexRestriction(
             gcs_edges,
