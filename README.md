@@ -35,5 +35,20 @@ poetry shell
 pre-commit install
 ```
 
+## Runing a single experiment
+
+Create a config file specifying the experiment in `config` and run it using the following command:
+
+```
+python3 experiments/run_contact_graph_experiment.py --config-name basic
+```
+
+where `basic` should be replaced with your config name.
+
+## Running multiple experiments
+
+Create a bash script in `scripts` and make it executable with `chmod +x run_multiple_experiments.sh`.
+Then run it with `run_multiple_experiments.sh`
+
 ## Credits
 This repo references and contains code from: Bernhard Paus Græsdal https://github.com/bernhardpg/planning-through-contact and Tobia Marcucci https://github.com/TobiaMarcucci/shortest-paths-in-graphs-of-convex-sets.

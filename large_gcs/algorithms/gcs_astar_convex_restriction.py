@@ -1,4 +1,5 @@
 import heapq as heap
+import itertools
 import logging
 import time
 from collections import defaultdict
@@ -49,8 +50,9 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
         self._visited_vertices = set()
+        self._counter = itertools.count()
         # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
-        heap.heappush(self._pq, (0, self._graph.source_name, []))
+        heap.heappush(self._pq, (0, next(self._counter), self._graph.source_name, []))
 
         # Add the target to the visited subgraph
         self._visited.add_vertex(
@@ -81,7 +83,6 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         if sol is None:
             logger.warn(f"Convex Restriction Gcs A* failed to find a solution.")
         else:
-            # clear_output(wait=True)
             logger.info(
                 f"Convex Restriction Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
             )
@@ -89,7 +90,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         return sol
 
     def _run_iteration(self):
-        heuristic_cost, node, active_edges = heap.heappop(self._pq)
+        heuristic_cost, _count, node, active_edges = heap.heappop(self._pq)
         if not self._should_reexplore and node in self._visited_vertices:
             return
         if node in self._visited_vertices:
@@ -102,7 +103,6 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
         edges = self._graph.outgoing_edges(node)
 
-        # clear_output(wait=True)
         logger.info(
             f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({heuristic_cost})"
         )
@@ -164,14 +164,18 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             logger.debug(
                 f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {new_dist < self._node_dists[neighbor]}"
             )
-            if new_dist < self._node_dists[neighbor]:
-                self._node_dists[neighbor] = new_dist
-                # Remove the edge from the explored node to the target
-
-                heap.heappush(self._pq, (new_dist, neighbor, tmp_active_edges))
+            if self._should_reexplore or new_dist < self._node_dists[neighbor]:
+                # Counter serves as tiebreaker for nodes with the same distance, to prevent nodes or edges from being compared
+                heap.heappush(
+                    self._pq,
+                    (new_dist, next(self._counter), neighbor, tmp_active_edges),
+                )
                 # Check if this neighbor actually has an edge to the target
                 if (neighbor, self._graph.target_name) in self._graph.edges:
                     self._candidate_sol = sol
+
+            if new_dist < self._node_dists[neighbor]:
+                self._node_dists[neighbor] = new_dist
 
             if self._writer:
                 self._writer.fig.clear()
