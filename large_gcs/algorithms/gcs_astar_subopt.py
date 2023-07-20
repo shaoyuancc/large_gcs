@@ -1,15 +1,15 @@
-from collections import defaultdict
-import time
-import numpy as np
 import heapq as heap
-import queue
-from IPython.display import clear_output
-from matplotlib.animation import FFMpegWriter
+import time
+from collections import defaultdict
+
 import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.animation import FFMpegWriter
+
 from large_gcs.algorithms.search_algorithm import (
     AlgMetrics,
-    SearchAlgorithm,
     AlgVisParams,
+    SearchAlgorithm,
 )
 from large_gcs.graph.graph import Edge, Graph
 

@@ -1,14 +1,21 @@
 import numpy as np
-import matplotlib.pyplot as plt
+import pytest
+
 from large_gcs.contact.contact_location import (
     ContactLocationFace,
     ContactLocationVertex,
 )
-from large_gcs.contact.contact_pair_mode import *
+from large_gcs.contact.contact_pair_mode import (
+    create_movable_face_face_signed_dist_surrog_exprs,
+    create_movable_face_vert_signed_dist_surrog_exprs,
+    create_static_face_movable_face_horizontal_bounds_formulas,
+    create_static_face_movable_face_signed_dist_surrog_exprs,
+    create_static_face_movable_vert_signed_dist_surrog_exprs,
+    create_static_vert_movable_face_horizontal_bounds_formulas,
+    create_static_vert_movable_face_signed_dist_surrog_exprs,
+)
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
-from large_gcs.geometry.geometry_utils import plot_vector
 from large_gcs.geometry.polyhedron import Polyhedron
-import pytest
 
 eps = 1e-6
 

@@ -1,20 +1,21 @@
-import numpy as np
 from typing import List
+
+import numpy as np
 from pydrake.all import (
-    Variable,
-    Polynomial,
+    Cost,
     DecomposeAffineExpressions,
     DecomposeLinearExpressions,
     DecomposeQuadraticPolynomial,
-    Cost,
     L2NormCost,
-    LinearCost,
-    QuadraticCost,
-    LinearEqualityConstraint,
     LinearConstraint,
+    LinearCost,
+    LinearEqualityConstraint,
+    Polynomial,
+    QuadraticCost,
+    Variable,
 )
+
 from large_gcs.contact.contact_set import ContactSetDecisionVariables
-from large_gcs.geometry.convex_set import ConvexSet
 
 
 def create_vars_from_template(

@@ -1,23 +1,23 @@
-from pydrake.all import (
-    GraphOfConvexSets,
-    GraphOfConvexSetsOptions,
-    SolverOptions,
-    MosekSolver,
-    Cost,
-    Constraint,
-    Binding,
-    MathematicalProgramResult,
-)
 import logging
 import time
-from tqdm import tqdm
-import numpy as np
-from dataclasses import dataclass, fields
-from typing import Tuple, List, Optional
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from copy import copy
+from dataclasses import dataclass, fields
+from typing import List, Optional, Tuple
+
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+import numpy as np
 from graphviz import Digraph
+from pydrake.all import (
+    Binding,
+    Constraint,
+    Cost,
+    GraphOfConvexSets,
+    GraphOfConvexSetsOptions,
+    MathematicalProgramResult,
+)
+from tqdm import tqdm
+
 from large_gcs.geometry.convex_set import ConvexSet
 
 logger = logging.getLogger(__name__)
@@ -383,7 +383,6 @@ class Graph:
 
     def _post_solve(self, sol: ShortestPathSolution):
         """Optional post solve hook for subclasses"""
-        pass
 
     def _parse_convex_restriction_result(
         self, result: MathematicalProgramResult, active_edges: List[Edge], duration=None

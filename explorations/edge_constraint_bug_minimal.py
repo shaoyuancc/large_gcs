@@ -1,14 +1,14 @@
+import numpy as np
 from pydrake.all import (
+    Binding,
+    Cost,
     GraphOfConvexSets,
     GraphOfConvexSetsOptions,
-    Cost,
-    Binding,
-    Point as Point,
     HPolyhedron,
     L2NormCost,
-    eq,
 )
-import numpy as np
+from pydrake.all import Point as Point
+from pydrake.all import eq
 
 gcs = GraphOfConvexSets()
 

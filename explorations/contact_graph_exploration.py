@@ -1,12 +1,10 @@
+import time
+
 from large_gcs.contact.contact_location import *
 from large_gcs.contact.contact_pair_mode import *
 from large_gcs.contact.rigid_body import *
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.contact_graph import ContactGraph
-import random
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import time
 
 if __name__ == "__main__":
     from multiprocessing import freeze_support

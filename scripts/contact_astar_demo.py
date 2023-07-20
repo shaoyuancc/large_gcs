@@ -1,14 +1,12 @@
-from large_gcs.graph.contact_graph import ContactGraph
-from large_gcs.algorithms.gcs_astar import GcsAstar
-from large_gcs.algorithms.gcs_astar_subopt import GcsAstarSubOpt
+import os
+
+import numpy as np
+
 from large_gcs.algorithms.gcs_astar_convex_restriction import GcsAstarConvexRestriction
 from large_gcs.graph.contact_cost_constraint_factory import (
-    contact_shortcut_edge_cost_factory_under_obj_weighted,
-    contact_shortcut_edge_cost_factory_over,
     contact_shortcut_edge_cost_factory_over_obj_weighted,
 )
-import os
-import numpy as np
+from large_gcs.graph.contact_graph import ContactGraph
 
 np.set_printoptions(formatter={"float": lambda x: "{0:0.3f}".format(x)})
 base_filename = "contact_graph_triangle_challenge_full"

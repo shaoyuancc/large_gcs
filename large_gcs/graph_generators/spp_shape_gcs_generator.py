@@ -1,15 +1,15 @@
-from typing import List, Tuple
-import numpy as np
-from copy import deepcopy
-from tqdm import tqdm
 from dataclasses import dataclass
-from large_gcs.graph.graph import Graph, DefaultGraphCostsConstraints, Edge, Vertex
-from scipy.spatial.distance import cdist
+from typing import List, Tuple
+
+import numpy as np
 from scipy.spatial import ConvexHull
-from large_gcs.graph.graph import Graph
+from scipy.spatial.distance import cdist
+from tqdm import tqdm
+
+from large_gcs.geometry.ellipsoid import Ellipsoid
 from large_gcs.geometry.point import Point
 from large_gcs.geometry.polyhedron import Polyhedron
-from large_gcs.geometry.ellipsoid import Ellipsoid
+from large_gcs.graph.graph import DefaultGraphCostsConstraints, Edge, Graph, Vertex
 
 
 @dataclass

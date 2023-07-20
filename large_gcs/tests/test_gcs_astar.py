@@ -1,10 +1,8 @@
-from large_gcs.example_graphs.spp_gcs import create_spp_2d_graph
-from large_gcs.graph.cost_factory import (
-    create_l2norm_edge_cost,
-    create_l2norm_squared_edge_cost,
-)
-from large_gcs.algorithms.gcs_astar import GcsAstar
 import numpy as np
+
+from large_gcs.algorithms.gcs_astar import GcsAstar
+from large_gcs.graph.cost_factory import create_l2norm_edge_cost
+from large_gcs.graph_generators.spp_gcs import create_spp_2d_graph
 
 tol = 1e-3
 

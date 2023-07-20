@@ -1,11 +1,10 @@
-from dataclasses import dataclass
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
 import numpy as np
-import matplotlib.pyplot as plt
-import itertools
-from pydrake.all import MakeMatrixContinuousVariable, Expression, Formula
-from large_gcs.geometry.geometry_utils import *
+
 from large_gcs.contact.rigid_body import RigidBody
+from large_gcs.geometry.geometry_utils import counter_clockwise_angle_between
 
 
 @dataclass

@@ -1,14 +1,16 @@
-from dataclasses import asdict
-import hydra
-from hydra.utils import instantiate, call, get_original_cwd
-from hydra.core.hydra_config import HydraConfig
-from hydra.types import RunMode
-from omegaconf import OmegaConf, open_dict
-import wandb
 import importlib
 import logging
-from datetime import datetime
 import os
+from dataclasses import asdict
+from datetime import datetime
+
+import hydra
+from hydra.core.hydra_config import HydraConfig
+from hydra.types import RunMode
+from hydra.utils import get_original_cwd, instantiate
+from omegaconf import OmegaConf, open_dict
+
+import wandb
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph_generators.contact_graph_generator import (
     ContactGraphGeneratorParams,
@@ -20,7 +22,7 @@ logger = logging.getLogger(__name__)
 @hydra.main(version_base=None, config_path="../config", config_name="basic")
 def main(cfg: OmegaConf) -> None:
     now = datetime.now()
-    date_time = now.strftime("%Y-%m-%d_%H-%M-%S")
+    now.strftime("%Y-%m-%d_%H-%M-%S")
     # Add log dir to config
     hydra_config = HydraConfig.get()
     full_log_dir = hydra_config.runtime.output_dir

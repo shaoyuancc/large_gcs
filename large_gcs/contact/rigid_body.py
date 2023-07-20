@@ -1,16 +1,11 @@
 from dataclasses import dataclass
-import matplotlib.pyplot as plt
 from enum import Enum
+
+import matplotlib.pyplot as plt
 import numpy as np
-from pydrake.all import (
-    MakeMatrixContinuousVariable,
-    MakeVectorContinuousVariable,
-    Variable,
-    eq,
-    ge,
-)
+from pydrake.all import MakeMatrixContinuousVariable, MakeVectorContinuousVariable, eq
+
 from large_gcs.geometry.polyhedron import Polyhedron
-from copy import copy
 
 
 class MobilityType(Enum):
@@ -93,8 +88,6 @@ class RigidBody:
                 # Ensures that the resultant force is in the same direction as the velocity,
                 # and that the velocity is 0 if the resultant force is 0
                 constraints.extend(eq(self.vars_force_res, vel).tolist())
-
-            eps = 1e-3
 
         self.constraints = constraints
 

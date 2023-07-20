@@ -4,10 +4,10 @@ by Tobia Marcucci, Jack Umenberger, Pablo A. Parrilo, Russ Tedrake.
 https://arxiv.org/abs/2101.11565
 """
 
-from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.geometry.ellipsoid import Ellipsoid
 from large_gcs.geometry.point import Point
-from large_gcs.graph.graph import Graph, DefaultGraphCostsConstraints, Edge
+from large_gcs.geometry.polyhedron import Polyhedron
+from large_gcs.graph.graph import DefaultGraphCostsConstraints, Edge, Graph
 
 
 def create_spp_2d_graph(edge_cost_factory) -> Graph:

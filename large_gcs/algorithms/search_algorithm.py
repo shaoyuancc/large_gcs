@@ -69,4 +69,3 @@ class SearchAlgorithm(ABC):
         """
         Searches for a shortest path in the given graph.
         """
-        pass

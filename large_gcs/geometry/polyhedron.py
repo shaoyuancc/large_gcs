@@ -1,18 +1,20 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import itertools
+from typing import List
+
+import matplotlib.pyplot as plt
+import numpy as np
 from pydrake.all import (
-    HPolyhedron,
-    VPolytope,
+    DecomposeAffineExpressions,
     Formula,
     FormulaKind,
+    HPolyhedron,
     Variable,
-    DecomposeAffineExpressions,
+    VPolytope,
 )
-from typing import List
 from scipy.spatial import ConvexHull
+
 from large_gcs.geometry.convex_set import ConvexSet
-from large_gcs.geometry.geometry_utils import *
+from large_gcs.geometry.geometry_utils import is_on_hyperplane
 
 
 class Polyhedron(ConvexSet):

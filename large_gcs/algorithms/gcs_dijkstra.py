@@ -1,13 +1,15 @@
-from collections import defaultdict
-import numpy as np
 import heapq as heap
+from collections import defaultdict
+
+import matplotlib.pyplot as plt
+import numpy as np
 from IPython.display import clear_output
 from matplotlib.animation import FFMpegWriter
-import matplotlib.pyplot as plt
+
 from large_gcs.algorithms.search_algorithm import (
     AlgMetrics,
-    SearchAlgorithm,
     AlgVisParams,
+    SearchAlgorithm,
 )
 from large_gcs.graph.graph import Graph
 

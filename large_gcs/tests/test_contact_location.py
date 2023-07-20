@@ -1,12 +1,7 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
-from large_gcs.contact.contact_location import (
-    ContactLocationFace,
-    ContactLocationVertex,
-)
+from large_gcs.contact.contact_location import ContactLocationFace
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
-from large_gcs.geometry.geometry_utils import plot_vector
 from large_gcs.geometry.polyhedron import Polyhedron
 
 

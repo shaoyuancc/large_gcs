@@ -1,15 +1,13 @@
 import numpy as np
-import matplotlib.pyplot as plt
+
 from large_gcs.contact.contact_location import (
     ContactLocationFace,
     ContactLocationVertex,
 )
-from large_gcs.contact.contact_set import *
 from large_gcs.contact.contact_pair_mode import *
+from large_gcs.contact.contact_set import *
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
-from large_gcs.geometry.geometry_utils import plot_vector
 from large_gcs.geometry.polyhedron import Polyhedron
-import pytest
 
 
 def test_create_incontactpairmode_static_tri_movable_tri():

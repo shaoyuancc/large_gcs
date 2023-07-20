@@ -1,10 +1,10 @@
 import os
-import matplotlib.pyplot as plt
+
+from large_gcs.example_graphs.utils.spp_shape_gcs_generator import load_spp_shape_gcs
+
 from large_gcs.algorithms.gcs_dijkstra import GcsDijkstra
 from large_gcs.algorithms.search_algorithm import AlgVisParams
 from large_gcs.graph.cost_factory import create_l2norm_edge_cost
-from large_gcs.example_graphs.utils.spp_shape_gcs_generator import load_spp_shape_gcs
-
 
 base_file_name = "spp_2d_v100_t8_shape_gcs"
 graph_file = os.path.join(

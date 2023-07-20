@@ -1,8 +1,10 @@
+import os
 from dataclasses import dataclass
 from typing import List
-import os
+
 import numpy as np
-from large_gcs.contact.rigid_body import RigidBody, MobilityType, BodyColor
+
+from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.contact_graph import ContactGraph
 

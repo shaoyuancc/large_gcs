@@ -1,49 +1,29 @@
-import numpy as np
-import re
-from dataclasses import dataclass
-from itertools import combinations, permutations, product
-from typing import List, Dict, Tuple
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-from matplotlib.animation import FFMpegWriter
 from collections import defaultdict
-from pydrake.all import (
-    GraphOfConvexSets,
-    GraphOfConvexSetsOptions,
-    Cost,
-    Constraint,
-    eq,
-    ge,
-    Expression,
-)
-from tqdm import tqdm
-import time
+from dataclasses import dataclass
+from itertools import combinations, product
 from multiprocessing import Pool
+from typing import Dict, List, Tuple
+
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import numpy as np
+from pydrake.all import Constraint, Cost, Expression, GraphOfConvexSets, eq
+from tqdm import tqdm
 
 from large_gcs.contact.contact_pair_mode import (
     ContactPairMode,
     InContactPairMode,
     generate_contact_pair_modes,
 )
-from large_gcs.contact.contact_set import (
-    ContactSet,
-    ContactPointSet,
-    ContactSetDecisionVariables,
-)
-from large_gcs.contact.rigid_body import MobilityType, RigidBody, BodyColor
-from large_gcs.geometry.point import Point
+from large_gcs.contact.contact_set import ContactPointSet, ContactSet
+from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
 from large_gcs.graph.contact_cost_constraint_factory import (
-    vertex_cost_position_path_length,
-    vertex_cost_force_actuation_norm_squared,
-    vertex_cost_force_actuation_norm,
     edge_constraint_position_continuity,
     edge_cost_constant,
+    vertex_cost_force_actuation_norm,
+    vertex_cost_position_path_length,
 )
-from large_gcs.graph.graph import (
-    Graph,
-    ShortestPathSolution,
-)
-from large_gcs.algorithms.search_algorithm import AlgVisParams
+from large_gcs.graph.graph import Graph, ShortestPathSolution
 
 
 @dataclass
@@ -464,8 +444,8 @@ class ContactGraph(Graph):
         plt.show()
 
     def animate_solution(self):
-        import matplotlib.patches as patches
         import matplotlib.animation as animation
+        import matplotlib.patches as patches
 
         fig = plt.figure()
         ax = plt.axes(xlim=self.workspace[0], ylim=self.workspace[1])

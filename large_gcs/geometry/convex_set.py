@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+
 import matplotlib.pyplot as plt
 from pydrake.all import RandomGenerator
 

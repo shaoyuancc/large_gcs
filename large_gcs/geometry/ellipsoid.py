@@ -1,7 +1,8 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+import numpy as np
 from pydrake.all import Hyperellipsoid
+
 from large_gcs.geometry.convex_set import ConvexSet
 
 

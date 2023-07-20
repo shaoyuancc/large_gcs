@@ -1,13 +1,9 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from large_gcs.contact.contact_location import (
-    ContactLocationFace,
-    ContactLocationVertex,
-)
-from large_gcs.contact.contact_pair_mode import *
+
+from large_gcs.contact.contact_location import ContactLocationFace
+from large_gcs.contact.contact_pair_mode import NoContactPairMode
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.polyhedron import Polyhedron
-import pytest
 
 eps = 1e-6
 

@@ -1,7 +1,6 @@
-import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from pydrake.all import Point as DrakePoint
+
 from large_gcs.geometry.convex_set import ConvexSet
 
 

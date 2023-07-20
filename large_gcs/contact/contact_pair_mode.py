@@ -1,20 +1,20 @@
-from dataclasses import dataclass
-from abc import ABC, abstractmethod
-from typing import List, Tuple, Type
-from large_gcs.geometry.convex_set import ConvexSet
-import numpy as np
-import matplotlib.pyplot as plt
 import itertools
-from large_gcs.geometry.geometry_utils import *
-from pydrake.all import Variable, Expression, Formula, ge, le, eq
-from large_gcs.contact.rigid_body import RigidBody, MobilityType
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import List, Tuple, Type
+
+import matplotlib.pyplot as plt
+import numpy as np
+from pydrake.all import Expression, Formula, Variable, eq, ge, le
+
 from large_gcs.contact.contact_location import (
     ContactLocation,
-    ContactLocationVertex,
     ContactLocationFace,
+    ContactLocationVertex,
     is_possible_face_face_contact,
     is_possible_face_vertex_contact,
 )
+from large_gcs.contact.rigid_body import MobilityType, RigidBody
 
 
 @dataclass

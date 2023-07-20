@@ -1,23 +1,13 @@
-import numpy as np
 from dataclasses import dataclass
-import itertools
-import matplotlib.pyplot as plt
 from typing import List
-from pydrake.all import (
-    Variables,
-    DecomposeAffineExpressions,
-    HPolyhedron,
-    Point as DrakePoint,
-    Formula,
-    FormulaKind,
-    le,
-)
 
-from large_gcs.contact.contact_pair_mode import (
-    ContactPairMode,
-    InContactPairMode,
-)
-from large_gcs.contact.rigid_body import RigidBody, MobilityType
+import numpy as np
+from pydrake.all import DecomposeAffineExpressions, Formula, FormulaKind, HPolyhedron
+from pydrake.all import Point as DrakePoint
+from pydrake.all import le
+
+from large_gcs.contact.contact_pair_mode import ContactPairMode, InContactPairMode
+from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.convex_set import ConvexSet
 
 
