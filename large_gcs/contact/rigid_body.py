@@ -19,6 +19,13 @@ class MobilityType(Enum):
     ACTUATED = 3
 
 
+BodyColor = {
+    "object": "lightsalmon",
+    "robot": "lightblue",
+    "target": "lightgreen",
+}
+
+
 @dataclass
 class RigidBodyParams:
     name: str
@@ -118,29 +125,46 @@ class RigidBody:
         self._plot_vertices()
         self._plot_face_labels()
 
-    def _plot_vertices(self, **kwargs):
+    def _plot_vertices(self, pos=None, **kwargs):
+        verts = self.geometry.vertices
+        center = self.geometry.center
+        if pos is not None:
+            p_CT = pos - self.geometry.center
+            center = pos
+            verts = verts + p_CT
         for i in range(self.n_vertices):
             plt.text(
-                *self._get_offset_pos(self.geometry.vertices[i]),
+                *self._get_offset_pos(verts[i], center),
                 f"v{i}",
                 ha="center",
                 va="center",
             )
 
-    def _plot_face_labels(self):
-        vertices = np.vstack([self.geometry.vertices, self.geometry.vertices[0]])
+    def _plot_face_labels(self, pos=None, **kwargs):
+        verts = self.geometry.vertices
+        center = self.geometry.center
+        if pos is not None:
+            center = pos
+            p_CT = pos - self.geometry.center
+            verts = verts + p_CT
+        verts = np.vstack([verts, verts[0]])
         for i in range(self.n_faces):
-            mid = (vertices[i] + vertices[i + 1]) / 2
-            plt.text(*self._get_offset_pos(mid), f"f{i}", ha="center", va="center")
+            mid = (verts[i] + verts[i + 1]) / 2
+            plt.text(
+                *self._get_offset_pos(mid, center), f"f{i}", ha="center", va="center"
+            )
 
-    def _get_offset_pos(self, pos):
-        offset_dir = pos - self.geometry.center
+    def _get_offset_pos(self, pos, center):
+        offset_dir = pos - center
         offset_hat = offset_dir / np.linalg.norm(offset_dir)
-        return pos + offset_hat * 0.1
+        return pos + offset_hat * 0.15
 
-    def plot_at_position(self, pos, **kwargs):
+    def plot_at_position(self, pos, label_vertices_faces=False, **kwargs):
         vertices = self.geometry.vertices
         p_CT = pos - self.geometry.center
         vertices_shifted = vertices + p_CT
         plt.fill(*vertices_shifted.T, **kwargs)
         plt.text(*pos, self.name, ha="center", va="center")
+        if label_vertices_faces:
+            self._plot_vertices(pos)
+            self._plot_face_labels(pos)

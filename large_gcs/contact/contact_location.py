@@ -11,6 +11,7 @@ from large_gcs.contact.rigid_body import RigidBody
 @dataclass
 class ContactLocation(ABC):
     body: RigidBody
+    index: int
 
     def plot(self, **kwargs):
         if self.body.dim != 2:
@@ -28,8 +29,6 @@ class ContactLocation(ABC):
 
 @dataclass
 class ContactLocationVertex(ContactLocation):
-    index: int
-
     def _plot(self, **kwargs):
         self.body.geometry.plot_vertex(self.index, **kwargs)
 
@@ -59,20 +58,18 @@ class ContactLocationVertex(ContactLocation):
 
 @dataclass
 class ContactLocationFace(ContactLocation):
-    halfspace_index: int
-
     def _plot(self, **kwargs):
         self.body.geometry.plot_vertex(self.adj_vertex_indices[0], **kwargs)
         self.body.geometry.plot_vertex(self.adj_vertex_indices[1], **kwargs)
-        self.body.geometry.plot_face(self.halfspace_index, **kwargs)
+        self.body.geometry.plot_face(self.index, **kwargs)
 
     @property
     def normal(self):
-        return self.body.geometry.set.A()[self.halfspace_index]
+        return self.body.geometry.set.A()[self.index]
 
     @property
     def b(self):
-        return self.body.geometry.set.b()[self.halfspace_index]
+        return self.body.geometry.set.b()[self.index]
 
     @property
     def unit_normal(self):
@@ -86,8 +83,8 @@ class ContactLocationFace(ContactLocation):
             raise NotImplementedError
         return np.array(
             [
-                self.halfspace_index,
-                (self.halfspace_index + 1) % self.body.geometry.vertices.shape[0],
+                self.index,
+                (self.index + 1) % self.body.geometry.vertices.shape[0],
             ]
         )
 
@@ -123,7 +120,7 @@ class ContactLocationFace(ContactLocation):
 
     @property
     def compact_name(self):
-        return f"f{self.halfspace_index}"
+        return f"f{self.index}"
 
 
 # Utility functions

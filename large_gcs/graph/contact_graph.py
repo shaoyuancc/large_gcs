@@ -8,20 +8,10 @@ import matplotlib.cm as cm
 from matplotlib.animation import FFMpegWriter
 from collections import defaultdict
 from pydrake.all import (
-    Variables,
-    DecomposeLinearExpressions,
-    HPolyhedron,
-    Formula,
-    FormulaKind,
-    ConvexSet as DrakeConvexSet,
-    Point as DrakePoint,
     GraphOfConvexSets,
     GraphOfConvexSetsOptions,
     Cost,
     Constraint,
-    Binding,
-    MathematicalProgramResult,
-    L2NormCost,
     eq,
     ge,
     Expression,
@@ -31,6 +21,7 @@ import time
 from multiprocessing import Pool
 
 from large_gcs.contact.contact_pair_mode import (
+    ContactPairMode,
     InContactPairMode,
     generate_contact_pair_modes,
 )
@@ -39,7 +30,7 @@ from large_gcs.contact.contact_set import (
     ContactPointSet,
     ContactSetDecisionVariables,
 )
-from large_gcs.contact.rigid_body import MobilityType, RigidBody
+from large_gcs.contact.rigid_body import MobilityType, RigidBody, BodyColor
 from large_gcs.geometry.point import Point
 from large_gcs.graph.contact_cost_constraint_factory import (
     vertex_cost_position_path_length,
@@ -48,13 +39,7 @@ from large_gcs.graph.contact_cost_constraint_factory import (
     edge_constraint_position_continuity,
     edge_cost_constant,
 )
-from large_gcs.graph.graph import (
-    DefaultGraphCostsConstraints,
-    Graph,
-    ShortestPathSolution,
-    Vertex,
-    Edge,
-)
+from large_gcs.graph.graph import Graph
 from large_gcs.algorithms.search_algorithm import AlgVisParams
 
 
@@ -80,6 +65,8 @@ class ContactGraph(Graph):
         workspace: np.ndarray = None,
         vertex_exclusion: List[str] = None,
         vertex_inclusion: List[str] = None,
+        contact_pair_modes: List[ContactPairMode] = None,  # For loading a saved graph
+        contact_set_mode_ids: List[List[str]] = None,  # For loading a saved graph
         edge_keys: List[Tuple[str, str]] = None,  # For loading a saved graph
     ):
         """
@@ -122,7 +109,9 @@ class ContactGraph(Graph):
 
         self.source_pos = source_pos_objs + source_pos_robs
         self.target_pos = target_pos_objs + target_pos_robs
-        sets, set_ids = self._generate_contact_sets(vertex_exclusion, vertex_inclusion)
+        sets, set_ids = self._generate_contact_sets(
+            contact_pair_modes, contact_set_mode_ids, vertex_exclusion, vertex_inclusion
+        )
 
         sets += [
             ContactPointSet(
@@ -163,40 +152,7 @@ class ContactGraph(Graph):
             len(self.incoming_edges(self.target_name)) > 0
         ), "Target is not reachable from any other set"
 
-    def save_to_file(self, path: str):
-        np.save(
-            path,
-            {
-                "obs_params": [obs.params for obs in self.obstacles],
-                "objs_params": [obj.params for obj in self.objects],
-                "robs_params": [rob.params for rob in self.robots],
-                "source_pos_objs": self.source_pos[: self.n_objects],
-                "source_pos_robs": self.source_pos[self.n_objects :],
-                "target_pos_objs": self.target_pos[: self.n_objects],
-                "target_pos_robs": self.target_pos[self.n_objects :],
-                "workspace": self.workspace,
-                "vertex_exclusion": self.vertex_exclusion,
-                "vertex_inclusion": self.vertex_inclusion,
-                "edge_keys": self.edge_keys,
-            },
-        )
-
-    @classmethod
-    def load_from_file(cls, path: str):
-        data = np.load(path, allow_pickle=True).item()
-        return cls(
-            [RigidBody.from_params(params) for params in data["obs_params"]],
-            [RigidBody.from_params(params) for params in data["objs_params"]],
-            [RigidBody.from_params(params) for params in data["robs_params"]],
-            data["source_pos_objs"],
-            data["source_pos_robs"],
-            data["target_pos_objs"],
-            data["target_pos_robs"],
-            data["workspace"],
-            data["vertex_exclusion"],
-            data["vertex_inclusion"],
-            data["edge_keys"],
-        )
+        print(f"Created contact graph: {self.params}")
 
     ### VERTEX AND EDGE COSTS AND CONSTRAINTS ###
     def _create_vertex_costs(self, sets: List[ContactSet]) -> List[List[Cost]]:
@@ -274,7 +230,13 @@ class ContactGraph(Graph):
         return u_set.IntersectsWith(v_set)
 
     def _generate_contact_sets(
-        self, vertex_exlcusion: List[str] = None, vertex_inclusion: List[str] = None
+        self,
+        contact_pair_modes: Dict[
+            str, ContactPairMode
+        ] = None,  # For loading a saved graph
+        contact_set_mode_ids: List[Tuple] = None,  # For loading a saved graph
+        vertex_exlcusion: List[str] = None,
+        vertex_inclusion: List[str] = None,
     ) -> Tuple[List[ContactSet], List[str]]:
         """Generates all possible contact sets given a set of static obstacles, unactuated objects, and actuated robots."""
         static_obstacles = self.obstacles
@@ -287,37 +249,45 @@ class ContactGraph(Graph):
         obs_names = [body.name for body in static_obstacles]
         obj_names = [body.name for body in unactuated_objects]
         rob_names = [body.name for body in actuated_robots]
-
-        print(f"Generating contact sets for {len(body_dict)} bodies...")
-
         movable = obj_names + rob_names
-        static_movable_pairs = list(product(obs_names, movable))
-        movable_pairs = list(combinations(movable, 2))
-        rigid_body_pairs = static_movable_pairs + movable_pairs
 
-        print(
-            f"Generating contact pair modes for {len(rigid_body_pairs)} body pairs..."
-        )
+        if contact_pair_modes is None or contact_set_mode_ids is None:
+            print(f"Generating contact sets for {len(body_dict)} bodies...")
+            static_movable_pairs = list(product(obs_names, movable))
+            movable_pairs = list(combinations(movable, 2))
+            rigid_body_pairs = static_movable_pairs + movable_pairs
 
-        body_pair_to_modes = {
-            (body1, body2): generate_contact_pair_modes(
-                body_dict[body1], body_dict[body2]
+            print(
+                f"Generating contact pair modes for {len(rigid_body_pairs)} body pairs..."
             )
-            for body1, body2 in tqdm(rigid_body_pairs)
-        }
-        print(
-            f"Each body pair has on average {np.mean([len(modes) for modes in body_pair_to_modes.values()])} modes"
-        )
-        body_pair_to_mode_names = {
-            (body1, body2): [mode.id for mode in modes]
-            for (body1, body2), modes in body_pair_to_modes.items()
-        }
-        mode_ids_to_mode = {
-            mode.id: mode for modes in body_pair_to_modes.values() for mode in modes
-        }
 
-        # Each set is the cartesian product of the modes for each object pair
-        set_ids = list(product(*body_pair_to_mode_names.values()))
+            body_pair_to_modes = {
+                (body1, body2): generate_contact_pair_modes(
+                    body_dict[body1], body_dict[body2]
+                )
+                for body1, body2 in tqdm(rigid_body_pairs)
+            }
+            print(
+                f"Each body pair has on average {np.mean([len(modes) for modes in body_pair_to_modes.values()])} modes"
+            )
+            body_pair_to_mode_names = {
+                (body1, body2): [mode.id for mode in modes]
+                for (body1, body2), modes in body_pair_to_modes.items()
+            }
+            mode_ids_to_mode = {
+                mode.id: mode for modes in body_pair_to_modes.values() for mode in modes
+            }
+            self._contact_pair_modes = mode_ids_to_mode
+
+            # Each set is the cartesian product of the modes for each object pair
+            set_ids = list(product(*body_pair_to_mode_names.values()))
+        else:
+            print(
+                f"Loading {len(contact_pair_modes)} contact pair modes for {len(body_dict)} bodies..."
+            )
+            mode_ids_to_mode = contact_pair_modes
+            self._contact_pair_modes = mode_ids_to_mode
+            set_ids = contact_set_mode_ids
 
         # Set force constraints
         set_force_constraints_dict = defaultdict(list)
@@ -360,17 +330,20 @@ class ContactGraph(Graph):
             )
             for set_id in tqdm(set_ids)
         ]
+        # Do not need to prune if loading from saved file, there shouldn't be empty sets
+        if contact_set_mode_ids is None:
+            print(f"Pruning empty sets...")
+            sets_to_keep = [
+                contact_set
+                for contact_set in tqdm(all_contact_sets)
+                if not contact_set.set.IsEmpty()
+            ]
 
-        print(f"Pruning empty sets...")
-        sets_to_keep = [
-            contact_set
-            for contact_set in tqdm(all_contact_sets)
-            if not contact_set.set.IsEmpty()
-        ]
-
-        print(
-            f"{len(sets_to_keep)} sets remain after removing {len(all_contact_sets) - len(sets_to_keep)} empty sets"
-        )
+            print(
+                f"{len(sets_to_keep)} sets remain after removing {len(all_contact_sets) - len(sets_to_keep)} empty sets"
+            )
+        else:
+            sets_to_keep = all_contact_sets
 
         if vertex_exlcusion is not None:
             print(f"Removing sets matching exclusion strings {vertex_exlcusion}")
@@ -399,19 +372,14 @@ class ContactGraph(Graph):
         sets_to_keep_ids = [str(contact_set.id) for contact_set in sets_to_keep]
         return sets_to_keep, sets_to_keep_ids
 
+    ### POST SOLVE ###
+
     def _post_solve(self, sol):
         """Post solve hook that is called after solving by the base graph class"""
 
         self.contact_spp_sol = self.create_contact_spp_sol(
             sol.vertex_path, sol.ambient_path
         )
-
-    @property
-    def params(self):
-        params = super().params
-        params.source = self.source_pos
-        params.target = self.target_pos
-        return params
 
     def create_contact_spp_sol(self, vertex_path, ambient_path):
         """An ambient path is a list of vertices in the higher dimensional space"""
@@ -432,6 +400,8 @@ class ContactGraph(Graph):
             pos_trajs,
             pos_transition_map,
         )
+
+    ### PLOTTING AND ANIMATING ###
 
     def plot_samples_in_set(self, set_name: str, n_samples: int = 100, **kwargs):
         """Plots a single set"""
@@ -508,16 +478,16 @@ class ContactGraph(Graph):
 
         # Plot goal positions
         for i, body in enumerate(bodies):
-            body.plot_at_position(self.target_pos[i], color="lightgreen")
+            body.plot_at_position(self.target_pos[i], color=BodyColor["target"])
 
         label_text = [body.name for body in bodies]
 
         polygons = [
             patches.Polygon(
                 body.geometry.vertices,
-                color="lightblue"
+                color=BodyColor["object"]
                 if body.mobility_type == MobilityType.UNACTUATED
-                else "lightsalmon",
+                else BodyColor["robot"],
             )
             for body in bodies
         ]
@@ -599,6 +569,78 @@ class ContactGraph(Graph):
                 trajs_out.append(trajs_in[n_pos])
 
         return np.array(trajs_out), transition_map
+
+    ### SERIALIZATION METHODS ###
+
+    def save_to_file(self, path: str):
+        np.save(
+            path,
+            {
+                "obs_params": [obs.params for obs in self.obstacles],
+                "objs_params": [obj.params for obj in self.objects],
+                "robs_params": [rob.params for rob in self.robots],
+                "source_pos_objs": self.source_pos[: self.n_objects],
+                "source_pos_robs": self.source_pos[self.n_objects :],
+                "target_pos_objs": self.target_pos[: self.n_objects],
+                "target_pos_robs": self.target_pos[self.n_objects :],
+                "workspace": self.workspace,
+                "vertex_exclusion": self.vertex_exclusion,
+                "vertex_inclusion": self.vertex_inclusion,
+                "contact_pair_mode_params": [
+                    mode.params for mode in self._contact_pair_modes.values()
+                ],
+                "contact_set_mode_ids": [
+                    tuple([mode.id for mode in v.convex_set.contact_pair_modes])
+                    for v in self.vertices.values()
+                    if isinstance(v.convex_set, ContactSet)
+                ],
+                "edge_keys": self.edge_keys,
+            },
+        )
+
+    @classmethod
+    def load_from_file(cls, path: str):
+        data = np.load(path, allow_pickle=True).item()
+        obs = [RigidBody.from_params(params) for params in data["obs_params"]]
+        objs = [RigidBody.from_params(params) for params in data["objs_params"]]
+        robs = [RigidBody.from_params(params) for params in data["robs_params"]]
+        all_bodies = {body.name: body for body in obs + objs + robs}
+        contact_pair_modes = {}
+        for params in data["contact_pair_mode_params"]:
+            body_a = all_bodies[params.body_a_name]
+            body_b = all_bodies[params.body_b_name]
+            mode = params.type(
+                body_a,
+                body_b,
+                params.contact_location_a_type(body_a, params.contact_location_a_index),
+                params.contact_location_b_type(body_b, params.contact_location_b_index),
+            )
+            contact_pair_modes[mode.id] = mode
+        cg = cls(
+            obs,
+            objs,
+            robs,
+            data["source_pos_objs"],
+            data["source_pos_robs"],
+            data["target_pos_objs"],
+            data["target_pos_robs"],
+            data["workspace"],
+            data["vertex_exclusion"],
+            data["vertex_inclusion"],
+            contact_pair_modes,
+            data["contact_set_mode_ids"],
+            data["edge_keys"],
+        )
+        return cg
+
+    ### PROPERTIES ###
+
+    @property
+    def params(self):
+        params = super().params
+        params.source = self.source_pos
+        params.target = self.target_pos
+        return params
 
     @property
     def n_obstacles(self):

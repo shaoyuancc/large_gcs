@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import List, Tuple, Type
 from large_gcs.geometry.convex_set import ConvexSet
 import numpy as np
 import matplotlib.pyplot as plt
@@ -99,6 +99,29 @@ class ContactPairMode(ABC):
     @abstractmethod
     def compact_class_name(self):
         pass
+
+    @property
+    def params(self):
+        return ContactPairModeParams(
+            type=type(self),
+            body_a_name=self.body_a.name,
+            body_b_name=self.body_b.name,
+            contact_location_a_type=type(self.contact_location_a),
+            contact_location_b_type=type(self.contact_location_b),
+            contact_location_a_index=self.contact_location_a.index,
+            contact_location_b_index=self.contact_location_b.index,
+        )
+
+
+@dataclass
+class ContactPairModeParams:
+    type: Type[ContactPairMode]
+    body_a_name: str
+    body_b_name: str
+    contact_location_a_type: Type[ContactLocation]
+    contact_location_b_type: Type[ContactLocation]
+    contact_location_a_index: int
+    contact_location_b_index: int
 
 
 @dataclass
@@ -488,8 +511,8 @@ def generate_contact_pair_modes(
         range(body_a.n_faces), range(body_b.n_faces)
     ):
         # Check if normals are in opposite directions
-        face_a = ContactLocationFace(body=body_a, halfspace_index=index_a)
-        face_b = ContactLocationFace(body=body_b, halfspace_index=index_b)
+        face_a = ContactLocationFace(body=body_a, index=index_a)
+        face_b = ContactLocationFace(body=body_b, index=index_b)
         if is_possible_face_face_contact(face_a, face_b):
             contact_pair_modes.append(
                 InContactPairMode(
@@ -504,7 +527,7 @@ def generate_contact_pair_modes(
     for index_a, index_b in itertools.product(
         range(body_a.n_faces), range(body_b.n_vertices)
     ):
-        face_a = ContactLocationFace(body=body_a, halfspace_index=index_a)
+        face_a = ContactLocationFace(body=body_a, index=index_a)
         vertex_b = ContactLocationVertex(body=body_b, index=index_b)
         if is_possible_face_vertex_contact(face_a, vertex_b):
             contact_pair_modes.append(
@@ -521,7 +544,7 @@ def generate_contact_pair_modes(
         range(body_a.n_vertices), range(body_b.n_faces)
     ):
         vertex_a = ContactLocationVertex(body=body_a, index=index_a)
-        face_b = ContactLocationFace(body=body_b, halfspace_index=index_b)
+        face_b = ContactLocationFace(body=body_b, index=index_b)
         if is_possible_face_vertex_contact(face_b, vertex_a):
             contact_pair_modes.append(
                 InContactPairMode(
@@ -538,7 +561,7 @@ def generate_contact_pair_modes(
         in_contact_pair = next(
             filter(
                 lambda x: isinstance(x.contact_location_a, ContactLocationFace)
-                and x.contact_location_a.halfspace_index == index_a,
+                and x.contact_location_a.index == index_a,
                 contact_pair_modes,
             )
         )

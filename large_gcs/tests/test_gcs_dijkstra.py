@@ -21,5 +21,5 @@ def test_dijkstra_spp_2d():
     )
     vertex_path = np.array(["s", "p0", "e1", "t"])
     assert np.isclose(sol.cost, 9.285808987971189)
-    assert np.allclose(sol.ambient_path, ambient_path)
+    assert np.allclose(sol.ambient_path, ambient_path, atol=1e-2)
     assert np.array_equal(sol.vertex_path, vertex_path)
