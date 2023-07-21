@@ -177,6 +177,9 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             if new_dist < self._node_dists[neighbor]:
                 self._node_dists[neighbor] = new_dist
 
+            if new_dist < self._node_dists[neighbor]:
+                self._node_dists[neighbor] = new_dist
+
             if self._writer:
                 self._writer.fig.clear()
                 self.plot_graph(sol.ambient_path, edge)
