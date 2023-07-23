@@ -17,7 +17,7 @@ from large_gcs.graph.graph import Edge, Graph
 class GcsAstar(SearchAlgorithm):
     """A* search algorithm for GCS. This implementation is very similar to GCS Dijkstra,
     but the the target node is always added to the visited subgraph, and an edge from the
-    node being relaxed to the target is also added.
+    node being explored to the target is also added.
     Therefore, this will not work for edge costs for which this would not lead to an
     admissible heuristic (e.g. L2NormSquaredEdgeCost).
     """
