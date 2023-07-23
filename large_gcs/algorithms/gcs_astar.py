@@ -1,5 +1,5 @@
 import heapq as heap
-import queue
+import logging
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
@@ -13,13 +13,15 @@ from large_gcs.algorithms.search_algorithm import (
 )
 from large_gcs.graph.graph import Edge, Graph
 
+logger = logging.getLogger(__name__)
+
 
 class GcsAstar(SearchAlgorithm):
     """A* search algorithm for GCS. This implementation is very similar to GCS Dijkstra,
     but the the target node is always added to the visited subgraph, and an edge from the
     node being explored to the target is also added.
-    Therefore, this will not work for edge costs for which this would not lead to an
-    admissible heuristic (e.g. L2NormSquaredEdgeCost).
+    Current implementation requires heuristic to be both admissible and consistent.
+    Currently does not handle infeasible edges correctly, thus this algorithm is not complete.
     """
 
     def __init__(
@@ -46,7 +48,7 @@ class GcsAstar(SearchAlgorithm):
         self._gcs_solve_times = np.empty((0,))
         self._candidate_sol = None
         self._pq = []
-        self._infeasible_edge_q = queue.Queue()
+        self._infeasible_edges = set()
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
         # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
@@ -56,14 +58,17 @@ class GcsAstar(SearchAlgorithm):
         self._visited.add_vertex(
             self._graph.vertices[self._graph.target_name], self._graph.target_name
         )
+        # Add the source to the visited subgraph
+        self._visited.add_vertex(
+            self._graph.vertices[self._graph.source_name], self._graph.source_name
+        )
+        self._visited.set_source(self._graph.source_name)
         self._visited.set_target(self._graph.target_name)
         self.alg_metrics.n_vertices_visited = (
-            1  # Start with the target node in the visited subgraph
+            2  # Start with the source and target node in the visited subgraph
         )
 
-    def run(
-        self, verbose: bool = False, animate: bool = False, final_plot: bool = False
-    ):
+    def run(self, animate: bool = False, final_plot: bool = False):
         if animate:
             metadata = dict(title="GCS A*", artist="Matplotlib")
             self._writer = FFMpegWriter(fps=self._vis_params.fps, metadata=metadata)
@@ -72,127 +77,108 @@ class GcsAstar(SearchAlgorithm):
                 fig, self._vis_params.vid_output_path, self._vis_params.dpi
             )
 
-        while self._candidate_sol is None:
-            if len(self._pq) > 0:
-                self._run_iteration(verbose=verbose)
-            elif not self._infeasible_edge_q.empty():
-                edge = self._infeasible_edge_q.get()
-                while edge.v in self._visited.vertex_names:
-                    if verbose:
-                        print(
-                            f"previously unreachable vertex {edge.v} already in visited subgraph"
-                        )
-                    edge = self._infeasible_edge_q.get()
-                if verbose:
-                    print(f"exploring previously unreachable vertex {edge.v}")
-                self._explore_edge(edge, verbose=verbose)
+        while len(self._pq) > 0:
+            # Check for termination condition
+            curr = self._pq[0][1]
+            if (
+                self._graph.target_name
+                in [e.v for e in self._graph.outgoing_edges(curr)]
+                and (curr, self._graph.target_name) not in self._infeasible_edges
+            ):
+                sol = self._candidate_sol
+                logger.info(
+                    f"Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
+                )
+                if self._writer:
+                    self._writer.fig.clear()
+                    self.plot_graph(path=sol.ambient_path, is_final_path=True)
+                    self._writer.grab_frame()
+                    self._writer.finish()
+                    self._writer = None
+                if final_plot:
+                    if not animate:
+                        fig = plt.figure(figsize=self._vis_params.figsize)
+                        self.plot_graph(path=sol.ambient_path, is_final_path=True)
+                    plt.savefig(self._vis_params.plot_output_path)
+                    plt.show()
+                return sol
 
-        print(f"pq is not empty {len(self._pq) > 0}")
-        print(
-            f"next node in pq has edge to target {(self._pq[0][1], self._graph.target_name) in self._graph.edges}"
-        )
-        print(f"candidate sol is None {self._candidate_sol is None}")
-        sol = self._candidate_sol
-        # clear_output(wait=True)
-        print(
-            f"Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
-        )
-        if self._writer:
-            self._writer.fig.clear()
-            self.plot_graph(path=sol.ambient_path, is_final_path=True)
-            self._writer.grab_frame()
-            self._writer.finish()
-            self._writer = None
-        if final_plot:
-            if not animate:
-                fig = plt.figure(figsize=self._vis_params.figsize)
-                self.plot_graph(path=sol.ambient_path, is_final_path=True)
-            plt.savefig(self._vis_params.plot_output_path)
-            plt.show()
-        return sol
+            self._run_iteration()
 
-    def _run_iteration(self, verbose: bool = False):
+        logger.info("Gcs A* failed to find a path to the target.")
+        return None
+
+    def _run_iteration(self):
         _, node = heap.heappop(self._pq)
-        if node in self._visited.vertex_names and node != self._graph.target_name:
+        if node in self._visited.vertex_names and node != self._graph.source_name:
             return
 
         self._add_vertex_and_edges_to_visited_except_edges_to_target(node)
 
-        if node == self._graph.source_name:
-            self._visited.set_source(self._graph.source_name)
-
         edges = self._graph.outgoing_edges(node)
 
-        if verbose:
-            # clear_output(wait=True)
-            print(
-                f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors"
-            )
-            print(f"Current vertices: {self._visited.vertex_names}")
+        logger.debug(
+            f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors"
+        )
         if self._writer:
             self._writer.fig.clear()
             self.plot_graph()
             self._writer.grab_frame()
 
         for edge in edges:
-            neighbor = edge.v
-            if (
-                neighbor not in self._visited.vertex_names
-                or neighbor == self._graph.target_name
-            ):
-                self._explore_edge(edge, verbose=verbose)
+            if edge.v not in self._visited.vertex_names:
+                self._explore_edge(edge)
 
-    def _explore_edge(self, edge: Edge, verbose: bool = False):
+    def _explore_edge(self, edge: Edge):
         neighbor = edge.v
-        if neighbor != self._graph.target_name:
-            # Add neighbor and edge temporarily to the visited subgraph
-            self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
-            # Check if this neighbor actually has an edge to the target
-            # If so, add that edge instead of the shortcut
-            if (neighbor, self._graph.target_name) in self._graph.edges:
-                self._visited.add_edge(
-                    self._graph.edges[(neighbor, self._graph.target_name)]
+        assert (
+            neighbor != self._graph.target_name
+        ), "Should have terminated before this happens"
+        # Add neighbor and edge temporarily to the visited subgraph
+        self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
+        # Check if this neighbor actually has an edge to the target
+        # If so, add that edge instead of the shortcut
+        if (neighbor, self._graph.target_name) in self._graph.edges:
+            self._visited.add_edge(
+                self._graph.edges[(neighbor, self._graph.target_name)]
+            )
+        else:
+            # Add an edge from the neighbor to the target
+            direct_edge_costs = None
+            if self._shortcut_edge_cost_factory:
+                # Note for now this only works with ContactSet and ContactPointSet because
+                # they have the vars attribute, and convex_sets in general do not.
+                direct_edge_costs = self._shortcut_edge_cost_factory(
+                    self._graph.vertices[neighbor].convex_set.vars,
+                    self._graph.vertices[self._graph.target_name].convex_set.vars,
                 )
-            else:
-                # Add an edge from the neighbor to the target
-                direct_edge_costs = None
-                if self._shortcut_edge_cost_factory:
-                    # Note for now this only works with ContactSet and ContactPointSet because
-                    # they have the vars attribute, and convex_sets in general do not.
-                    direct_edge_costs = self._shortcut_edge_cost_factory(
-                        self._graph.vertices[neighbor].convex_set.vars,
-                        self._graph.vertices[self._graph.target_name].convex_set.vars,
-                    )
-                direct_to_target = Edge(
-                    neighbor, self._graph.target_name, costs=direct_edge_costs
-                )
-                self._visited.add_edge(direct_to_target)
+            direct_to_target = Edge(
+                neighbor, self._graph.target_name, costs=direct_edge_costs
+            )
+            self._visited.add_edge(direct_to_target)
 
         self._visited.add_edge(edge)
         sol = self._visited.solve(self._use_convex_relaxation)
 
         self._update_alg_metrics_after_gcs_solve(sol.time)
 
-        if neighbor != self._graph.target_name:
-            # Remove neighbor and associated edges from the visited subgraph
-            self._visited.remove_vertex(neighbor)
-        else:
-            # Just remove the edge from the neighbor to the target from the visited subgraph
-            # because the target node must be kept in the visited subgraph
-            self._visited.remove_edge((edge.u, edge.v))
+        # Remove neighbor and associated edges from the visited subgraph
+        self._visited.remove_vertex(neighbor)
 
         if sol.is_success:
             new_dist = sol.cost
-            if verbose:
-                print(
-                    f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {new_dist < self._node_dists[neighbor]}"
-                )
+            logger.debug(
+                f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {new_dist < self._node_dists[neighbor]}"
+            )
             if new_dist < self._node_dists[neighbor]:
                 self._node_dists[neighbor] = new_dist
                 heap.heappush(self._pq, (new_dist, neighbor))
                 # Check if this neighbor actually has an edge to the target
                 if (neighbor, self._graph.target_name) in self._graph.edges:
-                    self._candidate_sol = sol
+                    if self._candidate_sol is None:
+                        self._candidate_sol = sol
+                    elif sol.cost < self._candidate_sol.cost:
+                        self._candidate_sol = sol
 
             if self._writer:
                 self._writer.fig.clear()
@@ -200,12 +186,14 @@ class GcsAstar(SearchAlgorithm):
                 self._writer.grab_frame()
 
         else:
-            self._infeasible_edge_q.put(edge)
-            if verbose:
-                print(f"edge {edge.u} -> {edge.v} not actually feasible")
+            self._infeasible_edges.add((edge.u, edge.v))
+            logger.debug(f"edge {edge.u} -> {edge.v} not actually feasible")
 
     def _add_vertex_and_edges_to_visited_except_edges_to_target(self, vertex_name):
         # Add node to the visited subgraph along with all of its incoming and outgoing edges to the visited subgraph
+        if vertex_name in self._visited.vertex_names:
+            return
+
         self._visited.add_vertex(self._graph.vertices[vertex_name], vertex_name)
         self._alg_metrics.n_vertices_visited += 1
         edges = self._graph.incident_edges(vertex_name)
