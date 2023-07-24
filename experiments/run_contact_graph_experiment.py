@@ -64,7 +64,7 @@ def main(cfg: OmegaConf) -> None:
     alg = instantiate(cfg.algorithm, graph=cg, shortcut_edge_cost_factory=shortcut_cost)
     sol = alg.run(animate=False)
 
-    if cfg.save_visualization:
+    if sol.is_success and cfg.save_visualization:
         output_base = f"{alg.__class__.__name__}_{function_name}_{cfg.graph_name}"
         vid_file = os.path.join(full_log_dir, f"{output_base}.mp4")
         graphviz_file = os.path.join(full_log_dir, f"{output_base}_visited_subgraph")
