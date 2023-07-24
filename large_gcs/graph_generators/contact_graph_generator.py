@@ -33,15 +33,15 @@ class ContactGraphGeneratorParams:
         self.target_rob_pos = np.array(self.target_rob_pos)
         self.workspace = np.array(self.workspace)
 
+        body_dims = set()
         if self.obs_vertices.size > 0:
-            assert (
-                self.obs_vertices.shape[2] == self.rob_vertices.shape[2]
-            ), "All bodies must have same dimension"
+            body_dims.add(self.obs_vertices.shape[2])
         if self.obj_vertices.size > 0:
-            assert (
-                self.obj_vertices.shape[2] == self.rob_vertices.shape[2]
-            ), "All bodies must have same dimension"
-        n_dim = self.rob_vertices.shape[2]
+            body_dims.add(self.obj_vertices.shape[2])
+        if self.rob_vertices.size > 0:
+            body_dims.add(self.rob_vertices.shape[2])
+        assert len(body_dims) == 1, "All bodies must have same dimension"
+        n_dim = body_dims.pop()
         assert (
             self.source_obj_pos.shape
             == self.target_obj_pos.shape

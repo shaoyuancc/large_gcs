@@ -1,4 +1,3 @@
-import copy
 import heapq as heap
 import itertools
 import logging
@@ -7,6 +6,7 @@ from collections import defaultdict
 
 import matplotlib.pyplot as plt
 import numpy as np
+from IPython.display import HTML, display
 from matplotlib.animation import FFMpegWriter
 
 from large_gcs.algorithms.search_algorithm import (
@@ -58,7 +58,9 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         elif tiebreak == TieBreak.LIFO or tiebreak == TieBreak.LIFO.name:
             self._counter = itertools.count(start=0, step=-1)
         # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
-        heap.heappush(self._pq, (0, next(self._counter), self._graph.source_name, []))
+        heap.heappush(
+            self._pq, (0, next(self._counter), self._graph.source_name, [], None)
+        )
 
         # Add the target to the visited subgraph
         self._visited.add_vertex(
@@ -69,17 +71,12 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             1  # Start with the target node in the visited subgraph
         )
 
-    def run(self, animate: bool = False, final_plot: bool = False):
+    def run(self, animate_intermediate: bool = False, final_plot: bool = False):
         logger.info(
             f"Running {self.__class__.__name__}, should_rexplore: {self._should_reexplore}, use_convex_relaxation: {self._use_convex_relaxation}, shortcut_edge_cost_factory: {self._shortcut_edge_cost_factory.__name__}"
         )
-        if animate:
-            metadata = dict(title="Convex Restriction GCS A*", artist="Matplotlib")
-            self._writer = FFMpegWriter(fps=self._vis_params.fps, metadata=metadata)
-            fig = plt.figure(figsize=self._vis_params.figsize)
-            self._writer.setup(
-                fig, self._vis_params.vid_output_path, self._vis_params.dpi
-            )
+        self._animate_intermediate = animate_intermediate
+
         self._start_time = time.time()
         while self._candidate_sol is None and len(self._pq) > 0:
             self._run_iteration()
@@ -96,13 +93,13 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         return sol
 
     def _run_iteration(self):
-        # Make a copy of the priority queue.
-        pq_copy = copy.copy(self._pq)
-        # Pop the top 10 items from the priority queue copy.
-        top_10 = [heap.heappop(pq_copy)[0] for _ in range(min(10, len(pq_copy)))]
-        logger.info(f"Top 10 pq costs: {top_10}")
+        # # Make a copy of the priority queue.
+        # pq_copy = copy.copy(self._pq)
+        # # Pop the top 10 items from the priority queue copy.
+        # top_10 = [heap.heappop(pq_copy)[0] for _ in range(min(10, len(pq_copy)))]
+        # logger.info(f"Top 10 pq costs: {top_10}")
 
-        heuristic_cost, _count, node, active_edges = heap.heappop(self._pq)
+        heuristic_cost, _count, node, active_edges, contact_sol = heap.heappop(self._pq)
         if not self._should_reexplore and node in self._visited_vertices:
             return
         if node in self._visited_vertices:
@@ -118,10 +115,10 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         logger.info(
             f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({heuristic_cost})"
         )
-        if self._writer:
-            self._writer.fig.clear()
-            self.plot_graph()
-            self._writer.grab_frame()
+        if self._animate_intermediate and contact_sol is not None:
+            self._graph.contact_spp_sol = contact_sol
+            anim = self._graph.animate_solution()
+            display(HTML(anim.to_html5_video()))
 
         for edge in edges:
             neighbor_in_path = any(
@@ -180,17 +177,22 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 # Counter serves as tiebreaker for nodes with the same distance, to prevent nodes or edges from being compared
                 heap.heappush(
                     self._pq,
-                    (new_dist, next(self._counter), neighbor, tmp_active_edges),
+                    (
+                        new_dist,
+                        next(self._counter),
+                        neighbor,
+                        tmp_active_edges,
+                        self._graph.create_contact_spp_sol(
+                            sol.vertex_path, sol.ambient_path
+                        ),
+                    ),
                 )
+
+            if new_dist < self._node_dists[neighbor]:
+                self._node_dists[neighbor] = new_dist
                 # Check if this neighbor actually has an edge to the target
                 if (neighbor, self._graph.target_name) in self._graph.edges:
                     self._candidate_sol = sol
-
-            if new_dist < self._node_dists[neighbor]:
-                self._node_dists[neighbor] = new_dist
-
-            if new_dist < self._node_dists[neighbor]:
-                self._node_dists[neighbor] = new_dist
 
             if self._writer:
                 self._writer.fig.clear()

@@ -455,6 +455,8 @@ class ContactGraph(Graph):
         assert self.base_dim == 2, "Can only plot 2D paths"
         sol = self.contact_spp_sol
         plt.figure()
+        for obs in self.obstacles:
+            obs.plot()
         n_steps = sol.pos_trajs.shape[0]
         for i in range(n_steps):
             obj_pos = sol.pos_trajs[i, : self.n_objects]
