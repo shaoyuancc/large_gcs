@@ -53,9 +53,9 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
         self._visited_vertices = set()
-        if tiebreak == TieBreak.FIFO:
+        if tiebreak == TieBreak.FIFO or tiebreak == TieBreak.FIFO.name:
             self._counter = itertools.count(start=0, step=1)
-        elif tiebreak == TieBreak.LIFO:
+        elif tiebreak == TieBreak.LIFO or tiebreak == TieBreak.LIFO.name:
             self._counter = itertools.count(start=0, step=-1)
         # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
         heap.heappush(self._pq, (0, next(self._counter), self._graph.source_name, []))

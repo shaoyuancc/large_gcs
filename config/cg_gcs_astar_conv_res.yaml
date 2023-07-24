@@ -2,10 +2,11 @@ defaults:
   - algorithm: gcs_astar_convex_restriction
   - hydra: hydra
 
-graph_name: "cg_simple_2"
+graph_name: "cg_maze_a2"
 contact_shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted"
 algorithm:
   should_reexplore: false
+  tiebreak: 'LIFO'
 
 save_visualization: true
 save_to_wandb: true
