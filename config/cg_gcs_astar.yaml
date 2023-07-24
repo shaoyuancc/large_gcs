@@ -1,11 +1,11 @@
 defaults:
-  - algorithm: gcs_astar_convex_restriction
+  - algorithm: gcs_astar
   - hydra: hydra
 
 graph_name: "cg_trichal2"
 contact_shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted"
-algorithm:
-  should_reexplore: true
+# contact_shortcut_edge_cost_factory_over_obj_weighted
+# contact_shortcut_edge_cost_factory_under
 
 save_visualization: true
 save_to_wandb: true

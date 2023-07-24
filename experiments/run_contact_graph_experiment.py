@@ -51,6 +51,7 @@ def main(cfg: OmegaConf) -> None:
                 config=wandb_config,
                 save_code=True,
             )
+        wandb.run.log_code(root=os.path.join(os.environ["PROJECT_ROOT"], "large_gcs"))
 
     logger.info(cfg)
 
@@ -83,7 +84,6 @@ def main(cfg: OmegaConf) -> None:
         wandb.run.summary["final_sol"] = sol.to_serializable_dict()
         wandb.run.summary["alg_metrics"] = asdict(alg.alg_metrics)
 
-        wandb.run.log_code(root=os.path.join(os.environ["PROJECT_ROOT"], "large_gcs"))
         wandb.finish()
 
 

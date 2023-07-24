@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass
 from typing import List
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
@@ -32,12 +33,15 @@ class ContactGraphGeneratorParams:
         self.target_rob_pos = np.array(self.target_rob_pos)
         self.workspace = np.array(self.workspace)
 
-        assert (
-            self.obs_vertices.shape[2]
-            == self.obj_vertices.shape[2]
-            == self.rob_vertices.shape[2]
-        ), "All bodies must have same dimension"
-        n_dim = self.obs_vertices.shape[2]
+        if self.obs_vertices.size > 0:
+            assert (
+                self.obs_vertices.shape[2] == self.rob_vertices.shape[2]
+            ), "All bodies must have same dimension"
+        if self.obj_vertices.size > 0:
+            assert (
+                self.obj_vertices.shape[2] == self.rob_vertices.shape[2]
+            ), "All bodies must have same dimension"
+        n_dim = self.rob_vertices.shape[2]
         assert (
             self.source_obj_pos.shape
             == self.target_obj_pos.shape
@@ -116,6 +120,7 @@ class ContactGraphGenerator:
         contact_graph.save_to_file(self._params.graph_file_path)
 
     def plot(self):
+        plt.gca().set_aspect("equal")
         for body in self._obs:
             body.plot()
         for body, pos in zip(self._objs, self._params.source_obj_pos):

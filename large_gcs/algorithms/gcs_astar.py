@@ -1,5 +1,6 @@
 import heapq as heap
 import logging
+import time
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
@@ -76,7 +77,7 @@ class GcsAstar(SearchAlgorithm):
             self._writer.setup(
                 fig, self._vis_params.vid_output_path, self._vis_params.dpi
             )
-
+        self._start_time = time.time()
         while len(self._pq) > 0:
             # Check for termination condition
             curr = self._pq[0][1]
@@ -86,6 +87,7 @@ class GcsAstar(SearchAlgorithm):
                 and (curr, self._graph.target_name) not in self._infeasible_edges
             ):
                 sol = self._candidate_sol
+                self._graph._post_solve(sol)
                 logger.info(
                     f"Gcs A* complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
                 )
@@ -104,12 +106,13 @@ class GcsAstar(SearchAlgorithm):
                 return sol
 
             self._run_iteration()
+            self._alg_metrics.time_wall_clock = time.time() - self._start_time
 
-        logger.info("Gcs A* failed to find a path to the target.")
+        logger.warn("Gcs A* failed to find a path to the target.")
         return None
 
     def _run_iteration(self):
-        _, node = heap.heappop(self._pq)
+        heuristic_cost, node = heap.heappop(self._pq)
         if node in self._visited.vertex_names and node != self._graph.source_name:
             return
 
@@ -117,8 +120,8 @@ class GcsAstar(SearchAlgorithm):
 
         edges = self._graph.outgoing_edges(node)
 
-        logger.debug(
-            f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors"
+        logger.info(
+            f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({heuristic_cost})"
         )
         if self._writer:
             self._writer.fig.clear()
@@ -127,6 +130,7 @@ class GcsAstar(SearchAlgorithm):
 
         for edge in edges:
             if edge.v not in self._visited.vertex_names:
+                self._alg_metrics.n_vertices_explored += 1
                 self._explore_edge(edge)
 
     def _explore_edge(self, edge: Edge):
@@ -276,4 +280,6 @@ class GcsAstar(SearchAlgorithm):
         if m.n_gcs_solves > 0:
             m.gcs_solve_time_iter_mean = m.gcs_solve_time_total / m.n_gcs_solves
             m.gcs_solve_time_iter_std = np.std(self._gcs_solve_times)
+        if m.n_gcs_solves > 10:
+            m.gcs_solve_time_last_10_mean = np.mean(self._gcs_solve_times[-10:])
         return m
