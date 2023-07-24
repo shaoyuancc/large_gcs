@@ -1,3 +1,4 @@
+import copy
 import heapq as heap
 import itertools
 import logging
@@ -12,6 +13,7 @@ from large_gcs.algorithms.search_algorithm import (
     AlgMetrics,
     AlgVisParams,
     SearchAlgorithm,
+    TieBreak,
 )
 from large_gcs.graph.graph import Edge, Graph
 
@@ -27,6 +29,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         should_reexplore: bool = False,
         use_convex_relaxation: bool = False,
         shortcut_edge_cost_factory=None,
+        tiebreak: TieBreak = TieBreak.FIFO,
         vis_params: AlgVisParams = AlgVisParams(),
     ):
         if (
@@ -50,7 +53,10 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
         self._visited_vertices = set()
-        self._counter = itertools.count()
+        if tiebreak == TieBreak.FIFO:
+            self._counter = itertools.count(start=0, step=1)
+        elif tiebreak == TieBreak.LIFO:
+            self._counter = itertools.count(start=0, step=-1)
         # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
         heap.heappush(self._pq, (0, next(self._counter), self._graph.source_name, []))
 
@@ -90,6 +96,12 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         return sol
 
     def _run_iteration(self):
+        # Make a copy of the priority queue.
+        pq_copy = copy.copy(self._pq)
+        # Pop the top 10 items from the priority queue copy.
+        top_10 = [heap.heappop(pq_copy)[0] for _ in range(min(10, len(pq_copy)))]
+        logger.info(f"Top 10 pq costs: {top_10}")
+
         heuristic_cost, _count, node, active_edges = heap.heappop(self._pq)
         if not self._should_reexplore and node in self._visited_vertices:
             return

@@ -1,6 +1,12 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields
+from enum import Enum
 from math import inf
+
+
+class TieBreak(Enum):
+    FIFO = 1
+    LIFO = 2
 
 
 @dataclass
