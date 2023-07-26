@@ -2,7 +2,7 @@ import logging
 import time
 from copy import copy
 from dataclasses import dataclass, fields
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
@@ -94,6 +94,10 @@ class Edge:
     # This will be overwritten when adding edge to graph
     gcs_edge: Optional[GraphOfConvexSets.Edge] = None
 
+    @property
+    def key(self):
+        return (self.u, self.v)
+
 
 @dataclass
 class GraphParams:
@@ -129,8 +133,8 @@ class Graph:
         """
 
         self._default_costs_constraints = default_costs_constraints
-        self.vertices = {}
-        self.edges = {}
+        self.vertices: Dict[str, Vertex] = {}
+        self.edges: Dict[Tuple(str, str), Edge] = {}
         self._source_name = None
         self._target_name = None
 

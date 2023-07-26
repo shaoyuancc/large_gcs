@@ -1,4 +1,5 @@
 import heapq as heap
+import itertools
 import logging
 import time
 from collections import defaultdict
@@ -11,7 +12,9 @@ from large_gcs.algorithms.search_algorithm import (
     AlgMetrics,
     AlgVisParams,
     SearchAlgorithm,
+    TieBreak,
 )
+from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.graph.graph import Edge, Graph
 
 logger = logging.getLogger(__name__)
@@ -28,32 +31,30 @@ class GcsAstar(SearchAlgorithm):
     def __init__(
         self,
         graph: Graph,
+        cost_estimator: CostEstimator,
         use_convex_relaxation: bool = False,
-        shortcut_edge_cost_factory=None,
+        tiebreak: TieBreak = TieBreak.LIFO,
         vis_params: AlgVisParams = AlgVisParams(),
     ):
-        if (
-            shortcut_edge_cost_factory is None
-            and graph._default_costs_constraints.edge_costs is None
-        ):
-            raise ValueError(
-                "If no shortcut_edge_cost_factory is specified, edge costs must be specified in the graph's default costs constraints."
-            )
 
         self._graph = graph
+        self._cost_estimator = cost_estimator
         self._use_convex_relaxation = use_convex_relaxation
-        self._shortcut_edge_cost_factory = shortcut_edge_cost_factory
         self._vis_params = vis_params
         self._writer = None
         self._alg_metrics = AlgMetrics()
-        self._gcs_solve_times = np.empty((0,))
+        self._cost_estimator.set_alg_metrics(self._alg_metrics)
         self._candidate_sol = None
         self._pq = []
         self._infeasible_edges = set()
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
+        if tiebreak == TieBreak.FIFO or tiebreak == TieBreak.FIFO.name:
+            self._counter = itertools.count(start=0, step=1)
+        elif tiebreak == TieBreak.LIFO or tiebreak == TieBreak.LIFO.name:
+            self._counter = itertools.count(start=0, step=-1)
         # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
-        heap.heappush(self._pq, (0, self._graph.source_name))
+        heap.heappush(self._pq, (0, next(self._counter), self._graph.source_name))
 
         # Add the target to the visited subgraph
         self._visited.add_vertex(
@@ -80,7 +81,7 @@ class GcsAstar(SearchAlgorithm):
         self._start_time = time.time()
         while len(self._pq) > 0:
             # Check for termination condition
-            curr = self._pq[0][1]
+            curr = self._pq[0][2]
             if (
                 self._graph.target_name
                 in [e.v for e in self._graph.outgoing_edges(curr)]
@@ -112,7 +113,7 @@ class GcsAstar(SearchAlgorithm):
         return None
 
     def _run_iteration(self):
-        heuristic_cost, node = heap.heappop(self._pq)
+        estimated_cost, _count, node = heap.heappop(self._pq)
         if node in self._visited.vertex_names and node != self._graph.source_name:
             return
 
@@ -121,7 +122,7 @@ class GcsAstar(SearchAlgorithm):
         edges = self._graph.outgoing_edges(node)
 
         logger.info(
-            f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({heuristic_cost})"
+            f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({estimated_cost})"
         )
         if self._writer:
             self._writer.fig.clear()
@@ -138,36 +139,10 @@ class GcsAstar(SearchAlgorithm):
         assert (
             neighbor != self._graph.target_name
         ), "Should have terminated before this happens"
-        # Add neighbor and edge temporarily to the visited subgraph
-        self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
-        # Check if this neighbor actually has an edge to the target
-        # If so, add that edge instead of the shortcut
-        if (neighbor, self._graph.target_name) in self._graph.edges:
-            self._visited.add_edge(
-                self._graph.edges[(neighbor, self._graph.target_name)]
-            )
-        else:
-            # Add an edge from the neighbor to the target
-            direct_edge_costs = None
-            if self._shortcut_edge_cost_factory:
-                # Note for now this only works with ContactSet and ContactPointSet because
-                # they have the vars attribute, and convex_sets in general do not.
-                direct_edge_costs = self._shortcut_edge_cost_factory(
-                    self._graph.vertices[neighbor].convex_set.vars,
-                    self._graph.vertices[self._graph.target_name].convex_set.vars,
-                )
-            direct_to_target = Edge(
-                neighbor, self._graph.target_name, costs=direct_edge_costs
-            )
-            self._visited.add_edge(direct_to_target)
 
-        self._visited.add_edge(edge)
-        sol = self._visited.solve(self._use_convex_relaxation)
-
-        self._update_alg_metrics_after_gcs_solve(sol.time)
-
-        # Remove neighbor and associated edges from the visited subgraph
-        self._visited.remove_vertex(neighbor)
+        sol = self._cost_estimator.estimate_cost(
+            self._visited, edge, use_convex_relaxation=self._use_convex_relaxation
+        )
 
         if sol.is_success:
             new_dist = sol.cost
@@ -176,7 +151,7 @@ class GcsAstar(SearchAlgorithm):
             )
             if new_dist < self._node_dists[neighbor]:
                 self._node_dists[neighbor] = new_dist
-                heap.heappush(self._pq, (new_dist, neighbor))
+                heap.heappush(self._pq, (new_dist, next(self._counter), neighbor))
                 # Check if this neighbor actually has an edge to the target
                 if (neighbor, self._graph.target_name) in self._graph.edges:
                     if self._candidate_sol is None:
@@ -208,17 +183,6 @@ class GcsAstar(SearchAlgorithm):
                 and edge.v != self._graph.target_name
             ):
                 self._visited.add_edge(edge)
-
-    def _update_alg_metrics_after_gcs_solve(self, solve_time: float):
-        m = self._alg_metrics
-        m.n_gcs_solves += 1
-        m.gcs_solve_time_total += solve_time
-
-        if solve_time < m.gcs_solve_time_iter_min:
-            m.gcs_solve_time_iter_min = solve_time
-        if solve_time > m.gcs_solve_time_iter_max:
-            m.gcs_solve_time_iter_max = solve_time
-        self._gcs_solve_times = np.append(self._gcs_solve_times, solve_time)
 
     def plot_graph(self, path=None, current_edge=None, is_final_path=False):
         plt.title("GCS A*")
@@ -273,13 +237,6 @@ class GcsAstar(SearchAlgorithm):
         n_vertices_visited, n_gcs_solves, gcs_solve_time_total/min/max are manually updated.
         The rest are computed from the manually updated metrics.
         """
-        m = self._alg_metrics
-        m.vertex_coverage = round(m.n_vertices_visited / self._graph.n_vertices, 2)
-        m.n_edges_visited = self._visited.n_edges
-        m.edge_coverage = round(m.n_edges_visited / self._graph.n_edges, 2)
-        if m.n_gcs_solves > 0:
-            m.gcs_solve_time_iter_mean = m.gcs_solve_time_total / m.n_gcs_solves
-            m.gcs_solve_time_iter_std = np.std(self._gcs_solve_times)
-        if m.n_gcs_solves > 10:
-            m.gcs_solve_time_last_10_mean = np.mean(self._gcs_solve_times[-10:])
-        return m
+        return self._alg_metrics.update_derived_metrics(
+            self._graph.n_vertices, self._graph.n_edges, self._visited.n_edges
+        )

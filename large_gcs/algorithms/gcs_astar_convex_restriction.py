@@ -15,6 +15,7 @@ from large_gcs.algorithms.search_algorithm import (
     SearchAlgorithm,
     TieBreak,
 )
+from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.graph.graph import Edge, Graph
 
 logger = logging.getLogger(__name__)
@@ -26,28 +27,19 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
     def __init__(
         self,
         graph: Graph,
+        cost_estimator: CostEstimator,
         should_reexplore: bool = False,
-        use_convex_relaxation: bool = False,
-        shortcut_edge_cost_factory=None,
-        tiebreak: TieBreak = TieBreak.FIFO,
+        tiebreak: TieBreak = TieBreak.LIFO,
         vis_params: AlgVisParams = AlgVisParams(),
     ):
-        if (
-            shortcut_edge_cost_factory is None
-            and graph._default_costs_constraints.edge_costs is None
-        ):
-            raise ValueError(
-                "If no shortcut_edge_cost_factory is specified, edge costs must be specified in the graph's default costs constraints."
-            )
 
         self._graph = graph
+        self._cost_estimator = cost_estimator
         self._should_reexplore = should_reexplore
-        self._use_convex_relaxation = use_convex_relaxation
-        self._shortcut_edge_cost_factory = shortcut_edge_cost_factory
         self._vis_params = vis_params
         self._writer = None
         self._alg_metrics = AlgMetrics()
-        self._gcs_solve_times = np.empty((0,))
+        self._cost_estimator.set_alg_metrics(self._alg_metrics)
         self._candidate_sol = None
         self._pq = []
         self._node_dists = defaultdict(lambda: float("inf"))
@@ -73,7 +65,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
     def run(self, animate_intermediate: bool = False, final_plot: bool = False):
         logger.info(
-            f"Running {self.__class__.__name__}, should_rexplore: {self._should_reexplore}, use_convex_relaxation: {self._use_convex_relaxation}, shortcut_edge_cost_factory: {self._shortcut_edge_cost_factory.__name__}"
+            f"Running {self.__class__.__name__}, should_rexplore: {self._should_reexplore}"
         )
         self._animate_intermediate = animate_intermediate
 
@@ -99,7 +91,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         # top_10 = [heap.heappop(pq_copy)[0] for _ in range(min(10, len(pq_copy)))]
         # logger.info(f"Top 10 pq costs: {top_10}")
 
-        heuristic_cost, _count, node, active_edges, contact_sol = heap.heappop(self._pq)
+        estimated_cost, _count, node, active_edges, contact_sol = heap.heappop(self._pq)
         if not self._should_reexplore and node in self._visited_vertices:
             return
         if node in self._visited_vertices:
@@ -113,7 +105,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         edges = self._graph.outgoing_edges(node)
 
         logger.info(
-            f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({heuristic_cost})"
+            f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({estimated_cost})"
         )
         if self._animate_intermediate and contact_sol is not None:
             self._graph.contact_spp_sol = contact_sol
@@ -137,36 +129,9 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         neighbor = edge.v
         assert neighbor != self._graph.target_name
 
-        # Add neighbor and edge temporarily to the visited subgraph
-        self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
-        # Check if this neighbor actually has an edge to the target
-        # If so, add that edge instead of the shortcut
-        if (neighbor, self._graph.target_name) in self._graph.edges:
-            edge_to_target = self._graph.edges[(neighbor, self._graph.target_name)]
-        else:
-            # Add an edge from the neighbor to the target
-            direct_edge_costs = None
-            if self._shortcut_edge_cost_factory:
-                # Note for now this only works with ContactSet and ContactPointSet because
-                # they have the vars attribute, and convex_sets in general do not.
-                direct_edge_costs = self._shortcut_edge_cost_factory(
-                    self._graph.vertices[neighbor].convex_set.vars,
-                    self._graph.vertices[self._graph.target_name].convex_set.vars,
-                )
-            edge_to_target = Edge(
-                neighbor, self._graph.target_name, costs=direct_edge_costs
-            )
-        self._visited.add_edge(edge)
-        self._visited.add_edge(edge_to_target)
-
-        sol = self._visited.solve_convex_restriction(self._visited.edges.values())
-
-        self._update_alg_metrics_after_gcs_solve(sol.time)
-
-        self._visited.remove_edge((edge_to_target.u, edge_to_target.v))
-        tmp_active_edges = list(self._visited.edges.values()).copy()
-
-        self._visited.remove_vertex(neighbor)
+        sol = self._cost_estimator.estimate_cost(
+            self._visited, edge, solve_convex_restriction=True
+        )
 
         if sol.is_success:
             new_dist = sol.cost
@@ -174,6 +139,10 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {new_dist < self._node_dists[neighbor]}"
             )
             if self._should_reexplore or new_dist < self._node_dists[neighbor]:
+                new_active_edges = list(self._visited.edges.values()).copy() + [
+                    self._graph.edges[edge.key]
+                ]
+                # Note this assumes graph is contact graph, should break this dependency...
                 # Counter serves as tiebreaker for nodes with the same distance, to prevent nodes or edges from being compared
                 heap.heappush(
                     self._pq,
@@ -181,7 +150,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                         new_dist,
                         next(self._counter),
                         neighbor,
-                        tmp_active_edges,
+                        new_active_edges,
                         self._graph.create_contact_spp_sol(
                             sol.vertex_path, sol.ambient_path
                         ),
@@ -214,17 +183,6 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         self._visited.set_target(self._graph.target_name)
         for edge in edges:
             self._visited.add_edge(edge)
-
-    def _update_alg_metrics_after_gcs_solve(self, solve_time: float):
-        m = self._alg_metrics
-        m.n_gcs_solves += 1
-        m.gcs_solve_time_total += solve_time
-
-        if solve_time < m.gcs_solve_time_iter_min:
-            m.gcs_solve_time_iter_min = solve_time
-        if solve_time > m.gcs_solve_time_iter_max:
-            m.gcs_solve_time_iter_max = solve_time
-        self._gcs_solve_times = np.append(self._gcs_solve_times, solve_time)
 
     def plot_graph(self, path=None, current_edge=None, is_final_path=False):
         plt.title("GCS A*")
@@ -279,13 +237,6 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         n_vertices_visited, n_gcs_solves, gcs_solve_time_total/min/max are manually updated.
         The rest are computed from the manually updated metrics.
         """
-        m = self._alg_metrics
-        m.vertex_coverage = round(m.n_vertices_visited / self._graph.n_vertices, 4)
-        m.n_edges_visited = self._visited.n_edges
-        m.edge_coverage = round(m.n_edges_visited / self._graph.n_edges, 4)
-        if m.n_gcs_solves > 0:
-            m.gcs_solve_time_iter_mean = m.gcs_solve_time_total / m.n_gcs_solves
-            m.gcs_solve_time_iter_std = np.std(self._gcs_solve_times)
-        if m.n_gcs_solves > 10:
-            m.gcs_solve_time_last_10_mean = np.mean(self._gcs_solve_times[-10:])
-        return m
+        return self._alg_metrics.update_derived_metrics(
+            self._graph.n_vertices, self._graph.n_edges, self._visited.n_edges
+        )
