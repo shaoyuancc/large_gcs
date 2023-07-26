@@ -580,3 +580,40 @@ def generate_contact_pair_modes(
         return no_contact_pair_modes
     else:
         return contact_pair_modes + no_contact_pair_modes
+
+
+def generate_no_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):
+    no_contact_pair_modes = []
+    # Face-face no contact
+    for index_a, index_b in itertools.product(
+        range(body_a.n_faces), range(body_b.n_faces)
+    ):
+        # Check if normals are in opposite directions
+        face_a = ContactLocationFace(body=body_a, index=index_a)
+        face_b = ContactLocationFace(body=body_b, index=index_b)
+        if is_possible_face_face_contact(face_a, face_b):
+            no_contact_pair_modes.append(
+                NoContactPairMode(
+                    body_a=body_a,
+                    body_b=body_b,
+                    contact_location_a=face_a,
+                    contact_location_b=face_b,
+                )
+            )
+
+    # Face-vertex no contact
+    for index_a, index_b in itertools.product(
+        range(body_a.n_faces), range(body_b.n_vertices)
+    ):
+        face_a = ContactLocationFace(body=body_a, index=index_a)
+        vertex_b = ContactLocationVertex(body=body_b, index=index_b)
+        if is_possible_face_vertex_contact(face_a, vertex_b):
+            no_contact_pair_modes.append(
+                NoContactPairMode(
+                    body_a=body_a,
+                    body_b=body_b,
+                    contact_location_a=face_a,
+                    contact_location_b=vertex_b,
+                )
+            )
+    return no_contact_pair_modes

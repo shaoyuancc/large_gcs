@@ -71,7 +71,6 @@ class ContactGraph(Graph):
         self.workspace = workspace
         self.vertex_inclusion = vertex_inclusion
         self.vertex_exclusion = vertex_exclusion
-        self.vars = None
         self.obstacles = None
         self.objects = None
         self.robots = None
@@ -142,7 +141,7 @@ class ContactGraph(Graph):
         costs = [
             [
                 vertex_cost_position_path_length(set.vars),
-                vertex_cost_force_actuation_norm(set.vars),
+                # vertex_cost_force_actuation_norm(set.vars),
             ]
             if not isinstance(set, ContactPointSet)
             else []
@@ -316,9 +315,9 @@ class ContactGraph(Graph):
         all_contact_sets = [
             ContactSet(
                 [mode_ids_to_mode[mode_id] for mode_id in set_id],
-                set_force_constraints_dict[set_id],
                 self.objects,
                 self.robots,
+                additional_constraints=set_force_constraints_dict[set_id],
             )
             for set_id in tqdm(set_ids)
         ]
@@ -402,19 +401,21 @@ class ContactGraph(Graph):
     def plot(self):
         for body in self.obstacles:
             body.plot()
-        for body, pos in zip(self.objects, self.source_pos[: self.n_objects]):
-            body.plot_at_position(
-                pos=pos, label_vertices_faces=True, color=BodyColor["object"]
-            )
-        for body, pos in zip(self.robots, self.source_pos[self.n_objects :]):
-            body.plot_at_position(
-                pos=pos, label_vertices_faces=True, color=BodyColor["robot"]
-            )
-        for body, pos in zip(
-            self.objects + self.robots,
-            self.target_pos,
-        ):
-            body.plot_at_position(pos=pos, color=BodyColor["target"])
+        if self.source_pos is not None:
+            for body, pos in zip(self.objects, self.source_pos[: self.n_objects]):
+                body.plot_at_position(
+                    pos=pos, label_vertices_faces=True, color=BodyColor["object"]
+                )
+            for body, pos in zip(self.robots, self.source_pos[self.n_objects :]):
+                body.plot_at_position(
+                    pos=pos, label_vertices_faces=True, color=BodyColor["robot"]
+                )
+        if self.target_pos is not None:
+            for body, pos in zip(
+                self.objects + self.robots,
+                self.target_pos,
+            ):
+                body.plot_at_position(pos=pos, color=BodyColor["target"])
 
     def plot_samples_in_set(self, set_name: str, n_samples: int = 100, **kwargs):
         """Plots a single set"""

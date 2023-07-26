@@ -1,18 +1,28 @@
+from itertools import combinations, product
+
+from tqdm import tqdm
+
+from large_gcs.contact.contact_pair_mode import generate_no_contact_pair_modes
+from large_gcs.contact.contact_set import ContactSet
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
+from large_gcs.graph.contact_graph import ContactGraph
+from large_gcs.graph.factored_collision_free_graph import FactoredCollisionFreeGraph
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
 
 
-class ShortcutEdgeCE(CostEstimator):
-    def __init__(self, graph: Graph, shortcut_edge_cost_factory=None):
-        if (
-            shortcut_edge_cost_factory is None
-            and graph._default_costs_constraints.edge_costs is None
-        ):
-            raise ValueError(
-                "If no shortcut_edge_cost_factory is specified, edge costs must be specified in the graph's default costs constraints."
-            )
+class FactoredCollisionFreeCE(CostEstimator):
+    def __init__(self, graph: ContactGraph):
         self._graph = graph
-        self._shortcut_edge_cost_factory = shortcut_edge_cost_factory
+
+        self._collision_free_graphs = [
+            FactoredCollisionFreeGraph(
+                body,
+                self._graph.obstacles,
+                self._graph.target_pos[i],
+                self._graph.workspace,
+            )
+            for i, body in enumerate(self._graph.objects + self._graph.robots)
+        ]
 
     def estimate_cost(
         self,

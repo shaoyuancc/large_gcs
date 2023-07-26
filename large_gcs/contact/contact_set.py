@@ -88,10 +88,7 @@ class ContactPointSet(ConvexSet):
     ):
         assert len(objects) == len(object_positions)
         assert len(robots) == len(robot_positions)
-        # Check that all object and robot positions have the same dimension
         positions = np.array(object_positions + robot_positions)
-        assert len(set([pos.shape[0] for pos in positions])) == 1
-        assert positions.shape[1] == robots[0].dim
 
         self.vars = ContactSetDecisionVariables.from_pos_singleton(objects, robots)
         self._point = DrakePoint(positions.flatten())
@@ -123,9 +120,9 @@ class ContactSet(ConvexSet):
     def __init__(
         self,
         contact_pair_modes: List[ContactPairMode],
-        additional_constraints: List[Formula],
         objects: List[RigidBody],
         robots: List[RigidBody],
+        additional_constraints: List[Formula] = None,
     ):
         if not all(obj.mobility_type == MobilityType.UNACTUATED for obj in objects):
             raise ValueError("All objects must be unactuated")
@@ -149,7 +146,8 @@ class ContactSet(ConvexSet):
             for mode in contact_pair_modes
             for constraint in mode.base_constraint_formulas
         ]
-        self.constraint_formulas.extend(additional_constraints)
+        if additional_constraints is not None:
+            self.constraint_formulas.extend(additional_constraints)
         self._polyhedron = self._construct_polyhedron_from_constraints(
             self.constraint_formulas, self.vars.all
         )

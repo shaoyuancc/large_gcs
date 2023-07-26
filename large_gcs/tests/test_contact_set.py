@@ -30,7 +30,6 @@ def test_create_incontactpairmode_static_tri_movable_tri():
 
     contact_set = ContactSet(
         [contact_pair_mode],
-        additional_constraints=[],
         objects=[],
         robots=[body_b],
     )

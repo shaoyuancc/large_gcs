@@ -133,6 +133,6 @@ class ContactGraphGenerator:
             )
         for body, pos in zip(
             self._objs + self._robs,
-            np.concatenate((self._params.target_obj_pos, self._params.target_rob_pos)),
+            self._params.target_obj_pos + self._params.target_rob_pos,
         ):
             body.plot_at_position(pos=pos, color=BodyColor["target"])

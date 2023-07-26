@@ -613,8 +613,8 @@ class Graph:
             dim_bounds=self.dim_bounds,
             n_vertices=self.n_vertices,
             n_edges=self.n_edges,
-            source=self.source.convex_set.center,
-            target=self.target.convex_set.center,
+            source=self.source.convex_set.center if self.source_name else None,
+            target=self.target.convex_set.center if self.target_name else None,
             default_costs_constraints=self._default_costs_constraints,
             workspace=self.workspace,
         )
