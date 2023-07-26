@@ -28,7 +28,7 @@ def test_create_incontactpairmode_static_tri_movable_tri():
     contact_loc_b = ContactLocationFace(body_b, 0)
     contact_pair_mode = InContactPairMode(body_a, body_b, contact_loc_a, contact_loc_b)
 
-    contact_set = ContactSet(
+    contact_set = ContactSet.from_objs_robs(
         [contact_pair_mode],
         objects=[],
         robots=[body_b],

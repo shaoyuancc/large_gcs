@@ -3,7 +3,13 @@ from enum import Enum
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pydrake.all import MakeMatrixContinuousVariable, MakeVectorContinuousVariable, eq
+from pydrake.all import (
+    MakeMatrixContinuousVariable,
+    MakeVectorContinuousVariable,
+    eq,
+    ge,
+    le,
+)
 
 from large_gcs.geometry.polyhedron import Polyhedron
 
@@ -42,7 +48,7 @@ class RigidBody:
             raise NotImplementedError
 
         self._create_decision_vars()
-        self._create_constraints()
+        self._create_force_constraints()
 
     def from_params(params: RigidBodyParams):
         return RigidBody(
@@ -80,7 +86,7 @@ class RigidBody:
                     self.dim, self.name + "_force_act"
                 )
 
-    def _create_constraints(self):
+    def _create_force_constraints(self):
         constraints = []
         if self.mobility_type != MobilityType.STATIC:
             # Force constraints
@@ -89,7 +95,19 @@ class RigidBody:
                 # and that the velocity is 0 if the resultant force is 0
                 constraints.extend(eq(self.vars_force_res, vel).tolist())
 
-        self.constraints = constraints
+        self.force_constraints = constraints
+
+    def create_workspace_position_constraints(self, workspace):
+        constraints = []
+        ws = workspace.T
+        bbox = self.geometry.bounding_box
+        # Position constraints
+        for pos in self.vars_pos.T:
+            ub_offset = bbox[1] - self.geometry.center
+            constraints.extend(le(pos + ub_offset, ws[1]))
+            lb_offset = bbox[0] - self.geometry.center
+            constraints.extend(ge(pos + lb_offset, ws[0]))
+        return constraints
 
     @property
     def dim(self):

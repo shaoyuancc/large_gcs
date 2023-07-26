@@ -120,7 +120,10 @@ class ContactGraphGenerator:
         contact_graph.save_to_file(self._params.graph_file_path)
 
     def plot(self):
+        if self._params.workspace is not None:
+            plt.axes(xlim=self._params.workspace[0], ylim=self._params.workspace[1])
         plt.gca().set_aspect("equal")
+
         for body in self._obs:
             body.plot()
         for body, pos in zip(self._objs, self._params.source_obj_pos):

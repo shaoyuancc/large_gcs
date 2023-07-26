@@ -286,7 +286,9 @@ class ContactGraph(Graph):
         for set_id in set_ids:
             # Add force constraints for each movable body
             for body_name in movable:
-                set_force_constraints_dict[set_id] += body_dict[body_name].constraints
+                set_force_constraints_dict[set_id] += body_dict[
+                    body_name
+                ].force_constraints
 
             # Collect the forces acting on each body
             body_force_sums = defaultdict(
@@ -312,12 +314,20 @@ class ContactGraph(Graph):
 
         logger.info(f"Generating contact sets for {len(set_ids)} sets...")
 
+        workspace_pos_constraints = []
+        if self.workspace is not None:
+            for body in movable:
+                workspace_pos_constraints += body_dict[
+                    body
+                ].create_workspace_position_constraints(self.workspace)
+
         all_contact_sets = [
-            ContactSet(
+            ContactSet.from_objs_robs(
                 [mode_ids_to_mode[mode_id] for mode_id in set_id],
                 self.objects,
                 self.robots,
-                additional_constraints=set_force_constraints_dict[set_id],
+                additional_constraints=set_force_constraints_dict[set_id]
+                + workspace_pos_constraints,
             )
             for set_id in tqdm(set_ids)
         ]

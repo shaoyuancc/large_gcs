@@ -67,7 +67,7 @@ class FactoredCollisionFreeGraph(ContactGraph):
         self.target_pos = [target_pos]
         self.obstacles = static_obstacles
 
-        sets, set_ids = self._generate_no_contact_sets(movable_body)
+        sets, set_ids = self._generate_no_contact_sets()
         sets.append(
             ContactPointSet(
                 "target", self.objects, self.robots, target_pos_objs, target_pos_robs
@@ -98,13 +98,13 @@ class FactoredCollisionFreeGraph(ContactGraph):
             f"Created factored collision free graph for {movable_body.name}: {self.params}"
         )
 
-    def _generate_no_contact_sets(self, body) -> Tuple[List[ContactSet], List[str]]:
+    def _generate_no_contact_sets(self) -> Tuple[List[ContactSet], List[str]]:
         body_dict = {
             body.name: body for body in self.obstacles + self.objects + self.robots
         }
         obs_names = [obs.name for obs in self.obstacles]
 
-        rigid_body_pairs = list(product(obs_names, [body.name]))
+        rigid_body_pairs = list(product(obs_names, [self.movable_body.name]))
         body_pair_to_modes = {
             (body1, body2): generate_no_contact_pair_modes(
                 body_dict[body1], body_dict[body2]
@@ -121,11 +121,17 @@ class FactoredCollisionFreeGraph(ContactGraph):
         # Each set is the cartesian product of the modes for each object pair
         set_ids = list(product(*body_pair_to_mode_names.values()))
 
+        additional_constraints = []
+        if self.workspace is not None:
+            additional_constraints = (
+                self.movable_body.create_workspace_position_constraints(self.workspace)
+            )
+
         all_contact_sets = [
-            ContactSet(
+            ContactSet.from_factored_collision_free_body(
                 [mode_ids_to_mode[mode_id] for mode_id in set_id],
-                self.objects,
-                self.robots,
+                self.movable_body,
+                additional_constraints=additional_constraints,
             )
             for set_id in set_ids
         ]

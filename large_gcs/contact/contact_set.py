@@ -4,9 +4,13 @@ from typing import List
 import numpy as np
 from pydrake.all import DecomposeAffineExpressions, Formula, FormulaKind, HPolyhedron
 from pydrake.all import Point as DrakePoint
-from pydrake.all import le
+from pydrake.all import Variables, le
 
-from large_gcs.contact.contact_pair_mode import ContactPairMode, InContactPairMode
+from large_gcs.contact.contact_pair_mode import (
+    ContactPairMode,
+    InContactPairMode,
+    NoContactPairMode,
+)
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.convex_set import ConvexSet
 
@@ -20,6 +24,20 @@ class ContactSetDecisionVariables:
     force_mag_BA: np.ndarray
     all: np.ndarray
     base_all: np.ndarray
+
+    @classmethod
+    def from_factored_collision_free_body(cls, body: RigidBody):
+        empty = np.array([])
+        pos = body.vars_pos[np.newaxis, :]
+        return cls(
+            pos=pos,
+            force_res=empty,
+            force_act=empty,
+            force_mag_AB=empty,
+            force_mag_BA=empty,
+            all=pos.flatten(),
+            base_all=pos[:, 0].flatten(),
+        )
 
     @classmethod
     def from_contact_pair_modes(
@@ -119,21 +137,11 @@ class ContactPointSet(ConvexSet):
 class ContactSet(ConvexSet):
     def __init__(
         self,
+        vars: ContactSetDecisionVariables,
         contact_pair_modes: List[ContactPairMode],
-        objects: List[RigidBody],
-        robots: List[RigidBody],
         additional_constraints: List[Formula] = None,
     ):
-        if not all(obj.mobility_type == MobilityType.UNACTUATED for obj in objects):
-            raise ValueError("All objects must be unactuated")
-        if not all(robot.mobility_type == MobilityType.ACTUATED for robot in robots):
-            raise ValueError("All robots must be actuated")
-
-        self.vars = ContactSetDecisionVariables.from_contact_pair_modes(
-            objects, robots, contact_pair_modes
-        )
-        # print(f"set_force_constraints shape: {np.array(set_force_constraints).shape}")
-        # print(f"set_force_constraints: {set_force_constraints}")
+        self.vars = vars
 
         self.contact_pair_modes = contact_pair_modes
         self.constraint_formulas = [
@@ -152,18 +160,46 @@ class ContactSet(ConvexSet):
             self.constraint_formulas, self.vars.all
         )
         self._base_polyhedron = self._construct_polyhedron_from_constraints(
-            self.base_constraint_formulas, self.vars.base_all
+            self.base_constraint_formulas,
+            self.vars.base_all,
+            remove_constraints_not_in_vars=True,
         )
-        # print(f"set id: {self.id}")
-        # print(f"all vars {all_variables}")
-        # print(f"base all vars {base_all_variables}")
-        # print()
+
+    @classmethod
+    def from_objs_robs(
+        cls,
+        contact_pair_modes: List[ContactPairMode],
+        objects: List[RigidBody],
+        robots: List[RigidBody],
+        additional_constraints: List[Formula] = None,
+    ):
+
+        if not all(obj.mobility_type == MobilityType.UNACTUATED for obj in objects):
+            raise ValueError("All objects must be unactuated")
+        if not all(robot.mobility_type == MobilityType.ACTUATED for robot in robots):
+            raise ValueError("All robots must be actuated")
+
+        vars = ContactSetDecisionVariables.from_contact_pair_modes(
+            objects, robots, contact_pair_modes
+        )
+        return cls(vars, contact_pair_modes, additional_constraints)
+
+    @classmethod
+    def from_factored_collision_free_body(
+        cls,
+        contact_pair_modes: List[ContactPairMode],
+        body: RigidBody,
+        additional_constraints: List[Formula] = None,
+    ):
+        vars = ContactSetDecisionVariables.from_factored_collision_free_body(body)
+        return cls(vars, contact_pair_modes, additional_constraints)
 
     def _construct_polyhedron_from_constraints(
         self,
         constraints: List[Formula],
         variables: np.ndarray,
         make_bounded: bool = True,
+        remove_constraints_not_in_vars: bool = False,
         BOUND: float = 1000.0,
     ):
         """
@@ -201,6 +237,21 @@ class ContactSet(ConvexSet):
                 expressions.append(lhs - rhs)
             else:
                 raise NotImplementedError("Type of constraint formula not implemented")
+
+        if remove_constraints_not_in_vars:
+
+            def check_all_vars_are_relevant(exp):
+                return all(
+                    [
+                        exp_var
+                        in Variables(
+                            variables
+                        )  # Need to convert this to Variables to check contents
+                        for exp_var in exp.GetVariables()
+                    ]
+                )
+
+            expressions = list(filter(check_all_vars_are_relevant, expressions))
 
         # We now have expr ≤ 0 for all expressions
         # ==> we get Ax - b ≤ 0
