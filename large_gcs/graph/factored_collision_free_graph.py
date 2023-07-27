@@ -9,18 +9,10 @@ from pydrake.all import Constraint, Cost, Expression, GraphOfConvexSets, eq
 from tqdm import tqdm
 
 from large_gcs.contact.contact_pair_mode import (
-    ContactPairMode,
-    InContactPairMode,
-    generate_no_contact_pair_modes,
+    generate_factored_collision_free_pair_modes,
 )
 from large_gcs.contact.contact_set import ContactPointSet, ContactSet
 from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
-from large_gcs.graph.contact_cost_constraint_factory import (
-    edge_constraint_position_continuity,
-    edge_cost_constant,
-    vertex_cost_force_actuation_norm,
-    vertex_cost_position_path_length,
-)
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.graph import Graph, ShortestPathSolution
 
@@ -106,7 +98,7 @@ class FactoredCollisionFreeGraph(ContactGraph):
 
         rigid_body_pairs = list(product(obs_names, [self.movable_body.name]))
         body_pair_to_modes = {
-            (body1, body2): generate_no_contact_pair_modes(
+            (body1, body2): generate_factored_collision_free_pair_modes(
                 body_dict[body1], body_dict[body2]
             )
             for body1, body2 in rigid_body_pairs

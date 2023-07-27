@@ -127,8 +127,6 @@ class ContactPairModeParams:
 @dataclass
 class NoContactPairMode(ContactPairMode):
     def __post_init__(self):
-        # The halfspace boundary of body_a that contact location b is not within
-        assert isinstance(self.contact_location_a, ContactLocationFace)
         super().__post_init__()
 
     def _plot(self, **kwargs):
@@ -504,8 +502,27 @@ def generate_contact_pair_modes(
     body_a: RigidBody, body_b: RigidBody, ignore_static_actuated_contact=True
 ):
     """Generate all possible contact pair modes between two rigid bodies"""
-    contact_pair_modes = []
+    # No contact relative to body_a
+    no_contact_pair_modes = generate_no_contact_pair_modes(body_a=body_a, body_b=body_b)
 
+    if ignore_static_actuated_contact and (
+        (
+            body_a.mobility_type == MobilityType.STATIC
+            or body_b.mobility_type == MobilityType.STATIC
+        )
+        and (
+            body_a.mobility_type == MobilityType.ACTUATED
+            or body_b.mobility_type == MobilityType.ACTUATED
+        )
+    ):
+        return no_contact_pair_modes
+    else:
+        in_contact_pair_modes = generate_in_contact_pair_modes(body_a, body_b)
+        return in_contact_pair_modes + no_contact_pair_modes
+
+
+def generate_in_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):
+    contact_pair_modes = []
     # Face-face contact
     for index_a, index_b in itertools.product(
         range(body_a.n_faces), range(body_b.n_faces)
@@ -554,32 +571,7 @@ def generate_contact_pair_modes(
                     contact_location_b=face_b,
                 )
             )
-
-    # No contact relative to body_a
-    no_contact_pair_modes = []
-    for index_a in range(body_a.n_faces):
-        in_contact_pair = next(
-            filter(
-                lambda x: isinstance(x.contact_location_a, ContactLocationFace)
-                and x.contact_location_a.index == index_a,
-                contact_pair_modes,
-            )
-        )
-        no_contact_pair_modes.append(in_contact_pair.to_no_contact_pair_mode())
-
-    if ignore_static_actuated_contact and (
-        (
-            body_a.mobility_type == MobilityType.STATIC
-            or body_b.mobility_type == MobilityType.STATIC
-        )
-        and (
-            body_a.mobility_type == MobilityType.ACTUATED
-            or body_b.mobility_type == MobilityType.ACTUATED
-        )
-    ):
-        return no_contact_pair_modes
-    else:
-        return contact_pair_modes + no_contact_pair_modes
+    return contact_pair_modes
 
 
 def generate_no_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):
@@ -616,4 +608,45 @@ def generate_no_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):
                     contact_location_b=vertex_b,
                 )
             )
+    # # Vertex-Face no contact
+    # for index_a, index_b in itertools.product(
+    #     range(body_a.n_vertices), range(body_b.n_faces)
+    # ):
+    #     vertex_a = ContactLocationVertex(body=body_a, index=index_a)
+    #     face_b = ContactLocationFace(body=body_b, index=index_b)
+    #     if is_possible_face_vertex_contact(face_b, vertex_a):
+    #         no_contact_pair_modes.append(
+    #             NoContactPairMode(
+    #                 body_a=body_a,
+    #                 body_b=body_b,
+    #                 contact_location_a=vertex_a,
+    #                 contact_location_b=face_b,
+    #             )
+    #         )
     return no_contact_pair_modes
+
+
+def generate_factored_collision_free_pair_modes(body_a: RigidBody, body_b: RigidBody):
+    contact_pair_modes = generate_no_contact_pair_modes(body_a=body_a, body_b=body_b)
+    # We only add the vertex face contact for objects because static-actuated in contact modes are not added
+    # in the original contact graph.
+    # Vertex-face contact for objects only
+    if (
+        body_a.mobility_type == MobilityType.UNACTUATED
+        or body_b.mobility_type == MobilityType.UNACTUATED
+    ):
+        for index_a, index_b in itertools.product(
+            range(body_a.n_vertices), range(body_b.n_faces)
+        ):
+            vertex_a = ContactLocationVertex(body=body_a, index=index_a)
+            face_b = ContactLocationFace(body=body_b, index=index_b)
+            if is_possible_face_vertex_contact(face_b, vertex_a):
+                contact_pair_modes.append(
+                    InContactPairMode(
+                        body_a=body_a,
+                        body_b=body_b,
+                        contact_location_a=vertex_a,
+                        contact_location_b=face_b,
+                    )
+                )
+    return contact_pair_modes

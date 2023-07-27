@@ -140,6 +140,7 @@ class ContactSet(ConvexSet):
         vars: ContactSetDecisionVariables,
         contact_pair_modes: List[ContactPairMode],
         additional_constraints: List[Formula] = None,
+        remove_constraints_not_in_vars=False,
     ):
         self.vars = vars
 
@@ -157,12 +158,14 @@ class ContactSet(ConvexSet):
         if additional_constraints is not None:
             self.constraint_formulas.extend(additional_constraints)
         self._polyhedron = self._construct_polyhedron_from_constraints(
-            self.constraint_formulas, self.vars.all
+            self.constraint_formulas,
+            self.vars.all,
+            remove_constraints_not_in_vars=remove_constraints_not_in_vars,
         )
         self._base_polyhedron = self._construct_polyhedron_from_constraints(
             self.base_constraint_formulas,
             self.vars.base_all,
-            remove_constraints_not_in_vars=True,
+            remove_constraints_not_in_vars=remove_constraints_not_in_vars,
         )
 
     @classmethod
@@ -182,7 +185,7 @@ class ContactSet(ConvexSet):
         vars = ContactSetDecisionVariables.from_contact_pair_modes(
             objects, robots, contact_pair_modes
         )
-        return cls(vars, contact_pair_modes, additional_constraints)
+        return cls(vars, contact_pair_modes, additional_constraints, False)
 
     @classmethod
     def from_factored_collision_free_body(
@@ -192,7 +195,7 @@ class ContactSet(ConvexSet):
         additional_constraints: List[Formula] = None,
     ):
         vars = ContactSetDecisionVariables.from_factored_collision_free_body(body)
-        return cls(vars, contact_pair_modes, additional_constraints)
+        return cls(vars, contact_pair_modes, additional_constraints, True)
 
     def _construct_polyhedron_from_constraints(
         self,
