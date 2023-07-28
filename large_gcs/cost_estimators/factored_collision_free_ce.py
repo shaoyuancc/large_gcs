@@ -5,6 +5,7 @@ import re
 import numpy as np
 from tqdm import tqdm
 
+from large_gcs.contact.rigid_body import MobilityType
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.factored_collision_free_graph import FactoredCollisionFreeGraph
@@ -14,9 +15,15 @@ logger = logging.getLogger(__name__)
 
 
 class FactoredCollisionFreeCE(CostEstimator):
-    def __init__(self, graph: ContactGraph, add_transition_cost: bool = True):
+    def __init__(
+        self,
+        graph: ContactGraph,
+        add_transition_cost: bool = True,
+        obj_multiplier: float = 1.0,
+    ):
         self._graph = graph
         self._add_transition_cost = add_transition_cost
+        self._obj_multiplier = obj_multiplier
         logger.info(
             f"creating {self._graph.n_objects + self._graph.n_robots} collision free graphs..."
         )
@@ -89,8 +96,13 @@ class FactoredCollisionFreeCE(CostEstimator):
                     g.set_source(cfree_vertex_name)
                     cfree_sol = g.solve(use_convex_relaxation=use_convex_relaxation)
                     if cfree_sol.is_success:
-                        cfree_cost += cfree_sol.cost
-                        self._cfree_cost[cfree_vertex_name] = cfree_sol.cost
+                        new_cfree_cost = (
+                            self._obj_multiplier * cfree_sol.cost
+                            if g.movable_body.mobility_type == MobilityType.UNACTUATED
+                            else cfree_sol.cost
+                        )
+                        cfree_cost += new_cfree_cost
+                        self._cfree_cost[cfree_vertex_name] = new_cfree_cost
                         x_cfree_vars = g.vertices[cfree_vertex_name].convex_set.vars
                         cfree_init_pos = (
                             x_cfree_vars.pos_from_all(cfree_sol.ambient_path[0])
@@ -115,7 +127,11 @@ class FactoredCollisionFreeCE(CostEstimator):
 
                 if self._add_transition_cost:
                     transition_cost = np.linalg.norm(body_pos_end - cfree_init_pos)
-                    cfree_cost += transition_cost
+                    cfree_cost += (
+                        self._obj_multiplier * transition_cost
+                        if g.movable_body.mobility_type == MobilityType.UNACTUATED
+                        else transition_cost
+                    )
             logger.debug(
                 f"explored {neighbor} cost to come: {sol.cost}, cfree cost: {cfree_cost}, total cost: {sol.cost + cfree_cost}"
             )
