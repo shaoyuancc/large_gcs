@@ -16,7 +16,7 @@ from large_gcs.algorithms.search_algorithm import (
     TieBreak,
 )
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
-from large_gcs.graph.graph import Edge, Graph
+from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
 
 logger = logging.getLogger(__name__)
 

@@ -1,4 +1,3 @@
-import importlib
 import logging
 import os
 from dataclasses import asdict
@@ -11,7 +10,10 @@ from hydra.utils import get_original_cwd, instantiate
 from omegaconf import OmegaConf, open_dict
 
 import wandb
+from large_gcs.algorithms.search_algorithm import SearchAlgorithm
+from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.graph.contact_graph import ContactGraph
+from large_gcs.graph.graph import ShortestPathSolution
 from large_gcs.graph_generators.contact_graph_generator import (
     ContactGraphGeneratorParams,
 )
@@ -58,14 +60,16 @@ def main(cfg: OmegaConf) -> None:
     graph_file = ContactGraphGeneratorParams.graph_file_path_from_name(cfg.graph_name)
     cg = ContactGraph.load_from_file(graph_file)
 
-    module_name, function_name = cfg.contact_shortcut_edge_cost_factory.rsplit(".", 1)
-    module = importlib.import_module(module_name)
-    shortcut_cost = getattr(module, function_name)
-    alg = instantiate(cfg.algorithm, graph=cg, shortcut_edge_cost_factory=shortcut_cost)
-    sol = alg.run(animate=False)
+    cost_estimator: CostEstimator = instantiate(cfg.cost_estimator, graph=cg)
+    alg: SearchAlgorithm = instantiate(
+        cfg.algorithm, graph=cg, cost_estimator=cost_estimator
+    )
+    sol: ShortestPathSolution = alg.run()
 
-    if sol.is_success and cfg.save_visualization:
-        output_base = f"{alg.__class__.__name__}_{function_name}_{cfg.graph_name}"
+    if sol is not None and cfg.save_visualization:
+        output_base = (
+            f"{alg.__class__.__name__}_{cost_estimator.finger_print}_{cfg.graph_name}"
+        )
         vid_file = os.path.join(full_log_dir, f"{output_base}.mp4")
         graphviz_file = os.path.join(full_log_dir, f"{output_base}_visited_subgraph")
         gviz = alg._visited.graphviz()
@@ -81,7 +85,8 @@ def main(cfg: OmegaConf) -> None:
     logger.info(f"hydra log dir: {full_log_dir}")
 
     if cfg.save_to_wandb:
-        wandb.run.summary["final_sol"] = sol.to_serializable_dict()
+        if sol is not None:
+            wandb.run.summary["final_sol"] = sol.to_serializable_dict()
         wandb.run.summary["alg_metrics"] = asdict(alg.alg_metrics)
 
         wandb.finish()

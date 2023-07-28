@@ -14,8 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 class FactoredCollisionFreeCE(CostEstimator):
-    def __init__(self, graph: ContactGraph):
+    def __init__(self, graph: ContactGraph, add_transition_cost: bool = True):
         self._graph = graph
+        self._add_transition_cost = add_transition_cost
         logger.info(
             f"creating {self._graph.n_objects + self._graph.n_robots} collision free graphs..."
         )
@@ -111,8 +112,10 @@ class FactoredCollisionFreeCE(CostEstimator):
 
                     self._cfree_cost[cfree_vertex_name] = cfree_cost
                     self._alg_metrics.update_after_gcs_solve(cfree_sol.time)
-                within_neighbor_cost = np.linalg.norm(body_pos_end - cfree_init_pos)
-                cfree_cost += within_neighbor_cost
+
+                if self._add_transition_cost:
+                    transition_cost = np.linalg.norm(body_pos_end - cfree_init_pos)
+                    cfree_cost += transition_cost
             logger.debug(
                 f"explored {neighbor} cost to come: {sol.cost}, cfree cost: {cfree_cost}, total cost: {sol.cost + cfree_cost}"
             )
@@ -164,3 +167,9 @@ class FactoredCollisionFreeCE(CostEstimator):
         for entity_num, modes in rob_modes.items():
             vertex_res.append(str(tuple(modes)))
         return vertex_res
+
+    @property
+    def finger_print(self) -> str:
+        return (
+            f"FactoredCollisionFreeCE-add_transition_cost-{self._add_transition_cost}"
+        )

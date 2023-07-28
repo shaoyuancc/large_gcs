@@ -1,0 +1,3 @@
+_target_: large_gcs.cost_estimators.shortcut_edge_ce.ShortcutEdgeCE
+
+shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted"

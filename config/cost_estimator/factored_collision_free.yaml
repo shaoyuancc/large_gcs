@@ -1,0 +1,3 @@
+_target_: large_gcs.cost_estimators.factored_collision_free_ce.FactoredCollisionFreeCE
+
+add_transition_cost: true

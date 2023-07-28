@@ -1,9 +1,16 @@
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
+from large_gcs.utils.hydra_utils import get_function_from_string
 
 
 class ShortcutEdgeCE(CostEstimator):
     def __init__(self, graph: Graph, shortcut_edge_cost_factory=None):
+        # To allow function string path to be passed in from hydra config
+        if type(shortcut_edge_cost_factory) == str:
+            shortcut_edge_cost_factory = get_function_from_string(
+                shortcut_edge_cost_factory
+            )
+
         if (
             shortcut_edge_cost_factory is None
             and graph._default_costs_constraints.edge_costs is None
@@ -57,3 +64,7 @@ class ShortcutEdgeCE(CostEstimator):
         subgraph.remove_vertex(neighbor)
 
         return sol
+
+    @property
+    def finger_print(self) -> str:
+        return f"ShortcutEdgeCE-{self._shortcut_edge_cost_factory}"

@@ -40,10 +40,10 @@ pre-commit install
 Create a config file specifying the experiment in `config` and run it using the following command:
 
 ```
-python3 experiments/run_contact_graph_experiment.py --config-name basic
+python3 experiments/run_contact_graph_experiment.py --config-name cg_gcs_astar_conv_res
 ```
 
-where `basic` should be replaced with your config name.
+where `cg_gcs_astar_conv_res` should be replaced with your config name.
 
 ## Running multiple experiments
 

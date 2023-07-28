@@ -19,3 +19,10 @@ class CostEstimator(ABC):
         """
         Estimate the cost of a path from source to target through a particular edge.
         """
+
+    @property
+    @abstractmethod
+    def finger_print(self) -> str:
+        """
+        Return a string that uniquely identifies this cost estimator and it's relevant parameters.
+        """
