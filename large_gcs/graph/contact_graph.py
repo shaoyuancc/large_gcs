@@ -159,7 +159,9 @@ class ContactGraph(Graph):
         return [
             [
                 edge_cost_constant(
-                    self.vertices[u].convex_set.vars, self.vertices[v].convex_set.vars
+                    self.vertices[u].convex_set.vars,
+                    self.vertices[v].convex_set.vars,
+                    constant_cost=1,
                 )
             ]
             for u, v in tqdm(edges)

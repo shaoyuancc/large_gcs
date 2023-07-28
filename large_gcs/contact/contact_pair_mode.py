@@ -624,29 +624,3 @@ def generate_no_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):
     #             )
     #         )
     return no_contact_pair_modes
-
-
-def generate_factored_collision_free_pair_modes(body_a: RigidBody, body_b: RigidBody):
-    contact_pair_modes = generate_no_contact_pair_modes(body_a=body_a, body_b=body_b)
-    # We only add the vertex face contact for objects because static-actuated in contact modes are not added
-    # in the original contact graph.
-    # Vertex-face contact for objects only
-    if (
-        body_a.mobility_type == MobilityType.UNACTUATED
-        or body_b.mobility_type == MobilityType.UNACTUATED
-    ):
-        for index_a, index_b in itertools.product(
-            range(body_a.n_vertices), range(body_b.n_faces)
-        ):
-            vertex_a = ContactLocationVertex(body=body_a, index=index_a)
-            face_b = ContactLocationFace(body=body_b, index=index_b)
-            if is_possible_face_vertex_contact(face_b, vertex_a):
-                contact_pair_modes.append(
-                    InContactPairMode(
-                        body_a=body_a,
-                        body_b=body_b,
-                        contact_location_a=vertex_a,
-                        contact_location_b=face_b,
-                    )
-                )
-    return contact_pair_modes

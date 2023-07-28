@@ -8,9 +8,7 @@ import numpy as np
 from pydrake.all import Constraint, Cost, Expression, GraphOfConvexSets, eq
 from tqdm import tqdm
 
-from large_gcs.contact.contact_pair_mode import (
-    generate_factored_collision_free_pair_modes,
-)
+from large_gcs.contact.contact_pair_mode import generate_contact_pair_modes
 from large_gcs.contact.contact_set import ContactPointSet, ContactSet
 from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
 from large_gcs.graph.contact_graph import ContactGraph
@@ -59,7 +57,7 @@ class FactoredCollisionFreeGraph(ContactGraph):
         self.target_pos = [target_pos]
         self.obstacles = static_obstacles
 
-        sets, set_ids = self._generate_no_contact_sets()
+        sets, set_ids = self._generate_contact_sets()
         sets.append(
             ContactPointSet(
                 "target", self.objects, self.robots, target_pos_objs, target_pos_robs
@@ -90,7 +88,7 @@ class FactoredCollisionFreeGraph(ContactGraph):
             f"Created factored collision free graph for {movable_body.name}: {self.params}"
         )
 
-    def _generate_no_contact_sets(self) -> Tuple[List[ContactSet], List[str]]:
+    def _generate_contact_sets(self) -> Tuple[List[ContactSet], List[str]]:
         body_dict = {
             body.name: body for body in self.obstacles + self.objects + self.robots
         }
@@ -98,7 +96,7 @@ class FactoredCollisionFreeGraph(ContactGraph):
 
         rigid_body_pairs = list(product(obs_names, [self.movable_body.name]))
         body_pair_to_modes = {
-            (body1, body2): generate_factored_collision_free_pair_modes(
+            (body1, body2): generate_contact_pair_modes(
                 body_dict[body1], body_dict[body2]
             )
             for body1, body2 in rigid_body_pairs
