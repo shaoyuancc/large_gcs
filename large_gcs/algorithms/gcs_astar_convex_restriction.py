@@ -12,6 +12,7 @@ from matplotlib.animation import FFMpegWriter
 from large_gcs.algorithms.search_algorithm import (
     AlgMetrics,
     AlgVisParams,
+    ReexploreLevel,
     SearchAlgorithm,
     TieBreak,
 )
@@ -28,14 +29,18 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         self,
         graph: Graph,
         cost_estimator: CostEstimator,
-        should_reexplore: bool = False,
+        reexplore_level: ReexploreLevel = ReexploreLevel.NONE,
         tiebreak: TieBreak = TieBreak.LIFO,
         vis_params: AlgVisParams = AlgVisParams(),
     ):
 
         self._graph = graph
         self._cost_estimator = cost_estimator
-        self._should_reexplore = should_reexplore
+        self._reexplore_level = (
+            ReexploreLevel[reexplore_level]
+            if type(reexplore_level) == str
+            else reexplore_level
+        )
         self._vis_params = vis_params
         self._writer = None
         self._alg_metrics = AlgMetrics()
@@ -65,7 +70,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
     def run(self, animate_intermediate: bool = False, final_plot: bool = False):
         logger.info(
-            f"Running {self.__class__.__name__}, should_rexplore: {self._should_reexplore}"
+            f"Running {self.__class__.__name__}, reexplore_level: {self._reexplore_level}"
         )
         self._animate_intermediate = animate_intermediate
 
@@ -92,7 +97,10 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         # logger.info(f"Top 10 pq costs: {top_10}")
 
         estimated_cost, _count, node, active_edges, contact_sol = heap.heappop(self._pq)
-        if not self._should_reexplore and node in self._visited_vertices:
+        if (
+            self._reexplore_level == ReexploreLevel.NONE
+            and node in self._visited_vertices
+        ):
             return
         if node in self._visited_vertices:
             self._alg_metrics.n_vertices_revisited += 1
@@ -112,22 +120,25 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             anim = self._graph.animate_solution()
             display(HTML(anim.to_html5_video()))
 
-        for edge in edges:
-            neighbor_in_path = any(
-                (e.u == edge.v or e.v == edge.v) for e in active_edges
-            )
-            if (
-                not self._should_reexplore and edge.v not in self._visited_vertices
-            ) or (self._should_reexplore and not neighbor_in_path):
-                if edge.v in self._visited_vertices:
-                    self._alg_metrics.n_vertices_reexplored += 1
-                else:
-                    self._alg_metrics.n_vertices_explored += 1
-                self._explore_edge(edge)
+        if self._reexplore_level == ReexploreLevel.NONE:
+            for edge in edges:
+                if edge.v not in self._visited_vertices:
+                    self._explore_edge(edge)
+        else:
+            for edge in edges:
+                neighbor_in_path = any(
+                    (e.u == edge.v or e.v == edge.v) for e in active_edges
+                )
+                if not neighbor_in_path:
+                    self._explore_edge(edge)
 
     def _explore_edge(self, edge: Edge):
         neighbor = edge.v
         assert neighbor != self._graph.target_name
+        if neighbor in self._visited_vertices:
+            self._alg_metrics.n_vertices_reexplored += 1
+        else:
+            self._alg_metrics.n_vertices_explored += 1
 
         sol = self._cost_estimator.estimate_cost(
             self._visited, edge, solve_convex_restriction=True
@@ -135,10 +146,11 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
         if sol.is_success:
             new_dist = sol.cost
+            should_add_to_pq = self._should_add_to_pq(neighbor, new_dist)
             logger.debug(
-                f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {new_dist < self._node_dists[neighbor]}"
+                f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {should_add_to_pq}"
             )
-            if self._should_reexplore or new_dist < self._node_dists[neighbor]:
+            if should_add_to_pq:
                 new_active_edges = list(self._visited.edges.values()).copy() + [
                     self._graph.edges[edge.key]
                 ]
@@ -170,6 +182,17 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
         else:
             logger.debug(f"edge {edge.u} -> {edge.v} not actually feasible")
+
+    def _should_add_to_pq(self, neighbor, new_dist):
+        if self._reexplore_level == ReexploreLevel.FULL:
+            return True
+        elif self._reexplore_level == ReexploreLevel.PARTIAL:
+            return new_dist < self._node_dists[neighbor]
+        elif self._reexplore_level == ReexploreLevel.NONE:
+            return (
+                new_dist < self._node_dists[neighbor]
+                and neighbor not in self._visited_vertices
+            )
 
     def _set_visited_vertices_and_edges(self, edges):
         """Also adds source and target regardless of whether they are in edges"""

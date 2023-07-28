@@ -29,7 +29,7 @@ print(cg.params)
 
 gcs_astar = GcsAstarConvexRestriction(
     cg,
-    should_reexplore=True,
+    reexplore_level=True,
     use_convex_relaxation=False,
     shortcut_edge_cost_factory=contact_shortcut_edge_cost_factory_over_obj_weighted,
 )

@@ -11,6 +11,12 @@ class TieBreak(Enum):
     LIFO = 2
 
 
+class ReexploreLevel(Enum):
+    NONE = 0
+    PARTIAL = 1
+    FULL = 2
+
+
 @dataclass
 class AlgVisParams:
     """

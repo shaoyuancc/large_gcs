@@ -7,7 +7,7 @@ graph_name: "cg_maze_a2"
 # cost_estimator:
 #   shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted"
 algorithm:
-  should_reexplore: true
+  reexplore_level: 'PARTIAL'
   tiebreak: 'LIFO'
 
 save_visualization: true
