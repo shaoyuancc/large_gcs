@@ -4,11 +4,12 @@ defaults:
   - hydra: hydra
 
 graph_name: "cg_maze_a2"
-# cost_estimator:
+cost_estimator:
+  obj_multiplier: 1
 #   shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted"
 algorithm:
-  reexplore_level: 'PARTIAL'
-  tiebreak: 'LIFO'
+  reexplore_level: 'NONE'
+  tiebreak: 'FIFO'
 
 save_visualization: true
 save_to_wandb: true
