@@ -1,4 +1,7 @@
+import copy
 import heapq as heap
+import itertools
+import logging
 import time
 from collections import defaultdict
 
@@ -11,7 +14,10 @@ from large_gcs.algorithms.search_algorithm import (
     AlgVisParams,
     SearchAlgorithm,
 )
+from large_gcs.cost_estimators.shortcut_edge_ce import ShortcutEdgeCE
 from large_gcs.graph.graph import Edge, Graph
+
+logger = logging.getLogger(__name__)
 
 
 class GcsAstarSubOpt(SearchAlgorithm):
@@ -44,8 +50,11 @@ class GcsAstarSubOpt(SearchAlgorithm):
         self._feasible_edges = set()
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
+        self._counter = itertools.count(start=0, step=1)
+        self._cost_estimator = ShortcutEdgeCE(graph, shortcut_edge_cost_factory)
+        self._cost_estimator.set_alg_metrics(self._alg_metrics)
         # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
-        heap.heappush(self._pq, (0, self._graph.source_name))
+        heap.heappush(self._pq, (0, next(self._counter), self._graph.source_name))
 
         # Add the target to the visited subgraph
         self._visited.add_vertex(
@@ -94,7 +103,13 @@ class GcsAstarSubOpt(SearchAlgorithm):
         return sol
 
     def _run_iteration(self, verbose: bool = False):
-        heuristic_cost, node = heap.heappop(self._pq)
+        # Make a copy of the priority queue.
+        pq_copy = copy.copy(self._pq)
+        # Pop the top 10 items from the priority queue copy.
+        top_10 = [heap.heappop(pq_copy)[0] for _ in range(min(10, len(pq_copy)))]
+        logger.info(f"Top 10 pq costs: {top_10}")
+
+        estimated_cost, _count, node = heap.heappop(self._pq)
         if node in self._visited.vertex_names and node != self._graph.target_name:
             return
 
@@ -105,12 +120,9 @@ class GcsAstarSubOpt(SearchAlgorithm):
 
         edges = self._graph.outgoing_edges(node)
 
-        if verbose:
-            # clear_output(wait=True)
-            print(
-                f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({heuristic_cost})"
-            )
-            print(f"Current vertices: {self._visited.vertex_names}")
+        logger.info(
+            f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({estimated_cost})"
+        )
         if self._writer:
             self._writer.fig.clear()
             self.plot_graph()
@@ -125,47 +137,60 @@ class GcsAstarSubOpt(SearchAlgorithm):
         self._alg_metrics.n_vertices_explored += 1
         neighbor = edge.v
         assert neighbor != self._graph.target_name
-        # Add neighbor and edge temporarily to the visited subgraph
-        self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
-        # Check if this neighbor actually has an edge to the target
-        # If so, add that edge instead of the shortcut
-        if (neighbor, self._graph.target_name) in self._graph.edges:
-            self._visited.add_edge(
-                self._graph.edges[(neighbor, self._graph.target_name)]
-            )
-        else:
-            # Add an edge from the neighbor to the target
-            direct_edge_costs = None
-            if self._shortcut_edge_cost_factory:
-                # Note for now this only works with ContactSet and ContactPointSet because
-                # they have the vars attribute, and convex_sets in general do not.
-                direct_edge_costs = self._shortcut_edge_cost_factory(
-                    self._graph.vertices[neighbor].convex_set.vars,
-                    self._graph.vertices[self._graph.target_name].convex_set.vars,
-                )
-            direct_to_target = Edge(
-                neighbor, self._graph.target_name, costs=direct_edge_costs
-            )
-            self._visited.add_edge(direct_to_target)
+        """
+        Very strange, there is something about using the cost estimator instead of 
+        the code below that changes the numbers very slightly.
+        """
+        # # Add neighbor and edge temporarily to the visited subgraph
+        # self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
+        # # Check if this neighbor actually has an edge to the target
+        # # If so, add that edge instead of the shortcut
+        # if (neighbor, self._graph.target_name) in self._graph.edges:
+        #     self._visited.add_edge(
+        #         self._graph.edges[(neighbor, self._graph.target_name)]
+        #     )
+        # else:
+        #     # Add an edge from the neighbor to the target
+        #     direct_edge_costs = None
+        #     if self._shortcut_edge_cost_factory:
+        #         # Note for now this only works with ContactSet and ContactPointSet because
+        #         # they have the vars attribute, and convex_sets in general do not.
+        #         direct_edge_costs = self._shortcut_edge_cost_factory(
+        #             self._graph.vertices[neighbor].convex_set.vars,
+        #             self._graph.vertices[self._graph.target_name].convex_set.vars,
+        #         )
+        #     direct_to_target = Edge(
+        #         neighbor, self._graph.target_name, costs=direct_edge_costs
+        #     )
+        #     self._visited.add_edge(direct_to_target)
 
-        self._visited.add_edge(edge)
-        sol = self._visited.solve(self._use_convex_relaxation)
+        # self._visited.add_edge(edge)
+        # sol = self._visited.solve(self._use_convex_relaxation)
 
-        self._update_alg_metrics_after_gcs_solve(sol.time)
+        # self._update_alg_metrics_after_gcs_solve(sol.time)
 
-        # Remove neighbor and associated edges from the visited subgraph
-        self._visited.remove_vertex(neighbor)
+        # # Remove neighbor and associated edges from the visited subgraph
+        # self._visited.remove_vertex(neighbor)
+        sol = self._cost_estimator.estimate_cost(
+            self._visited, edge, solve_convex_restriction=False
+        )
 
         if sol.is_success:
             new_dist = sol.cost
-            if verbose:
-                print(
-                    f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {new_dist < self._node_dists[neighbor]}"
-                )
+            # if verbose:
+            #     print(
+            #         f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {new_dist < self._node_dists[neighbor]}"
+            #     )
+            if (
+                new_dist < self._node_dists[neighbor]
+                and neighbor not in self._visited.vertices
+            ):
+                heap.heappush(self._pq, (new_dist, next(self._counter), neighbor))
+
             if new_dist < self._node_dists[neighbor]:
                 self._feasible_edges.add((edge.u, edge.v))
                 self._node_dists[neighbor] = new_dist
-                heap.heappush(self._pq, (new_dist, neighbor))
+
                 # Check if this neighbor actually has an edge to the target
                 if (neighbor, self._graph.target_name) in self._graph.edges:
                     self._candidate_sol = sol
@@ -176,8 +201,9 @@ class GcsAstarSubOpt(SearchAlgorithm):
                 self._writer.grab_frame()
 
         else:
-            if verbose:
-                print(f"edge {edge.u} -> {edge.v} not actually feasible")
+            pass
+            # if verbose:
+            #     print(f"edge {edge.u} -> {edge.v} not actually feasible")
 
     def _add_vertex_and_edges_to_visited_except_edges_to_target(self, vertex_name):
         # Add node to the visited subgraph along with all of its incoming and outgoing edges to the visited subgraph

@@ -22,8 +22,8 @@ from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
 logger = logging.getLogger(__name__)
 
 
-class GcsAstarConvexRestriction(SearchAlgorithm):
-    """Convex Restriction version of GCS A*, where in the subroutine, the order of vertices is fixed."""
+class GcsAstarTree(SearchAlgorithm):
+    """Tree version of GCS A*, where we only add edges along shortest paths to vertices to the visited subgraph."""
 
     def __init__(
         self,
@@ -47,18 +47,15 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         self._cost_estimator.set_alg_metrics(self._alg_metrics)
         self._candidate_sol = None
         self._pq = []
-        self._infeasible_edges = set()
+        self._shortest_path_edges = set()
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
-        self._visited_vertices = set()
         if tiebreak == TieBreak.FIFO or tiebreak == TieBreak.FIFO.name:
             self._counter = itertools.count(start=0, step=1)
         elif tiebreak == TieBreak.LIFO or tiebreak == TieBreak.LIFO.name:
             self._counter = itertools.count(start=0, step=-1)
         # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
-        heap.heappush(
-            self._pq, (0, next(self._counter), self._graph.source_name, [], None)
-        )
+        heap.heappush(self._pq, (0, next(self._counter), self._graph.source_name))
 
         # Add the target to the visited subgraph
         self._visited.add_vertex(
@@ -69,11 +66,10 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             1  # Start with the target node in the visited subgraph
         )
 
-    def run(self, animate_intermediate: bool = False, final_plot: bool = False):
+    def run(self):
         logger.info(
             f"Running {self.__class__.__name__}, reexplore_level: {self._reexplore_level}"
         )
-        self._animate_intermediate = animate_intermediate
 
         self._start_time = time.time()
         while len(self._pq) > 0:
@@ -82,12 +78,12 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             if (
                 self._graph.target_name
                 in [e.v for e in self._graph.outgoing_edges(curr)]
-                and (curr, self._graph.target_name) not in self._infeasible_edges
+                and (curr, self._graph.target_name) in self._shortest_path_edges
             ):
                 sol = self._candidate_sol
                 self._graph._post_solve(sol)
                 logger.info(
-                    f"Gcs A* Convex Restriction complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
+                    f"Gcs A* Tree complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
                 )
 
                 return sol
@@ -95,57 +91,47 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             self._run_iteration()
             self._alg_metrics.time_wall_clock = time.time() - self._start_time
 
-        logger.warn("Gcs A* Convex Restriction failed to find a path to the target.")
+        logger.warn("Gcs A* Tree failed to find a path to the target.")
         return None
 
     def _run_iteration(self):
-
-        estimated_cost, _count, node, active_edges, contact_sol = heap.heappop(self._pq)
+        estimated_cost, _count, node = heap.heappop(self._pq)
         if (
             self._reexplore_level == ReexploreLevel.NONE
-            and node in self._visited_vertices
+            and node in self._visited.vertices
         ):
             return
-        if node in self._visited_vertices:
+        if node in self._visited.vertices:
             self._alg_metrics.n_vertices_revisited += 1
         else:
             self._alg_metrics.n_vertices_visited += 1
 
-        self._visited_vertices.add(node)
-        self._set_visited_vertices_and_edges(active_edges)
+        self._add_vertex_and_edges_to_visited_except_edges_to_target(node)
 
         edges = self._graph.outgoing_edges(node)
 
         logger.info(
             f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({estimated_cost})"
         )
-        if self._animate_intermediate and contact_sol is not None:
-            self._graph.contact_spp_sol = contact_sol
-            anim = self._graph.animate_solution()
-            display(HTML(anim.to_html5_video()))
 
         if self._reexplore_level == ReexploreLevel.NONE:
             for edge in edges:
-                if edge.v not in self._visited_vertices:
+                if edge.v not in self._visited.vertices:
                     self._explore_edge(edge)
         else:
             for edge in edges:
-                neighbor_in_path = any(
-                    (e.u == edge.v or e.v == edge.v) for e in active_edges
-                )
-                if not neighbor_in_path:
-                    self._explore_edge(edge)
+                self._explore_edge(edge)
 
     def _explore_edge(self, edge: Edge):
         neighbor = edge.v
         assert neighbor != self._graph.target_name
-        if neighbor in self._visited_vertices:
+        if neighbor in self._visited.vertices:
             self._alg_metrics.n_vertices_reexplored += 1
         else:
             self._alg_metrics.n_vertices_explored += 1
 
         sol = self._cost_estimator.estimate_cost(
-            self._visited, edge, solve_convex_restriction=True
+            self._visited, edge, solve_convex_restriction=False
         )
 
         if sol.is_success:
@@ -155,9 +141,6 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {should_add_to_pq}"
             )
             if should_add_to_pq:
-                new_active_edges = list(self._visited.edges.values()).copy() + [
-                    self._graph.edges[edge.key]
-                ]
                 # Note this assumes graph is contact graph, should break this dependency...
                 # Counter serves as tiebreaker for nodes with the same distance, to prevent nodes or edges from being compared
                 heap.heappush(
@@ -166,24 +149,21 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                         new_dist,
                         next(self._counter),
                         neighbor,
-                        new_active_edges,
-                        self._graph.create_contact_spp_sol(
-                            sol.vertex_path, sol.ambient_path
-                        ),
                     ),
                 )
 
             if new_dist < self._node_dists[neighbor]:
                 self._node_dists[neighbor] = new_dist
+                self._shortest_path_edges.add((edge.u, edge.v))
                 # Check if this neighbor actually has an edge to the target
                 if (neighbor, self._graph.target_name) in self._graph.edges:
+                    self._shortest_path_edges.add((neighbor, self._graph.target_name))
                     if self._candidate_sol is None:
                         self._candidate_sol = sol
                     elif sol.cost < self._candidate_sol.cost:
                         self._candidate_sol = sol
 
         else:
-            self._infeasible_edges.add((edge.u, edge.v))
             logger.debug(f"edge {edge.u} -> {edge.v} not actually feasible")
 
     def _should_add_to_pq(self, neighbor, new_dist):
@@ -194,21 +174,24 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         elif self._reexplore_level == ReexploreLevel.NONE:
             return (
                 new_dist < self._node_dists[neighbor]
-                and neighbor not in self._visited_vertices
+                and neighbor not in self._visited.vertices
             )
 
-    def _set_visited_vertices_and_edges(self, edges):
+    def _add_vertex_and_edges_to_visited_except_edges_to_target(self, vertex_name):
         """Also adds source and target regardless of whether they are in edges"""
-        self._visited = Graph(self._graph._default_costs_constraints)
-        vertex_list = [self._graph.target_name, self._graph.source_name]
+        self._visited.add_vertex(self._graph.vertices[vertex_name], vertex_name)
+        if vertex_name == self._graph.source_name:
+            self._visited.set_source(self._graph.source_name)
+        edges = self._graph.incident_edges(vertex_name)
         for edge in edges:
-            vertex_list.append(edge.v)
-        for v in vertex_list:
-            self._visited.add_vertex(self._graph.vertices[v], v)
-        self._visited.set_source(self._graph.source_name)
-        self._visited.set_target(self._graph.target_name)
-        for edge in edges:
-            self._visited.add_edge(edge)
+            if (
+                edge.u in self._visited.vertex_names
+                and edge.v in self._visited.vertex_names
+                and edge.v != self._graph.target_name
+                # Crucial part of this alg, only add edges that are on the shortest path
+                and (edge.u, edge.v) in self._shortest_path_edges
+            ):
+                self._visited.add_edge(edge)
 
     def plot_graph(self, path=None, current_edge=None, is_final_path=False):
         plt.title("GCS A*")
