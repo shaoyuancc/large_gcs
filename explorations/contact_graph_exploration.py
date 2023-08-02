@@ -79,7 +79,7 @@ if __name__ == "__main__":
     # time the solve
     start_time = time.time()
     print("Solve started at ", time.ctime(start_time))
-    sol = contact_graph.solve(use_convex_relaxation=False)
+    sol = contact_graph.solve_shortest_path(use_convex_relaxation=False)
     end_time = time.time()
     print("Solve ended at ", time.ctime(end_time))
     print("Solve time: ", end_time - start_time)

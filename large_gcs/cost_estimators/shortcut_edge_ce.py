@@ -1,3 +1,5 @@
+from typing import List
+
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
 from large_gcs.utils.hydra_utils import get_function_from_string
@@ -25,6 +27,7 @@ class ShortcutEdgeCE(CostEstimator):
         self,
         subgraph: Graph,
         edge: Edge,
+        active_edges: List[Edge] = None,
         solve_convex_restriction: bool = False,
         use_convex_relaxation: bool = False,
     ) -> ShortestPathSolution:
@@ -56,7 +59,9 @@ class ShortcutEdgeCE(CostEstimator):
         if solve_convex_restriction:
             sol = subgraph.solve_convex_restriction(subgraph.edges.values())
         else:
-            sol = subgraph.solve(use_convex_relaxation=use_convex_relaxation)
+            sol = subgraph.solve_shortest_path(
+                use_convex_relaxation=use_convex_relaxation
+            )
 
         self._alg_metrics.update_after_gcs_solve(sol.time)
 

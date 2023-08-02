@@ -46,7 +46,7 @@ class GcsDijkstra(SearchAlgorithm):
         # Solve GCS for a final time to extract the path
         self._add_vertex_and_edges_to_visited(self._graph.target_name)
         self._visited.set_target(self._graph.target_name)
-        sol = self._visited.solve()
+        sol = self._visited.solve_shortest_path()
         self._update_alg_metrics_after_gcs_solve(sol.time)
         clear_output(wait=True)
         print(f"Gcs Dijkstra complete! \n{sol}\n{self.alg_metrics}")
@@ -92,7 +92,7 @@ class GcsDijkstra(SearchAlgorithm):
                 self._visited.add_edge(edge)
                 self._visited.set_target(neighbor)
 
-                sol = self._visited.solve()
+                sol = self._visited.solve_shortest_path()
                 new_dist = sol.cost
 
                 # Remove neighbor and associated edges from the visited subgraph

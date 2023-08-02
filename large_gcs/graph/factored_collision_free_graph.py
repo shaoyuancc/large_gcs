@@ -25,17 +25,12 @@ class FactoredCollisionFreeGraph(ContactGraph):
         target_pos: np.ndarray,
         workspace: np.ndarray = None,
     ):
-        self.vertices = {}
-        self.edges = {}
-        self._source_name = None
-        self._target_name = None
-        self._default_costs_constraints = None
+        Graph.__init__(self, workspace=workspace)
+
         self.movable_body = movable_body
-        self.workspace = workspace
         self.obstacles = []
         self.objects = []
         self.robots = []
-        self._gcs = GraphOfConvexSets()
 
         for thing in static_obstacles:
             assert (
@@ -56,14 +51,14 @@ class FactoredCollisionFreeGraph(ContactGraph):
         self.source_pos = None
         self.target_pos = [target_pos]
         self.obstacles = static_obstacles
-
+        target_name = f"target_{self.movable_body.name}"
         sets, set_ids = self._generate_contact_sets()
         sets.append(
             ContactPointSet(
-                "target", self.objects, self.robots, target_pos_objs, target_pos_robs
+                target_name, self.objects, self.robots, target_pos_objs, target_pos_robs
             )
         )
-        set_ids.append("target")
+        set_ids.append(target_name)
 
         # Add convex sets to graph (Need to do this before generating edges)
         self.add_vertices_from_sets(
@@ -72,7 +67,7 @@ class FactoredCollisionFreeGraph(ContactGraph):
             constraints=self._create_vertex_constraints(sets),
             names=set_ids,
         )
-        self.set_target("target")
+        self.set_target(target_name)
         edges = self._generate_contact_graph_edges(set_ids)
         self.add_edges_from_vertex_names(
             *zip(*edges),

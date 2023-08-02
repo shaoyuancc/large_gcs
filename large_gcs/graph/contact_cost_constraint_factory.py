@@ -273,3 +273,25 @@ def edge_constraint_position_continuity(
     # Linear equality constraint of the form: Ax = b
     A, b = DecomposeAffineExpressions(exprs, uv_vars_all)
     return LinearEqualityConstraint(A, b)
+
+
+def edge_constraint_position_continuity_factored(
+    body_index, u_vars: ContactSetDecisionVariables, v_vars: ContactSetDecisionVariables
+) -> LinearEqualityConstraint:
+    """Creates a constraint that enforces position continuity between the last position in vertex u
+    of body with body_index to the first position in vertex v (assuming v is the lower dimensional factored set,
+    and u is the full dimensional set)
+    """
+    # Get the last position in u and first position in v
+    u_vars_all = create_vars_from_template(u_vars.all, "u")
+    v_vars_all = create_vars_from_template(v_vars.all, "v")
+    u_pos = u_vars.pos_from_all(u_vars_all)
+    v_pos = v_vars.pos_from_all(v_vars_all)
+    u_last_pos = u_pos[body_index, :, -1].flatten()
+    v_first_pos = v_pos[:, :, 0].flatten()
+    assert u_last_pos.size == v_first_pos.size
+    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
+    exprs = (u_last_pos - v_first_pos).flatten()
+    # Linear equality constraint of the form: Ax = b
+    A, b = DecomposeAffineExpressions(exprs, uv_vars_all)
+    return LinearEqualityConstraint(A, b)
