@@ -402,12 +402,12 @@ class Graph:
         return sol
 
     def solve_factored_convex_restriction(
-        self, active_edges: List[Edge], transition: str, targets: List[str]
+        self, active_edges: List[Tuple[str, str]], transition: str, targets: List[str]
     ) -> ShortestPathSolution:
         # for e in active_edges:
         #     print(f"gcs edge {(e.u, e.v)} in edges: {e.gcs_edge in self._gcs.Edges()}")
         # result = self._gcs.SolveFactoredConvexRestriction(
-        #     [edge.gcs_edge for edge in active_edges],
+        # [self.edges[edge_key].gcs_edge for edge_key in active_edges],
         #     self.vertices[transition].gcs_vertex,
         #     [self.vertices[target].gcs_vertex for target in targets],
         #     # self._gcs_options_convex_relaxation,

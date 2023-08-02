@@ -3,6 +3,7 @@ import itertools
 import logging
 import time
 from collections import defaultdict
+from typing import List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -126,27 +127,26 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         if self._reexplore_level == ReexploreLevel.NONE:
             for edge in edges:
                 if edge.v not in self._visited_vertices:
-                    self._explore_edge(edge)
+                    self._explore_edge(edge, active_edges)
         else:
             for edge in edges:
                 neighbor_in_path = any(
                     (e.u == edge.v or e.v == edge.v) for e in active_edges
                 )
                 if not neighbor_in_path:
-                    self._explore_edge(edge)
+                    self._explore_edge(edge, active_edges)
 
-    def _explore_edge(self, edge: Edge):
+    def _explore_edge(self, edge: Edge, active_edges: List[Tuple[str, str]]):
         neighbor = edge.v
         assert neighbor != self._graph.target_name
         if neighbor in self._visited_vertices:
             self._alg_metrics.n_vertices_reexplored += 1
         else:
             self._alg_metrics.n_vertices_explored += 1
-        active_edges = list(self._visited.edges.values()).copy()
         sol = self._cost_estimator.estimate_cost(
             self._visited,
             edge,
-            list(self._visited.edges.values()),
+            active_edges,
             solve_convex_restriction=True,
         )
 
@@ -157,7 +157,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {should_add_to_pq}"
             )
             if should_add_to_pq:
-
+                new_active_edges = active_edges.copy() + [edge.key]
                 # Note this assumes graph is contact graph, should break this dependency...
                 # Counter serves as tiebreaker for nodes with the same distance, to prevent nodes or edges from being compared
                 heap.heappush(
@@ -166,7 +166,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                         new_dist,
                         next(self._counter),
                         neighbor,
-                        active_edges + [edge],
+                        new_active_edges,
                         self._graph.create_contact_spp_sol(
                             sol.vertex_path, sol.ambient_path, ref_graph=self._visited
                         ),
@@ -197,20 +197,19 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 and neighbor not in self._visited_vertices
             )
 
-    def _set_visited_vertices_and_edges(self, edges):
+    def _set_visited_vertices_and_edges(self, edge_keys):
         """Also adds source and target regardless of whether they are in edges"""
         self._visited = Graph(self._graph._default_costs_constraints)
         vertex_list = [self._graph.target_name, self._graph.source_name]
-        print("adding vertices to graph:")
-        for edge in edges:
-            vertex_list.append(edge.v)
-            print(edge.v)
+
+        for (u, v) in edge_keys:
+            vertex_list.append(v)
         for v in vertex_list:
             self._visited.add_vertex(self._graph.vertices[v], v)
         self._visited.set_source(self._graph.source_name)
         self._visited.set_target(self._graph.target_name)
-        for edge in edges:
-            self._visited.add_edge(edge)
+        for edge_key in edge_keys:
+            self._visited.add_edge(self._graph.edges[edge_key])
 
     def plot_graph(self, path=None, current_edge=None, is_final_path=False):
         plt.title("GCS A*")

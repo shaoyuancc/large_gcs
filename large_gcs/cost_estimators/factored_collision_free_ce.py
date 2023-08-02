@@ -1,7 +1,7 @@
 import ast
 import logging
 import re
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 from tqdm import tqdm
@@ -52,7 +52,7 @@ class FactoredCollisionFreeCE(CostEstimator):
         self,
         subgraph: Graph,
         edge: Edge,
-        active_edges: List[Edge] = None,
+        active_edges: List[Tuple[str, str]] = None,
         solve_convex_restriction: bool = False,
         use_convex_relaxation: bool = False,
     ) -> ShortestPathSolution:
@@ -61,7 +61,7 @@ class FactoredCollisionFreeCE(CostEstimator):
         neighbor = edge.v
         # Add neighbor and edge temporarily to the visited subgraph
         subgraph.add_vertex(self._graph.vertices[neighbor], neighbor)
-        transition_edge = subgraph.add_edge(edge)
+        subgraph.add_edge(edge)
         # Check if this neighbor actually has an edge to the target
         # If so, add that edge instead of calculating the collision free cost
         neighbor_has_edge_to_target = (
@@ -82,7 +82,7 @@ class FactoredCollisionFreeCE(CostEstimator):
             self._connect_vertex_to_cfree_subgraphs(subgraph, neighbor)
             if solve_convex_restriction:
                 sol = subgraph.solve_factored_convex_restriction(
-                    active_edges + [transition_edge], neighbor, self._cfree_target_names
+                    active_edges + [edge.key], neighbor, self._cfree_target_names
                 )
             else:
                 sol = subgraph.solve_factored_shortest_path(
