@@ -60,7 +60,6 @@ class FactoredCollisionFreeCE(CostEstimator):
         use_convex_relaxation: bool = False,
     ) -> ShortestPathSolution:
         """Right now this function is unideally coupled because it returns a shortest path solution instead of just the cost."""
-
         neighbor = edge.v
         # Add neighbor and edge temporarily to the visited subgraph
         subgraph.add_vertex(self._graph.vertices[neighbor], neighbor)
@@ -72,7 +71,6 @@ class FactoredCollisionFreeCE(CostEstimator):
             self._graph.target_name,
         ) in self._graph.edges
         if neighbor_has_edge_to_target:
-            # print(f"neighbor {neighbor} has edge to target")
             edge_to_target = self._graph.edges[(neighbor, self._graph.target_name)]
             subgraph.add_edge(edge_to_target)
             subgraph.set_target(self._graph.target_name)

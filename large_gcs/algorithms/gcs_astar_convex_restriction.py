@@ -51,6 +51,9 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         self._infeasible_edges = set()
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
+        # Accounting of the full dimensional vertices in the visited subgraph
+        self._visited_fd_vertices = set()
+        # Accounting of all the vertices that have ever been visited for revisit management
         self._visited_vertices = set()
         if tiebreak == TieBreak.FIFO or tiebreak == TieBreak.FIFO.name:
             self._counter = itertools.count(start=0, step=1)
@@ -68,6 +71,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         self.alg_metrics.n_vertices_visited = (
             1  # Start with the target node in the visited subgraph
         )
+        self._visited_fd_vertices.add(self._graph.target_name)
 
     def run(self, animate_intermediate: bool = False, final_plot: bool = False):
         logger.info(
@@ -112,8 +116,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         else:
             self._alg_metrics.n_vertices_visited += 1
 
-        self._visited_vertices.add(node)
-        self._set_visited_vertices_and_edges(active_edges)
+        self._set_visited_vertices_and_edges(node, active_edges)
 
         edges = self._graph.outgoing_edges(node)
 
@@ -132,7 +135,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         else:
             for edge in edges:
                 neighbor_in_path = any(
-                    (e.u == edge.v or e.v == edge.v) for e in active_edges
+                    (u == edge.v or v == edge.v) for (u, v) in active_edges
                 )
                 if not neighbor_in_path:
                     self._explore_edge(edge, active_edges)
@@ -144,6 +147,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             self._alg_metrics.n_vertices_reexplored += 1
         else:
             self._alg_metrics.n_vertices_explored += 1
+        # logger.info(f"exploring edge {edge.u} -> {edge.v}")
         sol = self._cost_estimator.estimate_cost(
             self._visited,
             edge,
@@ -209,19 +213,37 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 and neighbor not in self._visited_vertices
             )
 
-    def _set_visited_vertices_and_edges(self, edge_keys):
+    def _set_visited_vertices_and_edges(self, vertex_name, edge_keys):
         """Also adds source and target regardless of whether they are in edges"""
-        self._visited = Graph(self._graph._default_costs_constraints)
-        vertex_list = [self._graph.target_name, self._graph.source_name]
+        self._visited_vertices.add(vertex_name)
+        vertices_to_add = set(
+            [self._graph.target_name, self._graph.source_name, vertex_name]
+        )
+        for (_, v) in edge_keys:
+            vertices_to_add.add(v)
 
-        for (u, v) in edge_keys:
-            vertex_list.append(v)
-        for v in vertex_list:
+        # Ignore cfree subgraph sets,
+        # Remove full dimensional sets if they aren't in the path
+        # Add all vertices that aren't already inside
+        for v in self._visited_fd_vertices.copy():
+            if v not in vertices_to_add:  # We don't want to have it so remove it
+                self._visited.remove_vertex(v)
+                self._visited_fd_vertices.remove(v)
+            else:  # We do want to have it but it's already in so don't need to add it
+                vertices_to_add.remove(v)
+
+        for v in vertices_to_add:
             self._visited.add_vertex(self._graph.vertices[v], v)
+            self._visited_fd_vertices.add(v)
+
         self._visited.set_source(self._graph.source_name)
         self._visited.set_target(self._graph.target_name)
+
+        # Add edges that aren't already in the visited subgraph.
         for edge_key in edge_keys:
-            self._visited.add_edge(self._graph.edges[edge_key])
+            if edge_key not in self._visited.edges:
+                self._visited.add_edge(self._graph.edges[edge_key])
+        logger.info(f"visited_fd_vertices: {self._visited_fd_vertices}")
 
     def plot_graph(self, path=None, current_edge=None, is_final_path=False):
         plt.title("GCS A*")
