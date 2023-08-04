@@ -64,6 +64,8 @@ class FactoredCollisionFreeCE(CostEstimator):
         # Add neighbor and edge temporarily to the visited subgraph
         subgraph.add_vertex(self._graph.vertices[neighbor], neighbor)
         subgraph.add_edge(edge)
+        conv_res_active_edges = active_edges + [edge.key]
+        subgraph.set_target(neighbor)
         # Check if this neighbor actually has an edge to the target
         # If so, add that edge instead of calculating the collision free cost
         neighbor_has_edge_to_target = (
@@ -75,25 +77,29 @@ class FactoredCollisionFreeCE(CostEstimator):
             subgraph.add_edge(edge_to_target)
             subgraph.set_target(self._graph.target_name)
             conv_res_active_edges = active_edges + [edge.key, edge_to_target.key]
-        elif not self._use_combined_gcs:
-            # set the neighbor as the target
-            subgraph.set_target(neighbor)
-            conv_res_active_edges = active_edges + [edge.key]
 
         if self._use_combined_gcs and not neighbor_has_edge_to_target:
-            if not self._are_cfree_graphs_in_subgraph(subgraph):
-                self._add_cfree_graphs_to_subgraph(subgraph)
-            self._connect_vertex_to_cfree_subgraphs(subgraph, neighbor)
             if solve_convex_restriction:
-                sol = subgraph.solve_factored_convex_restriction(
-                    active_edges + [edge.key], neighbor, self._cfree_target_names
-                )
+                # First do feasibility check with solve convex restriction
+                sol = subgraph.solve_convex_restriction(conv_res_active_edges)
+                if sol.is_success:
+                    self._alg_metrics.update_after_gcs_solve(sol.time)
+                    if not self._are_cfree_graphs_in_subgraph(subgraph):
+                        self._add_cfree_graphs_to_subgraph(subgraph)
+                    self._connect_vertex_to_cfree_subgraphs(subgraph, neighbor)
+                    sol = subgraph.solve_factored_convex_restriction(
+                        conv_res_active_edges, neighbor, self._cfree_target_names
+                    )
             else:
+                if not self._are_cfree_graphs_in_subgraph(subgraph):
+                    self._add_cfree_graphs_to_subgraph(subgraph)
+                self._connect_vertex_to_cfree_subgraphs(subgraph, neighbor)
                 sol = subgraph.solve_factored_shortest_path(
                     neighbor,
                     self._cfree_target_names,
                     use_convex_relaxation=use_convex_relaxation,
                 )
+
         else:
             if solve_convex_restriction:
                 sol = subgraph.solve_convex_restriction(conv_res_active_edges)
