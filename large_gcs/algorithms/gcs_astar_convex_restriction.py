@@ -80,6 +80,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             # Check for termination condition
             curr = self._pq[0][2]
             if (
+                # self._candidate_sol is not None # Early termination
                 self._graph.target_name
                 in [e.v for e in self._graph.outgoing_edges(curr)]
                 and (curr, self._graph.target_name) not in self._infeasible_edges
@@ -179,8 +180,19 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 if (neighbor, self._graph.target_name) in self._graph.edges:
                     if self._candidate_sol is None:
                         self._candidate_sol = sol
+                        logger.info(
+                            f"First time candidate sol is set through {neighbor} with cost {new_dist}"
+                        )
+
                     elif sol.cost < self._candidate_sol.cost:
                         self._candidate_sol = sol
+                        logger.info(
+                            f"New candidate sol is set through {neighbor} with cost {new_dist}"
+                        )
+            elif (neighbor, self._graph.target_name) in self._graph.edges:
+                logger.info(
+                    f"{neighbor} has edge to target, and solved, but cost {new_dist} is higher than current candidate sol"
+                )
 
         else:
             self._infeasible_edges.add((edge.u, edge.v))

@@ -38,7 +38,10 @@ class FactoredCollisionFreeCE(CostEstimator):
                 body,
                 self._graph.obstacles,
                 self._graph.target_pos[i],
-                self._graph.workspace,
+                cost_scaling=1.0
+                if body.mobility_type == MobilityType.ACTUATED
+                else self._obj_multiplier,
+                workspace=self._graph.workspace,
             )
             for i, body in tqdm(enumerate(self._graph.objects + self._graph.robots))
         ]
@@ -69,12 +72,15 @@ class FactoredCollisionFreeCE(CostEstimator):
             self._graph.target_name,
         ) in self._graph.edges
         if neighbor_has_edge_to_target:
+            # print(f"neighbor {neighbor} has edge to target")
             edge_to_target = self._graph.edges[(neighbor, self._graph.target_name)]
             subgraph.add_edge(edge_to_target)
             subgraph.set_target(self._graph.target_name)
+            conv_res_active_edges = active_edges + [edge.key, edge_to_target.key]
         elif not self._use_combined_gcs:
             # set the neighbor as the target
             subgraph.set_target(neighbor)
+            conv_res_active_edges = active_edges + [edge.key]
 
         if self._use_combined_gcs and not neighbor_has_edge_to_target:
             if not self._are_cfree_graphs_in_subgraph(subgraph):
@@ -92,7 +98,7 @@ class FactoredCollisionFreeCE(CostEstimator):
                 )
         else:
             if solve_convex_restriction:
-                sol = subgraph.solve_convex_restriction(subgraph.edges.values())
+                sol = subgraph.solve_convex_restriction(conv_res_active_edges)
             else:
                 sol = subgraph.solve_shortest_path(
                     use_convex_relaxation=use_convex_relaxation

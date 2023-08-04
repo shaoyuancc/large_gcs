@@ -366,10 +366,10 @@ class Graph:
         return sol
 
     def solve_convex_restriction(
-        self, active_edges: List[Edge]
+        self, active_edges: List[Tuple[str, str]]
     ) -> ShortestPathSolution:
 
-        gcs_edges = [edge.gcs_edge for edge in active_edges]
+        gcs_edges = [self.edges[edge_key].gcs_edge for edge_key in active_edges]
         result = self._gcs.SolveConvexRestriction(
             gcs_edges,
             self._gcs_options_wo_relaxation,
@@ -459,7 +459,7 @@ class Graph:
         )
 
     def _parse_convex_restriction_result(
-        self, result: MathematicalProgramResult, active_edges: List[Edge]
+        self, result: MathematicalProgramResult, active_edges: List[Tuple[str, str]]
     ) -> ShortestPathSolution:
         cost = result.get_optimal_cost()
         time = result.get_solver_details().optimizer_time
@@ -468,9 +468,8 @@ class Graph:
         ambient_path = []
         flows = []
         if result.is_success():
-            edge_path = [(e.u, e.v) for e in active_edges]
             vertex_path = self._convert_active_edges_to_vertex_path(
-                self.source_name, self.target_name, edge_path
+                self.source_name, self.target_name, active_edges
             )
             ambient_path = [
                 result.GetSolution(self.vertices[v].gcs_vertex.x()) for v in vertex_path

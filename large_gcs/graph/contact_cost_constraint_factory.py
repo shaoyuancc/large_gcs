@@ -163,12 +163,14 @@ def contact_shortcut_edge_cost_factory_over_obj_weighted(
 ### VERTEX COST CREATION ###
 
 
-def vertex_cost_position_path_length(vars: ContactSetDecisionVariables) -> L2NormCost:
+def vertex_cost_position_path_length(
+    vars: ContactSetDecisionVariables, scaling: float = 1.0
+) -> L2NormCost:
     """Creates a vertex cost that penalizes the length of the path in position space.
     vars.pos has shape (Euclidean/base dim, num positions/pos order per set)
     So to get the path length we need to diff over the second axis.
     """
-    exprs = np.diff(vars.pos).flatten()
+    exprs = np.diff(vars.pos).flatten() * scaling
     A = DecomposeLinearExpressions(exprs, vars.all)
     b = np.zeros(A.shape[0])
     # print(f"vertex_cost_position_path_length A: {A}")

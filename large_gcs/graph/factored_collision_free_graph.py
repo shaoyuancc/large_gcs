@@ -11,6 +11,9 @@ from tqdm import tqdm
 from large_gcs.contact.contact_pair_mode import generate_contact_pair_modes
 from large_gcs.contact.contact_set import ContactPointSet, ContactSet
 from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
+from large_gcs.graph.contact_cost_constraint_factory import (
+    vertex_cost_position_path_length,
+)
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.graph import Graph, ShortestPathSolution
 
@@ -23,10 +26,11 @@ class FactoredCollisionFreeGraph(ContactGraph):
         movable_body: RigidBody,
         static_obstacles: List[RigidBody],
         target_pos: np.ndarray,
+        cost_scaling: float = 1.0,
         workspace: np.ndarray = None,
     ):
         Graph.__init__(self, workspace=workspace)
-
+        self._cost_scaling = cost_scaling
         self.movable_body = movable_body
         self.obstacles = []
         self.objects = []
@@ -82,6 +86,18 @@ class FactoredCollisionFreeGraph(ContactGraph):
         logger.info(
             f"Created factored collision free graph for {movable_body.name}: {self.params}"
         )
+
+    def _create_vertex_costs(self, sets: List[ContactSet]) -> List[List[Cost]]:
+        logger.info("Creating vertex costs for factored_collision_free_graph...")
+        costs = [
+            [
+                vertex_cost_position_path_length(set.vars, self._cost_scaling),
+            ]
+            if not isinstance(set, ContactPointSet)
+            else []
+            for set in tqdm(sets)
+        ]
+        return costs
 
     def _generate_contact_sets(self) -> Tuple[List[ContactSet], List[str]]:
         body_dict = {
