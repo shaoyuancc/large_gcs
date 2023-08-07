@@ -87,7 +87,7 @@ class FactoredCollisionFreeCE(CostEstimator):
                     if not self._are_cfree_graphs_in_subgraph(subgraph):
                         self._add_cfree_graphs_to_subgraph(subgraph)
                     self._connect_vertex_to_cfree_subgraphs(subgraph, neighbor)
-                    sol = subgraph.solve_factored_convex_restriction(
+                    sol = subgraph.solve_factored_partial_convex_restriction(
                         conv_res_active_edges, neighbor, self._cfree_target_names
                     )
             else:

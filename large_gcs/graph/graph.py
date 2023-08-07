@@ -391,7 +391,9 @@ class Graph:
             self.vertices[self._source_name].gcs_vertex,
             self.vertices[transition].gcs_vertex,
             [self.vertices[target].gcs_vertex for target in targets],
-            # self._gcs_options_convex_relaxation if use_convex_relaxation else self._gcs_options_wo_relaxation,
+            self._gcs_options_convex_relaxation
+            if use_convex_relaxation
+            else self._gcs_options_wo_relaxation,
         )
 
         sol = self._parse_factored_result(result, transition, targets)
@@ -401,23 +403,38 @@ class Graph:
 
         return sol
 
-    def solve_factored_convex_restriction(
+    def solve_factored_partial_convex_restriction(
         self, active_edges: List[Tuple[str, str]], transition: str, targets: List[str]
     ) -> ShortestPathSolution:
-        # for e in active_edges:
-        #     print(f"gcs edge {(e.u, e.v)} in edges: {e.gcs_edge in self._gcs.Edges()}")
-        # result = self._gcs.SolveFactoredConvexRestriction(
-        # [self.edges[edge_key].gcs_edge for edge_key in active_edges],
-        #     self.vertices[transition].gcs_vertex,
-        #     [self.vertices[target].gcs_vertex for target in targets],
-        #     # self._gcs_options_convex_relaxation,
-        # )
-        result = self._gcs.SolveFactoredShortestPath(
-            self.vertices[self._source_name].gcs_vertex,
+        logger.info(
+            f"active edges: {[self.edges[edge_key].gcs_edge.id() for edge_key in active_edges]}"
+        )
+        gcs_edges = self._gcs.Edges()
+        logger.info(
+            f"active edges in gcs edges: {[self.edges[edge_key].gcs_edge in gcs_edges for edge_key in active_edges]}"
+        )
+        logger.info(f"transition: {self.vertices[transition].gcs_vertex.id()}")
+        logger.info(
+            f"transition in gcs vertices: {self.vertices[transition].gcs_vertex in self._gcs.Vertices()}"
+        )
+        logger.info(
+            f"targets: {[self.vertices[target].gcs_vertex.id() for target in targets]}"
+        )
+        logger.info(
+            f"targets in gcs vertices: {[self.vertices[target].gcs_vertex in self._gcs.Vertices() for target in targets]}"
+        )
+        result = self._gcs.SolveFactoredPartialConvexRestriction(
+            [self.edges[edge_key].gcs_edge for edge_key in active_edges],
             self.vertices[transition].gcs_vertex,
             [self.vertices[target].gcs_vertex for target in targets],
-            # self._gcs_options_convex_relaxation if use_convex_relaxation else self._gcs_options_wo_relaxation,
+            # self._gcs_options_wo_relaxation,
         )
+        # result = self._gcs.SolveFactoredShortestPath(
+        #     self.vertices[self._source_name].gcs_vertex,
+        #     self.vertices[transition].gcs_vertex,
+        #     [self.vertices[target].gcs_vertex for target in targets],
+        #     # self._gcs_options_convex_relaxation if use_convex_relaxation else self._gcs_options_wo_relaxation,
+        # )
 
         sol = self._parse_factored_result(result, transition, targets)
 
