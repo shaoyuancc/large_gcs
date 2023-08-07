@@ -406,23 +406,6 @@ class Graph:
     def solve_factored_partial_convex_restriction(
         self, active_edges: List[Tuple[str, str]], transition: str, targets: List[str]
     ) -> ShortestPathSolution:
-        logger.info(
-            f"active edges: {[self.edges[edge_key].gcs_edge.id() for edge_key in active_edges]}"
-        )
-        gcs_edges = self._gcs.Edges()
-        logger.info(
-            f"active edges in gcs edges: {[self.edges[edge_key].gcs_edge in gcs_edges for edge_key in active_edges]}"
-        )
-        logger.info(f"transition: {self.vertices[transition].gcs_vertex.id()}")
-        logger.info(
-            f"transition in gcs vertices: {self.vertices[transition].gcs_vertex in self._gcs.Vertices()}"
-        )
-        logger.info(
-            f"targets: {[self.vertices[target].gcs_vertex.id() for target in targets]}"
-        )
-        logger.info(
-            f"targets in gcs vertices: {[self.vertices[target].gcs_vertex in self._gcs.Vertices() for target in targets]}"
-        )
         result = self._gcs.SolveFactoredPartialConvexRestriction(
             [self.edges[edge_key].gcs_edge for edge_key in active_edges],
             self.vertices[transition].gcs_vertex,
