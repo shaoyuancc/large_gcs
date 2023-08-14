@@ -3,9 +3,10 @@ defaults:
   - cost_estimator: factored_collision_free #shortcut_edge
   - hydra: hydra
 
-graph_name: "cg_maze_a1"
+graph_name: "cg_maze_a2"
 cost_estimator:
   obj_multiplier: 100
+  use_combined_gcs: false
 #   shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted"
 algorithm:
   reexplore_level: 'NONE'

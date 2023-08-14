@@ -267,4 +267,7 @@ class FactoredCollisionFreeCE(CostEstimator):
 
     @property
     def finger_print(self) -> str:
-        return f"FactoredCollisionFreeCE-add_transition_cost-{self._should_add_transition_cost}"
+        base = f"FactoredCollisionFreeCE-use_combined_gcs-{self._use_combined_gcs}-obj_mult-{self._obj_multiplier}"
+        if not self._use_combined_gcs:
+            return f"{base}-add_transition_cost-{self._should_add_transition_cost}"
+        return base
