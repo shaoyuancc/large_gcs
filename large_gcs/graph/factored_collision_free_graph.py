@@ -8,7 +8,7 @@ import numpy as np
 from pydrake.all import Constraint, Cost, Expression, GraphOfConvexSets, eq
 from tqdm import tqdm
 
-from large_gcs.contact.contact_pair_mode import generate_contact_pair_modes
+from large_gcs.contact.contact_pair_mode import generate_cfree_contact_pair_modes
 from large_gcs.contact.contact_set import ContactPointSet, ContactSet
 from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
 from large_gcs.graph.contact_cost_constraint_factory import (
@@ -107,7 +107,7 @@ class FactoredCollisionFreeGraph(ContactGraph):
 
         rigid_body_pairs = list(product(obs_names, [self.movable_body.name]))
         body_pair_to_modes = {
-            (body1, body2): generate_contact_pair_modes(
+            (body1, body2): generate_cfree_contact_pair_modes(
                 body_dict[body1], body_dict[body2]
             )
             for body1, body2 in rigid_body_pairs

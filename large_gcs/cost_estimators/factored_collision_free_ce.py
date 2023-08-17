@@ -64,6 +64,8 @@ class FactoredCollisionFreeCE(CostEstimator):
         # Add neighbor and edge temporarily to the visited subgraph
         subgraph.add_vertex(self._graph.vertices[neighbor], neighbor)
         subgraph.add_edge(edge)
+        if active_edges is None:
+            active_edges = []
         conv_res_active_edges = active_edges + [edge.key]
         subgraph.set_target(neighbor)
         # Check if this neighbor actually has an edge to the target
@@ -143,7 +145,9 @@ class FactoredCollisionFreeCE(CostEstimator):
         self, subgraph: Graph, vertex_name: str
     ) -> None:
         # Add outgoing edges from transition vertex
-        for i, cfree_vertex_name in enumerate(self.split_vertex_names(vertex_name)):
+        for i, cfree_vertex_name in enumerate(
+            self.convert_to_cfree_vertex_names(vertex_name)
+        ):
             continuity_con = edge_constraint_position_continuity_factored(
                 body_index=i,
                 u_vars=subgraph.vertices[vertex_name].convex_set.vars,
@@ -164,7 +168,9 @@ class FactoredCollisionFreeCE(CostEstimator):
 
         # Calculate or look up the collision free cost for each body
         cfree_cost = 0
-        for i, cfree_vertex_name in enumerate(self.split_vertex_names(neighbor)):
+        for i, cfree_vertex_name in enumerate(
+            self.convert_to_cfree_vertex_names(neighbor)
+        ):
             body_pos_end = x_pos[i].T[-1].flatten()
             g = self._cfree_graphs[i]
             if cfree_vertex_name in self._cfree_cost:
@@ -232,7 +238,7 @@ class FactoredCollisionFreeCE(CostEstimator):
             return None
 
     @staticmethod
-    def split_vertex_names(vertex_name: str):
+    def convert_to_cfree_vertex_names(vertex_name: str):
         # Convert string representation of tuple to actual tuple
         tuple_vertex = ast.literal_eval(vertex_name)
 
@@ -244,6 +250,11 @@ class FactoredCollisionFreeCE(CostEstimator):
             # Check if mode contains both obj and rob
             if "obj" in mode and "rob" in mode:
                 continue
+
+            # Convert IC modes that are wrt obs faces to NC modes
+            # Note: IC modes wrt obs vertices won't have equivalent NC modes
+            if re.fullmatch(r"IC\|obs\d+_f\d+-(.+)", mode):
+                mode = mode.replace("IC|", "NC|")
 
             # Extract the entity number from the mode string
             entity_num = FactoredCollisionFreeCE._find_obj_rob_numbers(mode)

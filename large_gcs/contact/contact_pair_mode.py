@@ -521,6 +521,31 @@ def generate_contact_pair_modes(
         return in_contact_pair_modes + no_contact_pair_modes
 
 
+def generate_cfree_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):
+
+    # No contact relative to body_a
+    no_contact_pair_modes = generate_no_contact_pair_modes(body_a=body_a, body_b=body_b)
+
+    in_contact_pair_modes = []
+    # Vertex-face contact
+    for index_a, index_b in itertools.product(
+        range(body_a.n_vertices), range(body_b.n_faces)
+    ):
+        vertex_a = ContactLocationVertex(body=body_a, index=index_a)
+        face_b = ContactLocationFace(body=body_b, index=index_b)
+        if is_possible_face_vertex_contact(face_b, vertex_a):
+            in_contact_pair_modes.append(
+                InContactPairMode(
+                    body_a=body_a,
+                    body_b=body_b,
+                    contact_location_a=vertex_a,
+                    contact_location_b=face_b,
+                )
+            )
+
+    return in_contact_pair_modes + no_contact_pair_modes
+
+
 def generate_in_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):
     contact_pair_modes = []
     # Face-face contact

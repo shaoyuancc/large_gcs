@@ -311,7 +311,7 @@ class Graph:
             self.add_edge(Edge(u, v, cost_list, constraint_list))
 
     def set_source(self, vertex_name: str):
-        assert vertex_name in self.vertices
+        assert vertex_name in self.vertices, f"{vertex_name} not in graph vertices"
         self._source_name = vertex_name
 
     def set_target(self, vertex_name: str):
