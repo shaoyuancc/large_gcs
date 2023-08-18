@@ -2,17 +2,13 @@ from dataclasses import dataclass
 from typing import List
 
 import numpy as np
-from pydrake.all import DecomposeAffineExpressions, Formula, FormulaKind, HPolyhedron
+from pydrake.all import Formula
 from pydrake.all import Point as DrakePoint
-from pydrake.all import Variables, le
 
-from large_gcs.contact.contact_pair_mode import (
-    ContactPairMode,
-    InContactPairMode,
-    NoContactPairMode,
-)
+from large_gcs.contact.contact_pair_mode import ContactPairMode, InContactPairMode
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.convex_set import ConvexSet
+from large_gcs.geometry.geometry_utils import HPolyhedronFromConstraints
 
 
 @dataclass
@@ -71,9 +67,7 @@ class ContactSetDecisionVariables:
             )
         )
         # Extract the first point in n_pos_points_per_set
-        base_all = np.array(
-            [body.vars_pos[:, 0] for body in objects + robots]
-        ).flatten()
+        base_all = np.array([body.vars_base_pos for body in objects + robots]).flatten()
 
         return cls(pos, force_res, force_act, force_mag_AB, force_mag_BA, all, base_all)
 
@@ -88,8 +82,8 @@ class ContactSetDecisionVariables:
         )
 
     @classmethod
-    def from_pos_singleton(cls, objects, robots):
-        pos = np.array([body.vars_pos[:, 0] for body in objects + robots])
+    def from_objs_robs(cls, objects, robots):
+        pos = np.array([body.vars_base_pos for body in objects + robots])
         pos = pos[:, :, np.newaxis]
         empty = np.array([])
         return cls(pos, empty, empty, empty, empty, pos.flatten(), pos.flatten())
@@ -108,7 +102,7 @@ class ContactPointSet(ConvexSet):
         assert len(robots) == len(robot_positions)
         positions = np.array(object_positions + robot_positions)
 
-        self.vars = ContactSetDecisionVariables.from_pos_singleton(objects, robots)
+        self.vars = ContactSetDecisionVariables.from_objs_robs(objects, robots)
         self._point = DrakePoint(positions.flatten())
 
         self._id = id
@@ -157,12 +151,12 @@ class ContactSet(ConvexSet):
         ]
         if additional_constraints is not None:
             self.constraint_formulas.extend(additional_constraints)
-        self._polyhedron = self._construct_polyhedron_from_constraints(
+        self._polyhedron = HPolyhedronFromConstraints(
             self.constraint_formulas,
             self.vars.all,
             remove_constraints_not_in_vars=remove_constraints_not_in_vars,
         )
-        self._base_polyhedron = self._construct_polyhedron_from_constraints(
+        self._base_polyhedron = HPolyhedronFromConstraints(
             self.base_constraint_formulas,
             self.vars.base_all,
             remove_constraints_not_in_vars=remove_constraints_not_in_vars,
@@ -196,75 +190,6 @@ class ContactSet(ConvexSet):
     ):
         vars = ContactSetDecisionVariables.from_factored_collision_free_body(body)
         return cls(vars, contact_pair_modes, additional_constraints, True)
-
-    def _construct_polyhedron_from_constraints(
-        self,
-        constraints: List[Formula],
-        variables: np.ndarray,
-        make_bounded: bool = True,
-        remove_constraints_not_in_vars: bool = False,
-        BOUND: float = 1000.0,
-    ):
-        """
-        Construct a polyhedron from a list of constraint formulas.
-        Args:
-            constraints: array of constraint formulas.
-            variables: array of variables.
-        """
-        if make_bounded:
-            ub = np.ones(variables.shape) * BOUND
-            upper_limits = le(variables, ub)
-            lower_limits = le(-ub, variables)
-            limits = np.concatenate((upper_limits, lower_limits))
-            constraints = np.append(constraints, limits)
-
-        expressions = []
-        # print(f"Constructing polyhedron for set {self.id}")
-        # print(f"variables: {variables}")
-        for formula in constraints:
-            # print(formula)
-            kind = formula.get_kind()
-            lhs, rhs = formula.Unapply()[1]
-            if kind == FormulaKind.Eq:
-                # Eq constraint ax = b is
-                # implemented as ax ≤ b, -ax <= -b
-                expressions.append(lhs - rhs)
-                expressions.append(rhs - lhs)
-            elif kind == FormulaKind.Geq:
-                # lhs >= rhs
-                # ==> rhs - lhs ≤ 0
-                expressions.append(rhs - lhs)
-            elif kind == FormulaKind.Leq:
-                # lhs ≤ rhs
-                # ==> lhs - rhs ≤ 0
-                expressions.append(lhs - rhs)
-            else:
-                raise NotImplementedError("Type of constraint formula not implemented")
-
-        if remove_constraints_not_in_vars:
-
-            def check_all_vars_are_relevant(exp):
-                return all(
-                    [
-                        exp_var
-                        in Variables(
-                            variables
-                        )  # Need to convert this to Variables to check contents
-                        for exp_var in exp.GetVariables()
-                    ]
-                )
-
-            expressions = list(filter(check_all_vars_are_relevant, expressions))
-
-        # We now have expr ≤ 0 for all expressions
-        # ==> we get Ax - b ≤ 0
-        A, b_neg = DecomposeAffineExpressions(expressions, variables)
-
-        # Polyhedrons are of the form: Ax <= b
-        b = -b_neg
-        polyhedron = HPolyhedron(A, b)
-
-        return polyhedron
 
     @property
     def id(self):

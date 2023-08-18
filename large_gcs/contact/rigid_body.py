@@ -128,6 +128,10 @@ class RigidBody:
             self.name, self.geometry.vertices, self.mobility_type, self.n_pos_points
         )
 
+    @property
+    def vars_base_pos(self):
+        return self.vars_pos[:, 0]
+
     def plot(self):
         plt.rc("axes", axisbelow=True)
         plt.gca().set_aspect("equal")

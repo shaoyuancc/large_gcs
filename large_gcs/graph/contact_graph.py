@@ -16,8 +16,10 @@ from large_gcs.contact.contact_pair_mode import (
     InContactPairMode,
     generate_contact_pair_modes,
 )
+from large_gcs.contact.contact_regions_set import ContactRegionParams, ContactRegionsSet
 from large_gcs.contact.contact_set import ContactPointSet, ContactSet
 from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
+from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.contact_cost_constraint_factory import (
     edge_constraint_position_continuity,
     edge_cost_constant,
@@ -46,8 +48,9 @@ class ContactGraph(Graph):
         actuated_robots: List[RigidBody],
         source_pos_objs: List[np.ndarray],
         source_pos_robs: List[np.ndarray],
-        target_pos_objs: List[np.ndarray],
-        target_pos_robs: List[np.ndarray],
+        target_pos_objs: List[np.ndarray] = None,
+        target_pos_robs: List[np.ndarray] = None,
+        target_region_params: List[ContactRegionParams] = None,
         workspace: np.ndarray = None,
         vertex_exclusion: List[str] = None,
         vertex_inclusion: List[str] = None,
@@ -69,6 +72,9 @@ class ContactGraph(Graph):
         self.obstacles = None
         self.objects = None
         self.robots = None
+        self.target_pos = None
+        self.target_region_params = None
+        self.target_regions = None
 
         for thing in static_obstacles:
             assert (
@@ -86,20 +92,43 @@ class ContactGraph(Graph):
         self.objects = unactuated_objects
         self.robots = actuated_robots
 
-        self.source_pos = source_pos_objs + source_pos_robs
-        self.target_pos = target_pos_objs + target_pos_robs
         sets, set_ids = self._generate_contact_sets(
             contact_pair_modes, contact_set_mode_ids, vertex_exclusion, vertex_inclusion
         )
+        self.source_pos = source_pos_objs + source_pos_robs
 
         sets += [
             ContactPointSet(
                 "source", self.objects, self.robots, source_pos_objs, source_pos_robs
-            ),
-            ContactPointSet(
-                "target", self.objects, self.robots, target_pos_objs, target_pos_robs
-            ),
+            )
         ]
+
+        if target_pos_objs is not None and target_pos_robs is not None:
+            self.target_pos = target_pos_objs + target_pos_robs
+            sets += [
+                ContactPointSet(
+                    "target",
+                    self.objects,
+                    self.robots,
+                    target_pos_objs,
+                    target_pos_robs,
+                ),
+            ]
+        elif target_region_params is not None:
+
+            self.target_region_params = target_region_params
+            self.target_regions = [
+                Polyhedron.from_vertices(params.region_vertices)
+                for params in target_region_params
+            ]
+            sets.append(
+                ContactRegionsSet(
+                    self.objects, self.robots, target_region_params, "target"
+                )
+            )
+        else:
+            raise ValueError("Must specify either target_pos or target_regions")
+
         set_ids += ["source", "target"]
 
         # Add convex sets to graph (Need to do this before generating edges)
@@ -137,7 +166,7 @@ class ContactGraph(Graph):
                 vertex_cost_position_path_length(set.vars),
                 # vertex_cost_force_actuation_norm(set.vars),
             ]
-            if not isinstance(set, ContactPointSet)
+            if isinstance(set, ContactSet)
             else []
             for set in tqdm(sets)
         ]
@@ -444,6 +473,9 @@ class ContactGraph(Graph):
                 self.target_pos,
             ):
                 body.plot_at_position(pos=pos, color=BodyColor["target"])
+        elif self.target_region_params is not None:
+            for region in self.target_regions:
+                region.plot(color=BodyColor["target"], alpha=0.2)
 
     def plot_samples_in_set(self, set_name: str, n_samples: int = 100, **kwargs):
         """Plots a single set"""
@@ -644,6 +676,12 @@ class ContactGraph(Graph):
     ### SERIALIZATION METHODS ###
 
     def save_to_file(self, path: str):
+        if self.target_pos is None:
+            target_pos_objs = None
+            target_pos_robs = None
+        else:
+            target_pos_objs = self.target_pos[: self.n_objects]
+            target_pos_robs = self.target_pos[self.n_objects :]
         np.save(
             path,
             {
@@ -652,8 +690,9 @@ class ContactGraph(Graph):
                 "robs_params": [rob.params for rob in self.robots],
                 "source_pos_objs": self.source_pos[: self.n_objects],
                 "source_pos_robs": self.source_pos[self.n_objects :],
-                "target_pos_objs": self.target_pos[: self.n_objects],
-                "target_pos_robs": self.target_pos[self.n_objects :],
+                "target_pos_objs": target_pos_objs,
+                "target_pos_robs": target_pos_robs,
+                "target_region_params": self.target_region_params,
                 "workspace": self.workspace,
                 "vertex_exclusion": self.vertex_exclusion,
                 "vertex_inclusion": self.vertex_inclusion,
@@ -698,19 +737,20 @@ class ContactGraph(Graph):
             vertex_exclusion = data["vertex_exclusion"]
 
         cg = cls(
-            obs,
-            objs,
-            robs,
-            data["source_pos_objs"],
-            data["source_pos_robs"],
-            data["target_pos_objs"],
-            data["target_pos_robs"],
-            data["workspace"],
-            vertex_exclusion,
-            vertex_inclusion,
-            contact_pair_modes,
-            data["contact_set_mode_ids"],
-            data["edge_keys"],
+            static_obstacles=obs,
+            unactuated_objects=objs,
+            actuated_robots=robs,
+            source_pos_objs=data["source_pos_objs"],
+            source_pos_robs=data["source_pos_robs"],
+            target_pos_objs=data["target_pos_objs"],
+            target_pos_robs=data["target_pos_robs"],
+            target_region_params=data["target_region_params"],
+            workspace=data["workspace"],
+            vertex_exclusion=vertex_exclusion,
+            vertex_inclusion=vertex_inclusion,
+            contact_pair_modes=contact_pair_modes,
+            contact_set_mode_ids=data["contact_set_mode_ids"],
+            edge_keys=data["edge_keys"],
         )
         return cg
 
@@ -720,7 +760,10 @@ class ContactGraph(Graph):
     def params(self):
         params = super().params
         params.source = self.source_pos
-        params.target = self.target_pos
+        if self.target_pos is not None:
+            params.target = self.target_pos
+        else:
+            params.target = "regions"
         return params
 
     @property

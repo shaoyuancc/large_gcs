@@ -48,7 +48,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         self._cost_estimator.set_alg_metrics(self._alg_metrics)
         self._candidate_sol = None
         self._pq = []
-        self._infeasible_edges = set()
+        self._feasible_edges = set()
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
         # Accounting of the full dimensional vertices in the visited subgraph
@@ -87,7 +87,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 # self._candidate_sol is not None # Early termination
                 self._graph.target_name
                 in [e.v for e in self._graph.outgoing_edges(curr)]
-                and (curr, self._graph.target_name) not in self._infeasible_edges
+                and (curr, self._graph.target_name) in self._feasible_edges
             ):
                 sol = self._candidate_sol
                 self._graph._post_solve(sol)
@@ -130,14 +130,17 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
         if self._reexplore_level == ReexploreLevel.NONE:
             for edge in edges:
-                if edge.v not in self._visited_vertices:
+                if (
+                    edge.v not in self._visited_vertices
+                    and edge.v != self._graph.target_name
+                ):
                     self._explore_edge(edge, active_edges)
         else:
             for edge in edges:
                 neighbor_in_path = any(
                     (u == edge.v or v == edge.v) for (u, v) in active_edges
                 )
-                if not neighbor_in_path:
+                if not neighbor_in_path and edge.v != self._graph.target_name:
                     self._explore_edge(edge, active_edges)
 
     def _explore_edge(self, edge: Edge, active_edges: List[Tuple[str, str]]):
@@ -198,8 +201,8 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                     f"{neighbor} has edge to target, and solved, but cost {new_dist} is higher than current candidate sol"
                 )
 
+            self._feasible_edges.add((edge.u, edge.v))
         else:
-            self._infeasible_edges.add((edge.u, edge.v))
             logger.debug(f"edge {edge.u} -> {edge.v} not actually feasible")
 
     def _should_add_to_pq(self, neighbor, new_dist):

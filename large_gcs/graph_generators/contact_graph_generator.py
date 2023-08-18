@@ -5,6 +5,7 @@ from typing import List
 import matplotlib.pyplot as plt
 import numpy as np
 
+from large_gcs.contact.contact_regions_set import ContactRegionParams
 from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.contact_graph import ContactGraph
@@ -18,10 +19,11 @@ class ContactGraphGeneratorParams:
     rob_vertices: List
     source_obj_pos: List
     source_rob_pos: List
-    target_obj_pos: List
-    target_rob_pos: List
     n_pos_per_set: int
     workspace: List
+    target_obj_pos: List = None
+    target_rob_pos: List = None
+    target_region_params: List[ContactRegionParams] = None
 
     def __post_init__(self):
         self.obs_vertices = np.array(self.obs_vertices)
@@ -29,8 +31,7 @@ class ContactGraphGeneratorParams:
         self.rob_vertices = np.array(self.rob_vertices)
         self.source_obj_pos = np.array(self.source_obj_pos)
         self.source_rob_pos = np.array(self.source_rob_pos)
-        self.target_obj_pos = np.array(self.target_obj_pos)
-        self.target_rob_pos = np.array(self.target_rob_pos)
+
         self.workspace = np.array(self.workspace)
 
         body_dims = set()
@@ -42,23 +43,27 @@ class ContactGraphGeneratorParams:
             body_dims.add(self.rob_vertices.shape[2])
         assert len(body_dims) == 1, "All bodies must have same dimension"
         n_dim = body_dims.pop()
-        assert (
-            self.source_obj_pos.shape
-            == self.target_obj_pos.shape
-            == (self.obj_vertices.shape[0], n_dim)
-        )
-        assert (
-            self.source_rob_pos.shape
-            == self.target_rob_pos.shape
-            == (self.rob_vertices.shape[0], n_dim)
-        )
+        if self.target_obj_pos is not None:
+            self.target_obj_pos = np.array(self.target_obj_pos)
+            assert (
+                self.source_obj_pos.shape
+                == self.target_obj_pos.shape
+                == (self.obj_vertices.shape[0], n_dim)
+            )
+            self.target_obj_pos = list(self.target_obj_pos)
+        if self.target_rob_pos is not None:
+            self.target_rob_pos = np.array(self.target_rob_pos)
+            assert (
+                self.source_rob_pos.shape
+                == self.target_rob_pos.shape
+                == (self.rob_vertices.shape[0], n_dim)
+            )
+            self.target_rob_pos = list(self.target_rob_pos)
         assert self.n_pos_per_set > 1, "Need at least 2 positions per set"
         assert self.workspace.shape == (n_dim, 2)
 
         self.source_obj_pos = list(self.source_obj_pos)
         self.source_rob_pos = list(self.source_rob_pos)
-        self.target_obj_pos = list(self.target_obj_pos)
-        self.target_rob_pos = list(self.target_rob_pos)
 
     @property
     def graph_file_path(self):
@@ -105,13 +110,14 @@ class ContactGraphGenerator:
 
     def generate(self) -> ContactGraph:
         contact_graph = ContactGraph(
-            self._obs,
-            self._objs,
-            self._robs,
-            self._params.source_obj_pos,
-            self._params.source_rob_pos,
-            self._params.target_obj_pos,
-            self._params.target_rob_pos,
+            static_obstacles=self._obs,
+            unactuated_objects=self._objs,
+            actuated_robots=self._robs,
+            source_pos_objs=self._params.source_obj_pos,
+            source_pos_robs=self._params.source_rob_pos,
+            target_pos_objs=self._params.target_obj_pos,
+            target_pos_robs=self._params.target_rob_pos,
+            target_region_params=self._params.target_region_params,
             workspace=self._params.workspace,
             vertex_exclusion=None,
             vertex_inclusion=None,
@@ -134,8 +140,16 @@ class ContactGraphGenerator:
             body.plot_at_position(
                 pos=pos, label_vertices_faces=True, color=BodyColor["robot"]
             )
-        for body, pos in zip(
-            self._objs + self._robs,
-            self._params.target_obj_pos + self._params.target_rob_pos,
+        if self._params.target_region_params is not None:
+            for params in self._params.target_region_params:
+                region = Polyhedron.from_vertices(params.region_vertices)
+                region.plot(color=BodyColor["target"], alpha=0.3)
+        elif (
+            self._params.target_obj_pos is not None
+            and self._params.target_rob_pos is not None
         ):
-            body.plot_at_position(pos=pos, color=BodyColor["target"])
+            for body, pos in zip(
+                self._objs + self._robs,
+                self._params.target_obj_pos + self._params.target_rob_pos,
+            ):
+                body.plot_at_position(pos=pos, color=BodyColor["target"])
