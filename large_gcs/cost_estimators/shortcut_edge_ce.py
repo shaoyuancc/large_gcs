@@ -34,13 +34,11 @@ class ShortcutEdgeCE(CostEstimator):
         """Right now this function is unideally coupled because it returns a shortest path solution instead of just the cost."""
 
         neighbor = edge.v
-        # Add neighbor and edge temporarily to the visited subgraph
-        subgraph.add_vertex(self._graph.vertices[neighbor], neighbor)
-        # Check if this neighbor actually has an edge to the target
-        # If so, add that edge instead of the shortcut
-        if (neighbor, self._graph.target_name) in self._graph.edges:
-            edge_to_target = self._graph.edges[(neighbor, self._graph.target_name)]
-        else:
+
+        # Check if this neighbor is the target to see if shortcut edge is required
+        if neighbor != self._graph.target_name:
+            # Add neighbor and edge temporarily to the visited subgraph
+            subgraph.add_vertex(self._graph.vertices[neighbor], neighbor)
             # Add an edge from the neighbor to the target
             direct_edge_costs = None
             if self._shortcut_edge_cost_factory:
@@ -53,8 +51,8 @@ class ShortcutEdgeCE(CostEstimator):
             edge_to_target = Edge(
                 neighbor, self._graph.target_name, costs=direct_edge_costs
             )
+            subgraph.add_edge(edge_to_target)
         subgraph.add_edge(edge)
-        subgraph.add_edge(edge_to_target)
 
         if solve_convex_restriction:
             sol = subgraph.solve_convex_restriction(subgraph.edges.keys())
@@ -66,7 +64,8 @@ class ShortcutEdgeCE(CostEstimator):
         self._alg_metrics.update_after_gcs_solve(sol.time)
 
         # Clean up
-        subgraph.remove_vertex(neighbor)
+        if neighbor != self._graph.target_name:
+            subgraph.remove_vertex(neighbor)
 
         return sol
 

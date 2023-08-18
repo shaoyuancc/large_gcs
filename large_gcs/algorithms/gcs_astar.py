@@ -46,7 +46,7 @@ class GcsAstar(SearchAlgorithm):
         self._cost_estimator.set_alg_metrics(self._alg_metrics)
         self._candidate_sol = None
         self._pq = []
-        self._infeasible_edges = set()
+        self._feasible_edges = set()
         self._node_dists = defaultdict(lambda: float("inf"))
         self._visited = Graph(self._graph._default_costs_constraints)
         if tiebreak == TieBreak.FIFO or tiebreak == TieBreak.FIFO.name:
@@ -82,11 +82,7 @@ class GcsAstar(SearchAlgorithm):
         while len(self._pq) > 0:
             # Check for termination condition
             curr = self._pq[0][2]
-            if (
-                self._graph.target_name
-                in [e.v for e in self._graph.outgoing_edges(curr)]
-                and (curr, self._graph.target_name) not in self._infeasible_edges
-            ):
+            if curr == self._graph.target_name:
                 sol = self._candidate_sol
                 self._graph._post_solve(sol)
                 logger.info(
@@ -130,15 +126,15 @@ class GcsAstar(SearchAlgorithm):
             self._writer.grab_frame()
 
         for edge in edges:
-            if edge.v not in self._visited.vertex_names:
+            if (
+                edge.v not in self._visited.vertex_names
+                or edge.v == self._graph.target_name
+            ):
                 self._alg_metrics.n_vertices_explored += 1
                 self._explore_edge(edge)
 
     def _explore_edge(self, edge: Edge):
         neighbor = edge.v
-        assert (
-            neighbor != self._graph.target_name
-        ), "Should have terminated before this happens"
 
         sol = self._cost_estimator.estimate_cost(
             self._visited, edge, use_convex_relaxation=self._use_convex_relaxation
@@ -152,8 +148,8 @@ class GcsAstar(SearchAlgorithm):
             if new_dist < self._node_dists[neighbor]:
                 self._node_dists[neighbor] = new_dist
                 heap.heappush(self._pq, (new_dist, next(self._counter), neighbor))
-                # Check if this neighbor actually has an edge to the target
-                if (neighbor, self._graph.target_name) in self._graph.edges:
+                # Check if this neighbor is actually the target
+                if neighbor == self._graph.target_name:
                     if self._candidate_sol is None:
                         self._candidate_sol = sol
                     elif sol.cost < self._candidate_sol.cost:
@@ -163,9 +159,9 @@ class GcsAstar(SearchAlgorithm):
                 self._writer.fig.clear()
                 self.plot_graph(sol.ambient_path, edge)
                 self._writer.grab_frame()
-
+            self._feasible_edges.add((edge.u, edge.v))
         else:
-            self._infeasible_edges.add((edge.u, edge.v))
+
             logger.debug(f"edge {edge.u} -> {edge.v} not actually feasible")
 
     def _add_vertex_and_edges_to_visited_except_edges_to_target(self, vertex_name):

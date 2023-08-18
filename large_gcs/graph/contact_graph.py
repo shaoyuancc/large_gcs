@@ -555,8 +555,12 @@ class ContactGraph(Graph):
             obs.plot()
 
         # Plot goal positions
-        for i, body in enumerate(bodies):
-            body.plot_at_position(self.target_pos[i], color=BodyColor["target"])
+        if self.target_pos is not None:
+            for i, body in enumerate(bodies):
+                body.plot_at_position(self.target_pos[i], color=BodyColor["target"])
+        elif self.target_region_params is not None:
+            for region in self.target_regions:
+                region.plot(color=BodyColor["target"], alpha=0.2)
 
         label_text = [body.name for body in bodies]
 

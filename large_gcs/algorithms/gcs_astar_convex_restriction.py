@@ -83,12 +83,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         while len(self._pq) > 0:
             # Check for termination condition
             curr = self._pq[0][2]
-            if (
-                # self._candidate_sol is not None # Early termination
-                self._graph.target_name
-                in [e.v for e in self._graph.outgoing_edges(curr)]
-                and (curr, self._graph.target_name) in self._feasible_edges
-            ):
+            if curr == self._graph.target_name:
                 sol = self._candidate_sol
                 self._graph._post_solve(sol)
                 logger.info(
@@ -132,7 +127,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             for edge in edges:
                 if (
                     edge.v not in self._visited_vertices
-                    and edge.v != self._graph.target_name
+                    or edge.v == self._graph.target_name
                 ):
                     self._explore_edge(edge, active_edges)
         else:
@@ -140,12 +135,11 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 neighbor_in_path = any(
                     (u == edge.v or v == edge.v) for (u, v) in active_edges
                 )
-                if not neighbor_in_path and edge.v != self._graph.target_name:
+                if not neighbor_in_path:
                     self._explore_edge(edge, active_edges)
 
     def _explore_edge(self, edge: Edge, active_edges: List[Tuple[str, str]]):
         neighbor = edge.v
-        assert neighbor != self._graph.target_name
         if neighbor in self._visited_vertices:
             self._alg_metrics.n_vertices_reexplored += 1
         else:
@@ -184,22 +178,12 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             if new_dist < self._node_dists[neighbor]:
                 self._node_dists[neighbor] = new_dist
                 # Check if this neighbor actually has an edge to the target
-                if (neighbor, self._graph.target_name) in self._graph.edges:
+                # Check if this neighbor is actually the target
+                if neighbor == self._graph.target_name:
                     if self._candidate_sol is None:
                         self._candidate_sol = sol
-                        logger.info(
-                            f"First time candidate sol is set through {neighbor} with cost {new_dist}"
-                        )
-
                     elif sol.cost < self._candidate_sol.cost:
                         self._candidate_sol = sol
-                        logger.info(
-                            f"New candidate sol is set through {neighbor} with cost {new_dist}"
-                        )
-            elif (neighbor, self._graph.target_name) in self._graph.edges:
-                logger.info(
-                    f"{neighbor} has edge to target, and solved, but cost {new_dist} is higher than current candidate sol"
-                )
 
             self._feasible_edges.add((edge.u, edge.v))
         else:
