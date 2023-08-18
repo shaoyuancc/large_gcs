@@ -404,7 +404,10 @@ class Graph:
         return sol
 
     def solve_factored_partial_convex_restriction(
-        self, active_edges: List[Tuple[str, str]], transition: str, targets: List[str]
+        self,
+        active_edges: List[Tuple[str, str]],
+        transition: str,
+        targets: List[str],
     ) -> ShortestPathSolution:
         result = self._gcs.SolveFactoredPartialConvexRestriction(
             [self.edges[edge_key].gcs_edge for edge_key in active_edges],
@@ -412,12 +415,6 @@ class Graph:
             [self.vertices[target].gcs_vertex for target in targets],
             # self._gcs_options_wo_relaxation,
         )
-        # result = self._gcs.SolveFactoredShortestPath(
-        #     self.vertices[self._source_name].gcs_vertex,
-        #     self.vertices[transition].gcs_vertex,
-        #     [self.vertices[target].gcs_vertex for target in targets],
-        #     # self._gcs_options_convex_relaxation if use_convex_relaxation else self._gcs_options_wo_relaxation,
-        # )
 
         sol = self._parse_factored_result(result, transition, targets)
 
@@ -528,6 +525,8 @@ class Graph:
                 break
 
             current_vertex = neighbors[vertex_path[-1]]
+        return vertex_path, ambient_path
+        # Significant work needs to be done to combine the factored paths now that not every body might have a path.
 
         # Now add all the factored paths
         factored_vertex_paths = []

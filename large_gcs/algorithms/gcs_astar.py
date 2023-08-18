@@ -70,6 +70,8 @@ class GcsAstar(SearchAlgorithm):
             2  # Start with the source and target node in the visited subgraph
         )
 
+        self._cost_estimator.setup_subgraph(self._visited)
+
     def run(self, animate: bool = False, final_plot: bool = False):
         if animate:
             metadata = dict(title="GCS A*", artist="Matplotlib")

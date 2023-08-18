@@ -11,6 +11,7 @@ from tqdm import tqdm
 from large_gcs.contact.contact_pair_mode import generate_cfree_contact_pair_modes
 from large_gcs.contact.contact_set import ContactPointSet, ContactSet
 from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
+from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.contact_cost_constraint_factory import (
     vertex_cost_position_path_length,
 )
@@ -25,7 +26,8 @@ class FactoredCollisionFreeGraph(ContactGraph):
         self,
         movable_body: RigidBody,
         static_obstacles: List[RigidBody],
-        target_pos: np.ndarray,
+        target_pos: np.ndarray = None,
+        target_region: Polyhedron = None,
         cost_scaling: float = 1.0,
         workspace: np.ndarray = None,
     ):

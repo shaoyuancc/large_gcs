@@ -30,26 +30,59 @@ class FactoredCollisionFreeCE(CostEstimator):
         self._should_add_transition_cost = add_transition_cost
         self._obj_multiplier = obj_multiplier
         self._use_combined_gcs = use_combined_gcs
-        logger.info(
-            f"creating {self._graph.n_objects + self._graph.n_robots} collision free graphs..."
-        )
-        self._cfree_graphs = [
-            FactoredCollisionFreeGraph(
-                body,
-                self._graph.obstacles,
-                self._graph.target_pos[i],
-                cost_scaling=1.0
-                if body.mobility_type == MobilityType.ACTUATED
-                else self._obj_multiplier,
-                workspace=self._graph.workspace,
+        if self._graph.target_pos is not None:
+            logger.info(
+                f"creating {self._graph.n_objects + self._graph.n_robots} collision free graphs..."
             )
-            for i, body in tqdm(enumerate(self._graph.objects + self._graph.robots))
-        ]
-        self._cfree_target_names = [g.target_name for g in self._cfree_graphs]
+            self._cfree_graphs = {
+                i: FactoredCollisionFreeGraph(
+                    body,
+                    self._graph.obstacles,
+                    self._graph.target_pos[i],
+                    cost_scaling=1.0
+                    if body.mobility_type == MobilityType.ACTUATED
+                    else self._obj_multiplier,
+                    workspace=self._graph.workspace,
+                )
+                for i, body in tqdm(enumerate(self._graph.objects + self._graph.robots))
+            }
+
+        elif self._graph.target_region_params is not None:
+            self._cfree_graphs = {}
+            movable_bodies = self._graph.objects + self._graph.robots
+            for region, region_params in zip(
+                self._graph.target_regions, self._graph.target_region_params
+            ):
+                body_indices = []
+                if region_params.obj_indices is not None:
+                    body_indices += region_params.obj_indices
+                if region_params.rob_indicies is not None:
+                    body_indices += [
+                        i + self._graph.n_objects for i in region_params.rob_indices
+                    ]
+                for i in body_indices:
+                    body = movable_bodies[i]
+                    self._cfree_graphs[i] = FactoredCollisionFreeGraph(
+                        body,
+                        self._graph.obstacles,
+                        region,
+                        cost_scaling=1.0
+                        if body.mobility_type == MobilityType.ACTUATED
+                        else self._obj_multiplier,
+                        workspace=self._graph.workspace,
+                    )
+
+        self._cfree_target_names = {
+            i: g.target_name for i, g in self._cfree_graphs.items()
+        }
 
         # Look up table of cfree vertex name to cfree cost
         self._cfree_cost = {}
         self._cfree_init_pos = {}
+
+    def setup_subgraph(self, subgraph: Graph):
+        if self._use_combined_gcs:
+            self._add_cfree_graphs_to_subgraph(subgraph)
 
     def estimate_cost(
         self,
@@ -61,44 +94,40 @@ class FactoredCollisionFreeCE(CostEstimator):
     ) -> ShortestPathSolution:
         """Right now this function is unideally coupled because it returns a shortest path solution instead of just the cost."""
         neighbor = edge.v
+
+        # Check if this neighbor is the target to see if Cfree subgraphs are needed
+        neighbor_is_target = neighbor == self._graph.target_name
+
         # Add neighbor and edge temporarily to the visited subgraph
-        subgraph.add_vertex(self._graph.vertices[neighbor], neighbor)
+        if not neighbor_is_target:
+            logger.debug(f"neighbor {neighbor} is not target {self._graph.target_name}")
+            subgraph.add_vertex(self._graph.vertices[neighbor], neighbor)
+        else:
+            logger.debug(f"neighbor {neighbor} is target {self._graph.target_name}")
         subgraph.add_edge(edge)
         if active_edges is None:
             active_edges = []
         conv_res_active_edges = active_edges + [edge.key]
         subgraph.set_target(neighbor)
-        # Check if this neighbor actually has an edge to the target
-        # If so, add that edge instead of calculating the collision free cost
-        neighbor_has_edge_to_target = (
-            neighbor,
-            self._graph.target_name,
-        ) in self._graph.edges
-        if neighbor_has_edge_to_target:
-            edge_to_target = self._graph.edges[(neighbor, self._graph.target_name)]
-            subgraph.add_edge(edge_to_target)
-            subgraph.set_target(self._graph.target_name)
-            conv_res_active_edges = active_edges + [edge.key, edge_to_target.key]
 
-        if self._use_combined_gcs and not neighbor_has_edge_to_target:
+        if self._use_combined_gcs and not neighbor_is_target:
             if solve_convex_restriction:
                 # First do feasibility check with solve convex restriction
                 sol = subgraph.solve_convex_restriction(conv_res_active_edges)
                 if sol.is_success:
                     self._alg_metrics.update_after_gcs_solve(sol.time)
-                    if not self._are_cfree_graphs_in_subgraph(subgraph):
-                        self._add_cfree_graphs_to_subgraph(subgraph)
+
                     self._connect_vertex_to_cfree_subgraphs(subgraph, neighbor)
                     sol = subgraph.solve_factored_partial_convex_restriction(
-                        conv_res_active_edges, neighbor, self._cfree_target_names
+                        conv_res_active_edges,
+                        neighbor,
+                        self._cfree_target_names.values(),
                     )
             else:
-                if not self._are_cfree_graphs_in_subgraph(subgraph):
-                    self._add_cfree_graphs_to_subgraph(subgraph)
                 self._connect_vertex_to_cfree_subgraphs(subgraph, neighbor)
                 sol = subgraph.solve_factored_shortest_path(
                     neighbor,
-                    self._cfree_target_names,
+                    self._cfree_target_names.values(),
                     use_convex_relaxation=use_convex_relaxation,
                 )
 
@@ -112,13 +141,10 @@ class FactoredCollisionFreeCE(CostEstimator):
 
         self._alg_metrics.update_after_gcs_solve(sol.time)
         # Clean up
-        subgraph.remove_vertex(neighbor)
+        if not neighbor_is_target:
+            subgraph.remove_vertex(neighbor)
 
-        if (
-            not self._use_combined_gcs
-            and sol.is_success
-            and not neighbor_has_edge_to_target
-        ):
+        if not self._use_combined_gcs and sol.is_success and not neighbor_is_target:
             cfree_cost = self._get_cfree_cost_split(
                 sol, neighbor, use_convex_relaxation
             )
@@ -127,15 +153,9 @@ class FactoredCollisionFreeCE(CostEstimator):
 
         return sol
 
-    def _are_cfree_graphs_in_subgraph(self, subgraph: Graph) -> bool:
-        # Assume that if one vertex from the first cfree graph is in the subgraph, then all of them are
-        cfree_vertex = next(iter(self._cfree_graphs[0].vertices))
-        return cfree_vertex in subgraph.vertices
-
     def _add_cfree_graphs_to_subgraph(self, subgraph: Graph) -> None:
-        # NOTE: This is very inefficient to be doing on exploration of each vertex.
         logger.info("adding cfree graphs to subgraph...")
-        for cfree_graph in self._cfree_graphs:
+        for cfree_graph in self._cfree_graphs.values():
             for vertex_name, vertex in cfree_graph.vertices.items():
                 subgraph.add_vertex(vertex, vertex_name)
             for edge in cfree_graph.edges.values():
@@ -148,6 +168,9 @@ class FactoredCollisionFreeCE(CostEstimator):
         for i, cfree_vertex_name in enumerate(
             self.convert_to_cfree_vertex_names(vertex_name)
         ):
+            if i not in self._cfree_graphs:
+                continue
+
             continuity_con = edge_constraint_position_continuity_factored(
                 body_index=i,
                 u_vars=subgraph.vertices[vertex_name].convex_set.vars,

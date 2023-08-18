@@ -1,8 +1,11 @@
+import logging
 from typing import List
 
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
 from large_gcs.utils.hydra_utils import get_function_from_string
+
+logger = logging.getLogger(__name__)
 
 
 class ShortcutEdgeCE(CostEstimator):
@@ -52,6 +55,8 @@ class ShortcutEdgeCE(CostEstimator):
                 neighbor, self._graph.target_name, costs=direct_edge_costs
             )
             subgraph.add_edge(edge_to_target)
+        else:
+            logger.info(f"neighbor is target, edge: {edge}")
         subgraph.add_edge(edge)
 
         if solve_convex_restriction:

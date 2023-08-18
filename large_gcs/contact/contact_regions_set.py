@@ -30,8 +30,8 @@ from large_gcs.geometry.polyhedron import Polyhedron
 @dataclass
 class ContactRegionParams:
     region_vertices: List
-    obj_indicies: List[int] = None
-    rob_indicies: List[int] = None
+    obj_indices: List[int] = None
+    rob_indices: List[int] = None
 
 
 class ContactRegionsSet(ConvexSet):
@@ -60,11 +60,11 @@ class ContactRegionsSet(ConvexSet):
 
         for region_params in contact_region_params:
             region = Polyhedron.from_vertices(region_params.region_vertices)
-            if region_params.obj_indicies is not None:
-                for obj_index in region_params.obj_indicies:
+            if region_params.obj_indices is not None:
+                for obj_index in region_params.obj_indices:
                     add_constraint_formulas(region, objects[obj_index])
-            if region_params.rob_indicies is not None:
-                for rob_index in region_params.rob_indicies:
+            if region_params.rob_indices is not None:
+                for rob_index in region_params.rob_indices:
                     add_constraint_formulas(region, robots[rob_index])
 
         self._base_polyhedron = HPolyhedronFromConstraints(

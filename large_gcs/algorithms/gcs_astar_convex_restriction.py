@@ -73,6 +73,8 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         )
         self._visited_fd_vertices.add(self._graph.target_name)
 
+        self._cost_estimator.setup_subgraph(self._visited)
+
     def run(self, animate_intermediate: bool = False, final_plot: bool = False):
         logger.info(
             f"Running {self.__class__.__name__}, reexplore_level: {self._reexplore_level}"

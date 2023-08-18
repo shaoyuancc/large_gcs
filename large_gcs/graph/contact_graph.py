@@ -307,8 +307,9 @@ class ContactGraph(Graph):
 
         # Set force constraints
         set_force_constraints_dict = defaultdict(list)
-
-        for set_id in set_ids:
+        logger.info(f"Generating force constraints for {len(set_ids)} sets...")
+        for set_id in tqdm(set_ids):
+            # logger.info(f"\nGenerating force constraints for {set_id}...")
             # Add force constraints for each movable body
             for body_name in movable:
                 set_force_constraints_dict[set_id] += body_dict[
@@ -322,6 +323,7 @@ class ContactGraph(Graph):
             for mode_id in set_id:
                 mode = mode_ids_to_mode[mode_id]
                 if isinstance(mode, InContactPairMode):
+                    # logger.info(f"Adding force normals for {mode.id}...")
                     body_force_sums[mode.body_a.name] += (
                         -mode.unit_normal * mode.vars_force_mag_BA
                     )
@@ -331,6 +333,7 @@ class ContactGraph(Graph):
 
             for body_name in movable:
                 body = body_dict[body_name]
+                # logger.info(f"Adding resultant force constraints for {body_name}...")
                 if body.mobility_type == MobilityType.ACTUATED:
                     body_force_sums[body_name] += body.vars_force_act
                 set_force_constraints_dict[set_id].extend(
@@ -739,6 +742,10 @@ class ContactGraph(Graph):
             vertex_inclusion = data["vertex_inclusion"]
         if vertex_exclusion is None:
             vertex_exclusion = data["vertex_exclusion"]
+        if "target_region_params" in data:
+            target_region_params = data["target_region_params"]
+        else:
+            target_region_params = None
 
         cg = cls(
             static_obstacles=obs,
@@ -748,7 +755,7 @@ class ContactGraph(Graph):
             source_pos_robs=data["source_pos_robs"],
             target_pos_objs=data["target_pos_objs"],
             target_pos_robs=data["target_pos_robs"],
-            target_region_params=data["target_region_params"],
+            target_region_params=target_region_params,
             workspace=data["workspace"],
             vertex_exclusion=vertex_exclusion,
             vertex_inclusion=vertex_inclusion,
