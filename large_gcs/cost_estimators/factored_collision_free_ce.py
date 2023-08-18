@@ -56,7 +56,7 @@ class FactoredCollisionFreeCE(CostEstimator):
                 body_indices = []
                 if region_params.obj_indices is not None:
                     body_indices += region_params.obj_indices
-                if region_params.rob_indicies is not None:
+                if region_params.rob_indices is not None:
                     body_indices += [
                         i + self._graph.n_objects for i in region_params.rob_indices
                     ]
