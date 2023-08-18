@@ -36,9 +36,9 @@ class FactoredCollisionFreeCE(CostEstimator):
             )
             self._cfree_graphs = {
                 i: FactoredCollisionFreeGraph(
-                    body,
-                    self._graph.obstacles,
-                    self._graph.target_pos[i],
+                    movable_body=body,
+                    static_obstacles=self._graph.obstacles,
+                    target_pos=self._graph.target_pos[i],
                     cost_scaling=1.0
                     if body.mobility_type == MobilityType.ACTUATED
                     else self._obj_multiplier,
@@ -50,9 +50,7 @@ class FactoredCollisionFreeCE(CostEstimator):
         elif self._graph.target_region_params is not None:
             self._cfree_graphs = {}
             movable_bodies = self._graph.objects + self._graph.robots
-            for region, region_params in zip(
-                self._graph.target_regions, self._graph.target_region_params
-            ):
+            for region_params in self._graph.target_region_params:
                 body_indices = []
                 if region_params.obj_indices is not None:
                     body_indices += region_params.obj_indices
@@ -63,9 +61,9 @@ class FactoredCollisionFreeCE(CostEstimator):
                 for i in body_indices:
                     body = movable_bodies[i]
                     self._cfree_graphs[i] = FactoredCollisionFreeGraph(
-                        body,
-                        self._graph.obstacles,
-                        region,
+                        movable_body=body,
+                        static_obstacles=self._graph.obstacles,
+                        target_region_params=region_params,
                         cost_scaling=1.0
                         if body.mobility_type == MobilityType.ACTUATED
                         else self._obj_multiplier,
@@ -194,6 +192,9 @@ class FactoredCollisionFreeCE(CostEstimator):
         for i, cfree_vertex_name in enumerate(
             self.convert_to_cfree_vertex_names(neighbor)
         ):
+            if i not in self._cfree_graphs:
+                continue
+
             body_pos_end = x_pos[i].T[-1].flatten()
             g = self._cfree_graphs[i]
             if cfree_vertex_name in self._cfree_cost:

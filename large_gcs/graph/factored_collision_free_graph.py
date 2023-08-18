@@ -9,6 +9,7 @@ from pydrake.all import Constraint, Cost, Expression, GraphOfConvexSets, eq
 from tqdm import tqdm
 
 from large_gcs.contact.contact_pair_mode import generate_cfree_contact_pair_modes
+from large_gcs.contact.contact_regions_set import ContactRegionParams, ContactRegionsSet
 from large_gcs.contact.contact_set import ContactPointSet, ContactSet
 from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
 from large_gcs.geometry.polyhedron import Polyhedron
@@ -27,7 +28,7 @@ class FactoredCollisionFreeGraph(ContactGraph):
         movable_body: RigidBody,
         static_obstacles: List[RigidBody],
         target_pos: np.ndarray = None,
-        target_region: Polyhedron = None,
+        target_region_params: ContactRegionParams = None,
         cost_scaling: float = 1.0,
         workspace: np.ndarray = None,
     ):
@@ -37,6 +38,8 @@ class FactoredCollisionFreeGraph(ContactGraph):
         self.obstacles = []
         self.objects = []
         self.robots = []
+        rob_indicies = None
+        obj_indices = None
 
         for thing in static_obstacles:
             assert (
@@ -46,24 +49,46 @@ class FactoredCollisionFreeGraph(ContactGraph):
             self.objects = [movable_body]
             target_pos_objs = [target_pos]
             target_pos_robs = []
+            obj_indices = [0]
         elif movable_body.mobility_type == MobilityType.ACTUATED:
             self.robots = [movable_body]
             target_pos_robs = [target_pos]
             target_pos_objs = []
+            rob_indicies = [0]
         else:
             raise ValueError(
                 f"Mobility type for movable body {movable_body.mobility_type} not supported"
             )
         self.source_pos = None
-        self.target_pos = [target_pos]
+        self.target_pos = None
         self.obstacles = static_obstacles
         target_name = f"target_{self.movable_body.name}"
         sets, set_ids = self._generate_contact_sets()
-        sets.append(
-            ContactPointSet(
-                target_name, self.objects, self.robots, target_pos_objs, target_pos_robs
+        if target_pos is not None:
+            self.target_pos = [target_pos]
+            sets.append(
+                ContactPointSet(
+                    target_name,
+                    self.objects,
+                    self.robots,
+                    target_pos_objs,
+                    target_pos_robs,
+                )
             )
-        )
+        elif target_region_params is not None:
+            # We override the obj and rob indices here because we are only passing a single rigid body.
+            factored_params = ContactRegionParams(
+                target_region_params.region_vertices,
+                obj_indices=obj_indices,
+                rob_indices=rob_indicies,
+            )
+            sets.append(
+                ContactRegionsSet(
+                    self.objects, self.robots, [factored_params], target_name
+                )
+            )
+        else:
+            raise ValueError("Must specify either target_pos or target_region_params")
         set_ids.append(target_name)
 
         # Add convex sets to graph (Need to do this before generating edges)
@@ -95,7 +120,7 @@ class FactoredCollisionFreeGraph(ContactGraph):
             [
                 vertex_cost_position_path_length(set.vars, self._cost_scaling),
             ]
-            if not isinstance(set, ContactPointSet)
+            if isinstance(set, ContactSet)
             else []
             for set in tqdm(sets)
         ]
