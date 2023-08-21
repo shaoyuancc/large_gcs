@@ -9,6 +9,7 @@ from large_gcs.contact.contact_regions_set import ContactRegionParams
 from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.contact_graph import ContactGraph
+from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 
 
 @dataclass
@@ -108,7 +109,7 @@ class ContactGraphGenerator:
                 )
             )
 
-    def generate(self) -> ContactGraph:
+    def generate(self, save_to_file=True) -> ContactGraph:
         contact_graph = ContactGraph(
             static_obstacles=self._obs,
             unactuated_objects=self._objs,
@@ -122,8 +123,31 @@ class ContactGraphGenerator:
             vertex_exclusion=None,
             vertex_inclusion=None,
         )
+        if save_to_file:
+            contact_graph.save_to_file(self._params.graph_file_path)
 
-        contact_graph.save_to_file(self._params.graph_file_path)
+        return contact_graph
+
+    def generate_incremental_contact_graph(
+        self, save_to_file=True
+    ) -> IncrementalContactGraph:
+        contact_graph = IncrementalContactGraph(
+            static_obstacles=self._obs,
+            unactuated_objects=self._objs,
+            actuated_robots=self._robs,
+            source_pos_objs=self._params.source_obj_pos,
+            source_pos_robs=self._params.source_rob_pos,
+            target_pos_objs=self._params.target_obj_pos,
+            target_pos_robs=self._params.target_rob_pos,
+            target_region_params=self._params.target_region_params,
+            workspace=self._params.workspace,
+            vertex_exclusion=None,
+            vertex_inclusion=None,
+        )
+        if save_to_file:
+            contact_graph.save_to_file(self._params.graph_file_path)
+
+        return contact_graph
 
     def plot(self):
         if self._params.workspace is not None:
