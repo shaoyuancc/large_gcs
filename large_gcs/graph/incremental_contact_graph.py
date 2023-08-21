@@ -1,6 +1,6 @@
 import logging
 from itertools import combinations, product
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
@@ -128,3 +128,65 @@ class IncrementalContactGraph(ContactGraph):
         )
         self.set_source("source")
         self.set_target("target")
+
+        self._initialize_neighbor_generator(
+            contact_pair_modes, contact_set_mode_ids, vertex_exclusion, vertex_inclusion
+        )
+
+    def _initialize_neighbor_generator(
+        self,
+        contact_pair_modes: Dict[
+            str, ContactPairMode
+        ] = None,  # For loading a saved graph
+        contact_set_mode_ids: List[Tuple] = None,  # For loading a saved graph
+        vertex_exlcusion: List[str] = None,
+        vertex_inclusion: List[str] = None,
+    ):
+        static_obstacles = self.obstacles
+        unactuated_objects = self.objects
+        actuated_robots = self.robots
+        body_dict = {
+            body.name: body
+            for body in static_obstacles + unactuated_objects + actuated_robots
+        }
+        obs_names = [body.name for body in static_obstacles]
+        obj_names = [body.name for body in unactuated_objects]
+        rob_names = [body.name for body in actuated_robots]
+        movable = obj_names + rob_names
+
+        if contact_pair_modes is None or contact_set_mode_ids is None:
+            logger.info(f"Generating contact sets for {len(body_dict)} bodies...")
+            static_movable_pairs = list(product(obs_names, movable))
+            movable_pairs = list(combinations(movable, 2))
+            rigid_body_pairs = static_movable_pairs + movable_pairs
+
+            logger.info(
+                f"Generating contact pair modes for {len(rigid_body_pairs)} body pairs..."
+            )
+
+            body_pair_to_modes = {
+                (body1, body2): generate_contact_pair_modes(
+                    body_dict[body1], body_dict[body2]
+                )
+                for body1, body2 in tqdm(rigid_body_pairs)
+            }
+            logger.info(
+                f"Each body pair has on average {np.mean([len(modes) for modes in body_pair_to_modes.values()])} modes"
+            )
+            body_pair_to_mode_names = {
+                (body1, body2): [mode.id for mode in modes]
+                for (body1, body2), modes in body_pair_to_modes.items()
+            }
+            mode_ids_to_mode = {
+                mode.id: mode for modes in body_pair_to_modes.values() for mode in modes
+            }
+            self._contact_pair_modes = mode_ids_to_mode
+
+            # Each set is the cartesian product of the modes for each object pair
+            list(product(*body_pair_to_mode_names.values()))
+        else:
+            logger.info(
+                f"Loading {len(contact_pair_modes)} contact pair modes for {len(body_dict)} bodies..."
+            )
+            mode_ids_to_mode = contact_pair_modes
+            self._contact_pair_modes = mode_ids_to_mode
