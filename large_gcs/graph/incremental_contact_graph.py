@@ -1,8 +1,10 @@
+import ast
 import logging
 from collections import defaultdict
+from copy import copy
 from itertools import combinations, product
 from multiprocessing import Pool
-from typing import Dict, List, Tuple
+from typing import Iterable, List, Tuple
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
@@ -27,7 +29,7 @@ from large_gcs.graph.contact_cost_constraint_factory import (
     vertex_cost_position_path_length,
 )
 from large_gcs.graph.contact_graph import ContactGraph
-from large_gcs.graph.graph import Graph, ShortestPathSolution
+from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution, Vertex
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +60,7 @@ class IncrementalContactGraph(ContactGraph):
             initial_positions: List of initial positions of.
         """
         Graph.__init__(self, workspace=workspace)
+        assert self.workspace is not None, "Workspace must be set"
         # Note: The order of operations in this constructor is important
         self.vertex_inclusion = vertex_inclusion
         self.vertex_exclusion = vertex_exclusion
@@ -137,72 +140,69 @@ class IncrementalContactGraph(ContactGraph):
     def _initialize_neighbor_generator(
         self,
     ):
-        static_obstacles = self.obstacles
-        unactuated_objects = self.objects
-        actuated_robots = self.robots
-        body_dict: Dict[str, RigidBody] = {
-            body.name: body
-            for body in static_obstacles + unactuated_objects + actuated_robots
-        }
-        obs_names = [body.name for body in static_obstacles]
-        obj_names = [body.name for body in unactuated_objects]
-        rob_names = [body.name for body in actuated_robots]
-        movable = obj_names + rob_names
-
-        logger.info(f"Generating contact sets for {len(body_dict)} bodies...")
-        static_movable_pairs = list(product(obs_names, movable))
-        movable_pairs = list(combinations(movable, 2))
-        rigid_body_pairs = static_movable_pairs + movable_pairs
-
-        logger.info(
-            f"Generating contact pair modes for {len(rigid_body_pairs)} body pairs..."
-        )
-
-        body_pair_to_modes = {
-            (body1, body2): generate_contact_pair_modes(
-                body_dict[body1], body_dict[body2]
-            )
-            for body1, body2 in tqdm(rigid_body_pairs)
-        }
-        logger.info(
-            f"Each body pair has on average {np.mean([len(modes) for modes in body_pair_to_modes.values()])} modes"
-        )
-        body_pair_to_mode_ids = {
-            (body1, body2): [mode.id for mode in modes]
-            for (body1, body2), modes in body_pair_to_modes.items()
-        }
-        mode_ids_to_mode: Dict[str, ContactPairMode] = {
-            mode.id: mode for modes in body_pair_to_modes.values() for mode in modes
-        }
-        self._contact_pair_modes = mode_ids_to_mode
-
-        assert self.workspace is not None, "Workspace must be set"
+        self._initialize_set_generation_variables()
 
         workspace_pos_constraints = {
-            body_name: body_dict[body_name].create_workspace_position_constraints(
+            body_name: self._body_dict[body_name].create_workspace_position_constraints(
                 self.workspace, base_only=True
             )
-            for body_name in movable
+            for body_name in self._movable
         }
 
-        self.adj_modes = defaultdict(list)
+        body_name_to_source_pos = {}
+        for i, body in enumerate(self._movable):
+            body_name_to_source_pos[body] = self.source_pos[i]
+
+        if self.target_pos is not None:
+            body_name_to_target_pos = {}
+            for i, body in enumerate(self._movable):
+                body_name_to_target_pos[body] = self.target_pos[i]
+
+        elif self.target_region_params is not None:
+            body_name_to_indiv_target_region_params = {}
+            for params in self.target_region_params:
+                individual_params = copy(params)
+                if params.obj_indices is not None:
+                    for body_index in params.obj_indices:
+                        individual_params.obj_indices = [0]
+                        individual_params.rob_indices = None
+                        body_name_to_indiv_target_region_params[
+                            self.objects[body_index].name
+                        ] = individual_params
+                if params.rob_indices is not None:
+                    for body_index in params.rob_indices:
+                        individual_params.rob_indices = [0]
+                        individual_params.obj_indices = None
+                        body_name_to_indiv_target_region_params[
+                            self.robots[body_index].name
+                        ] = individual_params
+
+        self._modes_w_possible_edge_to_target = set()
+
+        self._adj_modes = defaultdict(list)
         sets = []
         pairs_of_modes = []
-        for body_pair, mode_ids in body_pair_to_mode_ids.items():
+        source_neighbor_contact_pair_modes = []
+
+        for body_pair, mode_ids in self._body_pair_to_mode_ids.items():
             objs = []
             robs = []
             additional_constraints = []
+
             for body_name in body_pair:
-                if body_dict[body_name].mobility_type == MobilityType.UNACTUATED:
-                    objs.append(body_dict[body_name])
+                body = self._body_dict[body_name]
+                if body.mobility_type == MobilityType.UNACTUATED:
+                    objs.append(body)
                     additional_constraints.extend(workspace_pos_constraints[body_name])
-                elif body_dict[body_name].mobility_type == MobilityType.ACTUATED:
-                    robs.append(body_dict[body_name])
+                    movable_body_name = body_name
+                elif body.mobility_type == MobilityType.ACTUATED:
+                    robs.append(body)
                     additional_constraints.extend(workspace_pos_constraints[body_name])
+                    movable_body_name = body_name
 
             vars = ContactSetDecisionVariables.from_objs_robs(objs, robs)
             base_polyhedra = {
-                id: mode_ids_to_mode[id].create_base_polyhedron(
+                id: self._contact_pair_modes[id].create_base_polyhedron(
                     vars=vars, additional_constraints=additional_constraints
                 )
                 for id in mode_ids
@@ -215,7 +215,50 @@ class IncrementalContactGraph(ContactGraph):
                     for mode_id1, mode_id2 in tmp_pairs_of_modes
                 ]
             )
+            # Determining an outgoing edge for source vertex
+            source_pos = np.array([])
+            for body_name in body_pair:
+                if body_name in body_name_to_source_pos:
+                    source_pos = np.append(
+                        source_pos, body_name_to_source_pos[body_name]
+                    )
+            for id in mode_ids:
+                if base_polyhedra[id].PointInSet(source_pos):
+                    source_neighbor_contact_pair_modes.append(id)
+                    break  # We are just looking for a single neighbor
+
+            # Determining incoming edges for target vertex
+            if self.target_pos is not None:
+                target_pos = np.array([])
+                for body_name in body_pair:
+                    if body_name in body_name_to_target_pos:
+                        target_pos = np.append(
+                            target_pos, body_name_to_target_pos[body_name]
+                        )
+                for id in mode_ids:
+                    if base_polyhedra[id].PointInSet(target_pos):
+                        self._modes_w_possible_edge_to_target.add(id)
+            elif (
+                self.target_region_params is not None
+                and len(objs) + len(robs) == 1
+                and movable_body_name in body_name_to_indiv_target_region_params
+            ):
+                target_set = ContactRegionsSet(
+                    objects=objs,
+                    robots=robs,
+                    contact_region_params=[
+                        body_name_to_indiv_target_region_params[movable_body_name]
+                    ],
+                    name="target",
+                )
+                for id in mode_ids:
+                    if self._check_intersection(
+                        (base_polyhedra[id], target_set.base_set)
+                    ):
+                        self._modes_w_possible_edge_to_target.add(id)
+
         with Pool() as pool:
+            logger.info(f"Calculating adjacent contact pair modes ({len(sets)})")
             intersections = list(
                 tqdm(pool.imap(self._check_intersection, sets), total=len(sets))
             )
@@ -223,5 +266,114 @@ class IncrementalContactGraph(ContactGraph):
                 pairs_of_modes, intersections
             ):
                 if intersection:
-                    self.adj_modes[mode_id1].append(mode_id2)
-                    self.adj_modes[mode_id2].append(mode_id1)
+                    self._adj_modes[mode_id1].append(mode_id2)
+                    self._adj_modes[mode_id2].append(mode_id1)
+
+        assert len(self._body_pair_to_mode_ids) == len(
+            source_neighbor_contact_pair_modes
+        ), "Should have a single contact pair mode for each "
+        self._generate_vertex_neighbor(
+            self.source_name, source_neighbor_contact_pair_modes
+        )
+
+    def solve_shortest_path(self, use_convex_relaxation=False) -> ShortestPathSolution:
+        raise NotImplementedError(
+            "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
+        )
+
+    def solve_convex_restriction(
+        self, active_edges: List[Tuple[str, str]]
+    ) -> ShortestPathSolution:
+        raise NotImplementedError(
+            "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
+        )
+
+    def solve_factored_shortest_path(
+        self, transition: str, targets: List[str], use_convex_relaxation=False
+    ) -> ShortestPathSolution:
+        raise NotImplementedError(
+            "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
+        )
+
+    def solve_factored_partial_convex_restriction(
+        self, active_edges: List[Tuple[str, str]], transition: str, targets: List[str]
+    ) -> ShortestPathSolution:
+        raise NotImplementedError(
+            "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
+        )
+
+    def generate_neighbors(self, vertex_name: str) -> None:
+        """Generates neighbors and adds them to the graph, also adds edges from vertex to neighbors"""
+        if vertex_name == self.source_name:
+            # We already have the neighbors of the source vertex
+            return
+        elif vertex_name == self.target_name:
+            raise ValueError("Should not need to generate neighbors for target vertex")
+
+        # Convert string representation of tuple to actual tuple
+        mode_ids = ast.literal_eval(vertex_name)
+        # Flip the each mode through all possible adjacent modes (Only flip one mode at a time)
+        # This excludes multiple simultaneous flips, which are technically also valid neighbors
+        # but we are not considering them for now.
+        possible_edge_to_target = []
+        for i, id in enumerate(mode_ids):
+            for adj_id in self._adj_modes[id]:
+                neighbor_set_id = copy(mode_ids)
+                neighbor_set_id[i] = adj_id
+                self._generate_vertex_neighbor(vertex_name, neighbor_set_id)
+
+            mode = self._contact_pair_modes[id]
+            # Only consider body pairs that are not both movable (that's what our possible edge to target
+            # conditions are based on)
+            if (
+                mode.body_a.mobility_type != MobilityType.STATIC
+                and mode.body_b.mobility_type != MobilityType.STATIC
+            ):
+                possible_edge_to_target.append(
+                    id in self._modes_w_possible_edge_to_target
+                )
+
+        if all(possible_edge_to_target):
+            # Add edge to target vertex
+            self.add_edge(
+                Edge(
+                    u=vertex_name,
+                    v=self.target_name,
+                    costs=self._create_single_edge_costs(vertex_name, self.target_name),
+                    constraints=self._create_single_edge_constraints(
+                        vertex_name, self.target_name
+                    ),
+                ),
+                add_to_gcs=False,
+            )
+
+    def _generate_vertex_neighbor(
+        self, u: str, v_contact_pair_mode_ids: Iterable[str]
+    ) -> None:
+        """Assumes that u is already a vertex in the graph."""
+        vertex_name = str(tuple(v_contact_pair_mode_ids))
+
+        if (u, vertex_name) in self.edges:
+            # vertex and edge already exits, do nothing.
+            return
+
+        if vertex_name not in self.vertices:
+            v_set = self._create_contact_set_from_contact_pair_mode_ids(
+                v_contact_pair_mode_ids
+            )
+            vertex = Vertex(
+                v_set,
+                costs=self._create_single_vertex_costs(v_set),
+                constraints=self._create_single_vertex_constraints(v_set),
+            )
+            self.add_vertex(vertex, vertex_name, add_to_gcs=False)
+
+        self.add_edge(
+            Edge(
+                u=u,
+                v=vertex_name,
+                costs=self._create_single_edge_costs(u, vertex_name),
+                constraints=self._create_single_edge_constraints(u, vertex_name),
+            ),
+            add_to_gcs=False,
+        )

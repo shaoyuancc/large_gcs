@@ -163,20 +163,24 @@ class ContactGraph(Graph):
     def _create_vertex_costs(self, sets: List[ContactSet]) -> List[List[Cost]]:
         logger.info("Creating vertex costs...")
         costs = [
-            [
-                vertex_cost_position_path_length(set.vars),
-                # vertex_cost_force_actuation_norm(set.vars),
-            ]
-            if isinstance(set, ContactSet)
-            else []
+            self._create_single_vertex_costs(set) if isinstance(set, ContactSet) else []
             for set in tqdm(sets)
         ]
         return costs
 
+    def _create_single_vertex_costs(self, set: ContactSet) -> List[Cost]:
+        return [
+            vertex_cost_position_path_length(set.vars),
+            # vertex_cost_force_actuation_norm(set.vars),
+        ]
+
     def _create_vertex_constraints(
         self, sets: List[ContactSet]
     ) -> List[List[Constraint]]:
-        return [[] for set in sets]
+        return [self._create_single_vertex_constraints(set) for set in sets]
+
+    def _create_single_vertex_constraints(self, set: ContactSet) -> List[Constraint]:
+        return []
 
     def _create_edge_costs(self, edges: List[Tuple[str, str]]) -> List[List[Cost]]:
         logger.info("Creating edge costs...")

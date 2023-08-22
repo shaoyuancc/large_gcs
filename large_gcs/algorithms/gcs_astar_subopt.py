@@ -30,6 +30,7 @@ class GcsAstarSubOpt(SearchAlgorithm):
         shortcut_edge_cost_factory=None,
         vis_params: AlgVisParams = AlgVisParams(),
     ):
+        logger.warn("This class is deprecated and broken.")
         if (
             shortcut_edge_cost_factory is None
             and graph._default_costs_constraints.edge_costs is None

@@ -33,7 +33,7 @@ class GcsAstarTree(SearchAlgorithm):
         tiebreak: TieBreak = TieBreak.LIFO,
         vis_params: AlgVisParams = AlgVisParams(),
     ):
-
+        logger.warn("This class is deprecated and broken.")
         self._graph = graph
         self._cost_estimator = cost_estimator
         self._reexplore_level = (
