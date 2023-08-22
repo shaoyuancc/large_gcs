@@ -3,7 +3,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from itertools import combinations, product
 from multiprocessing import Pool
-from typing import Dict, List, Tuple
+from typing import Dict, Iterable, List, Tuple
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
@@ -66,6 +66,7 @@ class ContactGraph(Graph):
             initial_positions: List of initial positions of.
         """
         Graph.__init__(self, workspace=workspace)
+        assert self.workspace is not None, "Must specify workspace"
         # Note: The order of operations in this constructor is important
         self.vertex_inclusion = vertex_inclusion
         self.vertex_exclusion = vertex_exclusion
@@ -179,32 +180,30 @@ class ContactGraph(Graph):
 
     def _create_edge_costs(self, edges: List[Tuple[str, str]]) -> List[List[Cost]]:
         logger.info("Creating edge costs...")
+        return [self._create_single_edge_costs(u, v) for u, v in tqdm(edges)]
+
+    def _create_single_edge_costs(self, u: str, v: str) -> List[Cost]:
         return [
-            [
-                edge_cost_constant(
-                    self.vertices[u].convex_set.vars,
-                    self.vertices[v].convex_set.vars,
-                    constant_cost=1,
-                )
-            ]
-            for u, v in tqdm(edges)
+            edge_cost_constant(
+                self.vertices[u].convex_set.vars,
+                self.vertices[v].convex_set.vars,
+                constant_cost=1,
+            )
         ]
 
     def _create_edge_constraints(
         self, edges: List[Tuple[str, str]]
     ) -> List[List[Constraint]]:
         logger.info("Creating edge constraints...")
-        constraints = []
-        for u, v in tqdm(edges):
-            constraints.append(
-                [
-                    edge_constraint_position_continuity(
-                        self.vertices[u].convex_set.vars,
-                        self.vertices[v].convex_set.vars,
-                    )
-                ]
+        return [self._create_single_edge_constraints(u, v) for u, v in tqdm(edges)]
+
+    def _create_single_edge_constraints(self, u: str, v: str) -> List[Constraint]:
+        return [
+            edge_constraint_position_continuity(
+                self.vertices[u].convex_set.vars,
+                self.vertices[v].convex_set.vars,
             )
-        return constraints
+        ]
 
     ### SET & EDGE CREATION ###
 
@@ -255,108 +254,23 @@ class ContactGraph(Graph):
         vertex_inclusion: List[str] = None,
     ) -> Tuple[List[ContactSet], List[str]]:
         """Generates all possible contact sets given a set of static obstacles, unactuated objects, and actuated robots."""
-        static_obstacles = self.obstacles
-        unactuated_objects = self.objects
-        actuated_robots = self.robots
-        body_dict = {
-            body.name: body
-            for body in static_obstacles + unactuated_objects + actuated_robots
-        }
-        obs_names = [body.name for body in static_obstacles]
-        obj_names = [body.name for body in unactuated_objects]
-        rob_names = [body.name for body in actuated_robots]
-        movable = obj_names + rob_names
+        self._initialize_set_generation_variables()
 
         if contact_pair_modes is None or contact_set_mode_ids is None:
-            logger.info(f"Generating contact sets for {len(body_dict)} bodies...")
-            static_movable_pairs = list(product(obs_names, movable))
-            movable_pairs = list(combinations(movable, 2))
-            rigid_body_pairs = static_movable_pairs + movable_pairs
-
-            logger.info(
-                f"Generating contact pair modes for {len(rigid_body_pairs)} body pairs..."
-            )
-
-            body_pair_to_modes = {
-                (body1, body2): generate_contact_pair_modes(
-                    body_dict[body1], body_dict[body2]
-                )
-                for body1, body2 in tqdm(rigid_body_pairs)
-            }
-            logger.info(
-                f"Each body pair has on average {np.mean([len(modes) for modes in body_pair_to_modes.values()])} modes"
-            )
-            body_pair_to_mode_names = {
-                (body1, body2): [mode.id for mode in modes]
-                for (body1, body2), modes in body_pair_to_modes.items()
-            }
-            mode_ids_to_mode = {
-                mode.id: mode for modes in body_pair_to_modes.values() for mode in modes
-            }
-            self._contact_pair_modes = mode_ids_to_mode
-
             # Each set is the cartesian product of the modes for each object pair
-            set_ids = list(product(*body_pair_to_mode_names.values()))
+            set_ids = list(product(*self._body_pair_to_mode_ids.values()))
         else:
             logger.info(
-                f"Loading {len(contact_pair_modes)} contact pair modes for {len(body_dict)} bodies..."
+                f"Loading {len(contact_pair_modes)} contact pair modes for {self.n_obstacles + self.n_objects + self.n_robots} bodies..."
             )
             mode_ids_to_mode = contact_pair_modes
             self._contact_pair_modes = mode_ids_to_mode
             set_ids = contact_set_mode_ids
 
-        # Set force constraints
-        set_force_constraints_dict = defaultdict(list)
-        logger.info(f"Generating force constraints for {len(set_ids)} sets...")
-        for set_id in tqdm(set_ids):
-            # logger.info(f"\nGenerating force constraints for {set_id}...")
-            # Add force constraints for each movable body
-            for body_name in movable:
-                set_force_constraints_dict[set_id] += body_dict[
-                    body_name
-                ].force_constraints
-
-            # Collect the forces acting on each body
-            body_force_sums = defaultdict(
-                lambda: np.full((self.base_dim,), Expression())
-            )
-            for mode_id in set_id:
-                mode = mode_ids_to_mode[mode_id]
-                if isinstance(mode, InContactPairMode):
-                    # logger.info(f"Adding force normals for {mode.id}...")
-                    body_force_sums[mode.body_a.name] += (
-                        -mode.unit_normal * mode.vars_force_mag_BA
-                    )
-                    body_force_sums[mode.body_b.name] += (
-                        mode.unit_normal * mode.vars_force_mag_AB
-                    )
-
-            for body_name in movable:
-                body = body_dict[body_name]
-                # logger.info(f"Adding resultant force constraints for {body_name}...")
-                if body.mobility_type == MobilityType.ACTUATED:
-                    body_force_sums[body_name] += body.vars_force_act
-                set_force_constraints_dict[set_id].extend(
-                    eq(body.vars_force_res, body_force_sums[body_name]).tolist()
-                )
-
         logger.info(f"Generating contact sets for {len(set_ids)} sets...")
 
-        workspace_pos_constraints = []
-        if self.workspace is not None:
-            for body in movable:
-                workspace_pos_constraints += body_dict[
-                    body
-                ].create_workspace_position_constraints(self.workspace)
-
         all_contact_sets = [
-            ContactSet.from_objs_robs(
-                [mode_ids_to_mode[mode_id] for mode_id in set_id],
-                self.objects,
-                self.robots,
-                additional_constraints=set_force_constraints_dict[set_id]
-                + workspace_pos_constraints,
-            )
+            self._create_contact_set_from_contact_pair_mode_ids(set_id)
             for set_id in tqdm(set_ids)
         ]
         # Do not need to prune if loading from saved file, there shouldn't be empty sets
@@ -402,6 +316,82 @@ class ContactGraph(Graph):
 
         sets_to_keep_ids = [str(contact_set.id) for contact_set in sets_to_keep]
         return sets_to_keep, sets_to_keep_ids
+
+    def _initialize_set_generation_variables(self):
+        self._body_dict: Dict[str, RigidBody] = {
+            body.name: body for body in self.obstacles + self.objects + self.robots
+        }
+
+        obs_names = [body.name for body in self.obstacles]
+        obj_names = [body.name for body in self.objects]
+        rob_names = [body.name for body in self.robots]
+        movable = obj_names + rob_names
+        self._movable = movable
+
+        static_movable_pairs = list(product(obs_names, movable))
+        movable_pairs = list(combinations(movable, 2))
+        rigid_body_pairs = static_movable_pairs + movable_pairs
+
+        logger.info(
+            f"Generating contact pair modes for {len(rigid_body_pairs)} body pairs..."
+        )
+
+        body_pair_to_modes = {
+            (body1, body2): generate_contact_pair_modes(
+                self._body_dict[body1], self._body_dict[body2]
+            )
+            for body1, body2 in tqdm(rigid_body_pairs)
+        }
+
+        self._body_pair_to_mode_ids = {
+            (body1, body2): [mode.id for mode in modes]
+            for (body1, body2), modes in body_pair_to_modes.items()
+        }
+        mode_ids_to_mode: Dict[str, ContactPairMode] = {
+            mode.id: mode for modes in body_pair_to_modes.values() for mode in modes
+        }
+        self._contact_pair_modes = mode_ids_to_mode
+
+    def _create_contact_set_from_contact_pair_mode_ids(
+        self, mode_ids: Iterable[str]
+    ) -> ContactSet:
+        # Collect the forces acting on each body
+        body_force_sums = defaultdict(lambda: np.full((self.base_dim,), Expression()))
+        for mode_id in mode_ids:
+            mode = self._contact_pair_modes[mode_id]
+            if isinstance(mode, InContactPairMode):
+                body_force_sums[mode.body_a.name] += (
+                    -mode.unit_normal * mode.vars_force_mag_BA
+                )
+                body_force_sums[mode.body_b.name] += (
+                    mode.unit_normal * mode.vars_force_mag_AB
+                )
+
+        set_force_constraints = []
+        workspace_pos_constraints = []
+        for body_name in self._movable:
+            body = self._body_dict[body_name]
+
+            set_force_constraints += body.force_constraints
+
+            if body.mobility_type == MobilityType.ACTUATED:
+                body_force_sums[body_name] += body.vars_force_act
+            set_force_constraints.extend(
+                eq(body.vars_force_res, body_force_sums[body_name]).tolist()
+            )
+
+            workspace_pos_constraints += body.create_workspace_position_constraints(
+                self.workspace
+            )
+
+        contact_set = ContactSet.from_objs_robs(
+            [self._contact_pair_modes[mode_id] for mode_id in mode_ids],
+            self.objects,
+            self.robots,
+            additional_constraints=set_force_constraints + workspace_pos_constraints,
+        )
+
+        return contact_set
 
     ### POST SOLVE ###
 

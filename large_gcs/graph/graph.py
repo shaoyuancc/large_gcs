@@ -161,20 +161,13 @@ class Graph:
         self._gcs_options_wo_relaxation = GraphOfConvexSetsOptions()
         self._gcs_options_wo_relaxation.convex_relaxation = False
 
-    def add_vertex(self, vertex: Vertex, name: str = ""):
+    def add_vertex(self, vertex: Vertex, name: str = "", add_to_gcs: bool = True):
         """
         Add a vertex to the graph.
         """
         if name == "":
             name = len(self.vertices)
         assert name not in self.vertices
-
-        # Makes a copy so that the original vertex is not modified
-        # allows for convenient adding of vertices from one graph to another
-        v = copy(vertex)
-
-        v.gcs_vertex = self._gcs.AddVertex(v.convex_set.set, name)
-        self.vertices[name] = v
 
         # Set default costs and constraints if necessary
         if self._default_costs_constraints:  # Have defaults
@@ -189,16 +182,24 @@ class Graph:
                 and self._default_costs_constraints.vertex_constraints
             ):
                 v.constraints = self._default_costs_constraints.vertex_constraints
+        # Makes a copy so that the original vertex is not modified
+        # allows for convenient adding of vertices from one graph to another
+        v = copy(vertex)
+        if add_to_gcs:
+            v.gcs_vertex = self._gcs.AddVertex(v.convex_set.set, name)
+            # Add costs and constraints to gcs vertex
+            if v.costs:
+                for cost in v.costs:
+                    binding = Binding[Cost](cost, v.gcs_vertex.x().flatten())
+                    v.gcs_vertex.AddCost(binding)
+            if v.constraints:
+                for constraint in v.constraints:
+                    binding = Binding[Constraint](
+                        constraint, v.gcs_vertex.x().flatten()
+                    )
+                    v.gcs_vertex.AddConstraint(binding)
 
-        # Add costs and constraints to gcs vertex
-        if v.costs:
-            for cost in v.costs:
-                binding = Binding[Cost](cost, v.gcs_vertex.x().flatten())
-                v.gcs_vertex.AddCost(binding)
-        if v.constraints:
-            for constraint in v.constraints:
-                binding = Binding[Constraint](constraint, v.gcs_vertex.x().flatten())
-                v.gcs_vertex.AddConstraint(binding)
+        self.vertices[name] = v
 
     def remove_vertex(self, name: str):
         """
@@ -237,15 +238,11 @@ class Graph:
         ):
             self.add_vertex(Vertex(set, cost_list, constraint_list), name)
 
-    def add_edge(self, edge: Edge):
+    def add_edge(self, edge: Edge, add_to_gcs: bool = True):
         """
         Add an edge to the graph.
         """
         e = copy(edge)
-        e.gcs_edge = self._gcs.AddEdge(
-            self.vertices[e.u].gcs_vertex, self.vertices[e.v].gcs_vertex
-        )
-
         # Set default costs and constraints if necessary
         if self._default_costs_constraints:  # Have defaults
             if (
@@ -260,17 +257,22 @@ class Graph:
             ):
                 e.constraints = self._default_costs_constraints.edge_constraints
 
-        # Add costs and constraints to gcs edge
-        if e.costs:
-            for cost in e.costs:
-                x = np.concatenate([e.gcs_edge.xu(), e.gcs_edge.xv()])
-                binding = Binding[Cost](cost, x)
-                e.gcs_edge.AddCost(binding)
-        if e.constraints:
-            for constraint in e.constraints:
-                x = np.concatenate([e.gcs_edge.xu(), e.gcs_edge.xv()])
-                binding = Binding[Constraint](constraint, x)
-                e.gcs_edge.AddConstraint(binding)
+        if add_to_gcs:
+            e.gcs_edge = self._gcs.AddEdge(
+                self.vertices[e.u].gcs_vertex, self.vertices[e.v].gcs_vertex
+            )
+
+            # Add costs and constraints to gcs edge
+            if e.costs:
+                for cost in e.costs:
+                    x = np.concatenate([e.gcs_edge.xu(), e.gcs_edge.xv()])
+                    binding = Binding[Cost](cost, x)
+                    e.gcs_edge.AddCost(binding)
+            if e.constraints:
+                for constraint in e.constraints:
+                    x = np.concatenate([e.gcs_edge.xu(), e.gcs_edge.xv()])
+                    binding = Binding[Constraint](constraint, x)
+                    e.gcs_edge.AddConstraint(binding)
 
         self.edges[(e.u, e.v)] = e
         return e
@@ -688,6 +690,9 @@ class Graph:
 
     def vertex_name_indices(self, vertex_names):
         return [self.vertex_names.index(name) for name in vertex_names]
+
+    def generate_neighbors(self, vertex_name: str) -> None:
+        pass
 
     @property
     def vertex_names(self):
