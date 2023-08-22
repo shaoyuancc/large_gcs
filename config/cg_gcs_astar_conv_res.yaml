@@ -6,11 +6,11 @@ defaults:
 graph_name: "cg_maze_a2"
 cost_estimator:
   obj_multiplier: 100
-  use_combined_gcs: false
+  use_combined_gcs: true
 #   shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted"
 algorithm:
   reexplore_level: 'NONE'
-  tiebreak: 'LIFO'
+  tiebreak: 'FIFO'
 
 save_visualization: true
 save_to_wandb: true

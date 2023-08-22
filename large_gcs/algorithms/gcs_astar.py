@@ -168,6 +168,8 @@ class GcsAstar(SearchAlgorithm):
 
     def _add_vertex_and_edges_to_visited_except_edges_to_target(self, vertex_name):
         # Add node to the visited subgraph along with all of its incoming and outgoing edges to the visited subgraph
+        self._graph.generate_neighbors(vertex_name)
+
         if vertex_name in self._visited.vertex_names:
             return
 

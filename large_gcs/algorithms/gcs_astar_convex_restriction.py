@@ -204,6 +204,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
     def _set_visited_vertices_and_edges(self, vertex_name, edge_keys):
         """Also adds source and target regardless of whether they are in edges"""
+        self._graph.generate_neighbors(vertex_name)
         self._visited_vertices.add(vertex_name)
         vertices_to_add = set(
             [self._graph.target_name, self._graph.source_name, vertex_name]
@@ -235,7 +236,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         logger.info(f"visited_fd_vertices: {self._visited_fd_vertices}")
 
     def plot_graph(self, path=None, current_edge=None, is_final_path=False):
-        plt.title("GCS A*")
+        plt.title("GCS A* Convex Restriction")
         if self._graph.workspace is not None:
             plt.xlim(self._graph.workspace[0])
             plt.ylim(self._graph.workspace[1])

@@ -67,12 +67,22 @@ class ContactGraphGeneratorParams:
         self.source_rob_pos = list(self.source_rob_pos)
 
     @property
-    def graph_file_path(self):
+    def graph_file_path(self) -> str:
         return self.graph_file_path_from_name(self.name)
 
+    @property
+    def inc_graph_file_path(self) -> str:
+        return self.graph_file_path_from_name(self.name + "_inc")
+
     @staticmethod
-    def graph_file_path_from_name(name: str):
+    def graph_file_path_from_name(name: str) -> str:
         return os.path.join(os.environ["PROJECT_ROOT"], "example_graphs", name + ".npy")
+
+    @staticmethod
+    def inc_graph_file_path_from_name(name: str) -> str:
+        return os.path.join(
+            os.environ["PROJECT_ROOT"], "example_graphs", name + "_inc.npy"
+        )
 
 
 class ContactGraphGenerator:
@@ -145,7 +155,7 @@ class ContactGraphGenerator:
             vertex_inclusion=None,
         )
         if save_to_file:
-            contact_graph.save_to_file(self._params.graph_file_path)
+            contact_graph.save_to_file(self._params.inc_graph_file_path)
 
         return contact_graph
 
