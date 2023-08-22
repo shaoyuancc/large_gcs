@@ -15,7 +15,7 @@ from pydrake.all import (
     Variable,
 )
 
-from large_gcs.contact.contact_set import ContactSetDecisionVariables
+from large_gcs.contact.contact_set_decision_variables import ContactSetDecisionVariables
 
 
 def create_vars_from_template(

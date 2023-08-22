@@ -97,16 +97,20 @@ class RigidBody:
 
         self.force_constraints = constraints
 
-    def create_workspace_position_constraints(self, workspace):
+    def create_workspace_position_constraints(self, workspace, base_only=False):
         constraints = []
         ws = workspace.T
         bbox = self.geometry.bounding_box
         # Position constraints
-        for pos in self.vars_pos.T:
+        if base_only:
+            positions = [self.vars_pos.T[0]]
+        else:
+            positions = self.vars_pos.T
+        for pos in positions:
             ub_offset = bbox[1] - self.geometry.center
-            constraints.extend(le(pos + ub_offset, ws[1]))
+            constraints.extend(le(pos + ub_offset, ws[1]).tolist())
             lb_offset = bbox[0] - self.geometry.center
-            constraints.extend(ge(pos + lb_offset, ws[0]))
+            constraints.extend(ge(pos + lb_offset, ws[0]).tolist())
         return constraints
 
     @property

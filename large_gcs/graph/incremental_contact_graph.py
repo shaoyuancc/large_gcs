@@ -1,5 +1,7 @@
 import logging
+from collections import defaultdict
 from itertools import combinations, product
+from multiprocessing import Pool
 from typing import Dict, List, Tuple
 
 import matplotlib.cm as cm
@@ -15,6 +17,7 @@ from large_gcs.contact.contact_pair_mode import (
 )
 from large_gcs.contact.contact_regions_set import ContactRegionParams, ContactRegionsSet
 from large_gcs.contact.contact_set import ContactPointSet, ContactSet
+from large_gcs.contact.contact_set_decision_variables import ContactSetDecisionVariables
 from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.contact_cost_constraint_factory import (
@@ -129,23 +132,15 @@ class IncrementalContactGraph(ContactGraph):
         self.set_source("source")
         self.set_target("target")
 
-        self._initialize_neighbor_generator(
-            contact_pair_modes, contact_set_mode_ids, vertex_exclusion, vertex_inclusion
-        )
+        self._initialize_neighbor_generator()
 
     def _initialize_neighbor_generator(
         self,
-        contact_pair_modes: Dict[
-            str, ContactPairMode
-        ] = None,  # For loading a saved graph
-        contact_set_mode_ids: List[Tuple] = None,  # For loading a saved graph
-        vertex_exlcusion: List[str] = None,
-        vertex_inclusion: List[str] = None,
     ):
         static_obstacles = self.obstacles
         unactuated_objects = self.objects
         actuated_robots = self.robots
-        body_dict = {
+        body_dict: Dict[str, RigidBody] = {
             body.name: body
             for body in static_obstacles + unactuated_objects + actuated_robots
         }
@@ -154,39 +149,79 @@ class IncrementalContactGraph(ContactGraph):
         rob_names = [body.name for body in actuated_robots]
         movable = obj_names + rob_names
 
-        if contact_pair_modes is None or contact_set_mode_ids is None:
-            logger.info(f"Generating contact sets for {len(body_dict)} bodies...")
-            static_movable_pairs = list(product(obs_names, movable))
-            movable_pairs = list(combinations(movable, 2))
-            rigid_body_pairs = static_movable_pairs + movable_pairs
+        logger.info(f"Generating contact sets for {len(body_dict)} bodies...")
+        static_movable_pairs = list(product(obs_names, movable))
+        movable_pairs = list(combinations(movable, 2))
+        rigid_body_pairs = static_movable_pairs + movable_pairs
 
-            logger.info(
-                f"Generating contact pair modes for {len(rigid_body_pairs)} body pairs..."
+        logger.info(
+            f"Generating contact pair modes for {len(rigid_body_pairs)} body pairs..."
+        )
+
+        body_pair_to_modes = {
+            (body1, body2): generate_contact_pair_modes(
+                body_dict[body1], body_dict[body2]
             )
+            for body1, body2 in tqdm(rigid_body_pairs)
+        }
+        logger.info(
+            f"Each body pair has on average {np.mean([len(modes) for modes in body_pair_to_modes.values()])} modes"
+        )
+        body_pair_to_mode_ids = {
+            (body1, body2): [mode.id for mode in modes]
+            for (body1, body2), modes in body_pair_to_modes.items()
+        }
+        mode_ids_to_mode: Dict[str, ContactPairMode] = {
+            mode.id: mode for modes in body_pair_to_modes.values() for mode in modes
+        }
+        self._contact_pair_modes = mode_ids_to_mode
 
-            body_pair_to_modes = {
-                (body1, body2): generate_contact_pair_modes(
-                    body_dict[body1], body_dict[body2]
+        assert self.workspace is not None, "Workspace must be set"
+
+        workspace_pos_constraints = {
+            body_name: body_dict[body_name].create_workspace_position_constraints(
+                self.workspace, base_only=True
+            )
+            for body_name in movable
+        }
+
+        self.adj_modes = defaultdict(list)
+        sets = []
+        pairs_of_modes = []
+        for body_pair, mode_ids in body_pair_to_mode_ids.items():
+            objs = []
+            robs = []
+            additional_constraints = []
+            for body_name in body_pair:
+                if body_dict[body_name].mobility_type == MobilityType.UNACTUATED:
+                    objs.append(body_dict[body_name])
+                    additional_constraints.extend(workspace_pos_constraints[body_name])
+                elif body_dict[body_name].mobility_type == MobilityType.ACTUATED:
+                    robs.append(body_dict[body_name])
+                    additional_constraints.extend(workspace_pos_constraints[body_name])
+
+            vars = ContactSetDecisionVariables.from_objs_robs(objs, robs)
+            base_polyhedra = {
+                id: mode_ids_to_mode[id].create_base_polyhedron(
+                    vars=vars, additional_constraints=additional_constraints
                 )
-                for body1, body2 in tqdm(rigid_body_pairs)
+                for id in mode_ids
             }
-            logger.info(
-                f"Each body pair has on average {np.mean([len(modes) for modes in body_pair_to_modes.values()])} modes"
+            tmp_pairs_of_modes = list(combinations(mode_ids, 2))
+            pairs_of_modes.extend(tmp_pairs_of_modes)
+            sets.extend(
+                [
+                    (base_polyhedra[mode_id1], base_polyhedra[mode_id2])
+                    for mode_id1, mode_id2 in tmp_pairs_of_modes
+                ]
             )
-            body_pair_to_mode_names = {
-                (body1, body2): [mode.id for mode in modes]
-                for (body1, body2), modes in body_pair_to_modes.items()
-            }
-            mode_ids_to_mode = {
-                mode.id: mode for modes in body_pair_to_modes.values() for mode in modes
-            }
-            self._contact_pair_modes = mode_ids_to_mode
-
-            # Each set is the cartesian product of the modes for each object pair
-            list(product(*body_pair_to_mode_names.values()))
-        else:
-            logger.info(
-                f"Loading {len(contact_pair_modes)} contact pair modes for {len(body_dict)} bodies..."
+        with Pool() as pool:
+            intersections = list(
+                tqdm(pool.imap(self._check_intersection, sets), total=len(sets))
             )
-            mode_ids_to_mode = contact_pair_modes
-            self._contact_pair_modes = mode_ids_to_mode
+            for (mode_id1, mode_id2), intersection in zip(
+                pairs_of_modes, intersections
+            ):
+                if intersection:
+                    self.adj_modes[mode_id1].append(mode_id2)
+                    self.adj_modes[mode_id2].append(mode_id1)

@@ -17,7 +17,7 @@ from large_gcs.contact.contact_pair_mode import (
     InContactPairMode,
     NoContactPairMode,
 )
-from large_gcs.contact.contact_set import ContactSetDecisionVariables
+from large_gcs.contact.contact_set_decision_variables import ContactSetDecisionVariables
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.geometry_utils import (

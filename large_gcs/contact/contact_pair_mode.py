@@ -5,7 +5,7 @@ from typing import List, Tuple, Type
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pydrake.all import Expression, Formula, Variable, eq, ge, le
+from pydrake.all import Expression, Formula, HPolyhedron, Variable, eq, ge, le
 
 from large_gcs.contact.contact_location import (
     ContactLocation,
@@ -15,6 +15,7 @@ from large_gcs.contact.contact_location import (
     is_possible_face_vertex_contact,
 )
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
+from large_gcs.geometry.geometry_utils import HPolyhedronFromConstraints
 
 
 @dataclass
@@ -92,7 +93,7 @@ class ContactPairMode(ABC):
         return exprs
 
     @property
-    def id(self):
+    def id(self) -> str:
         return f"{self.compact_class_name}|{self.body_a.name}_{self.contact_location_a.compact_name}-{self.body_b.name}_{self.contact_location_b.compact_name}"
 
     @property
@@ -110,6 +111,24 @@ class ContactPairMode(ABC):
             contact_location_b_type=type(self.contact_location_b),
             contact_location_a_index=self.contact_location_a.index,
             contact_location_b_index=self.contact_location_b.index,
+        )
+
+    # Note: Didn't type hint vars because it led to a cyclic import, TODO: Figure out how to do this properly
+    def create_base_polyhedron(
+        self, vars, additional_constraints: List[Formula] = None
+    ) -> HPolyhedron:
+        """Args:
+        vars: ContactSetDecisionVariables
+        additional_constraints: Additional constraints to add to the base polyhedron
+        """
+        constraints = self.base_constraint_formulas
+        if additional_constraints is not None:
+            constraints += additional_constraints
+        return HPolyhedronFromConstraints(
+            constraints,
+            vars.base_all,
+            make_bounded=False,  # Should be bounded by workspace constraints
+            remove_constraints_not_in_vars=False,
         )
 
 
@@ -138,7 +157,7 @@ class NoContactPairMode(ContactPairMode):
         base_constraints = []
         # Position Constraints
         signed_dist_exprs = self._create_signed_dist_surrog_constraint_exprs()
-        constraints += [ge(expr, 0) for expr in signed_dist_exprs]
+        constraints += [ge(expr, 0).item() for expr in signed_dist_exprs]
         # Extract the base signed distance constraint which is the one that involves the base position variables
         # i.e. pos 0 of n_pos_per_set. For sd, each pos produces one expression
         base_constraints = [constraints[0]]
@@ -178,7 +197,7 @@ class InContactPairMode(ContactPairMode):
         base_constraints = []
         # Position Constraints
         sd_exprs = self._create_signed_dist_surrog_constraint_exprs()
-        sd_constraints = [eq(expr, 0) for expr in sd_exprs]
+        sd_constraints = [eq(expr, 0).item() for expr in sd_exprs]
         constraints += sd_constraints
         # Extract the base signed distance constraint which is the one that involves the base position variables
         # i.e. pos 0 of n_pos_per_set. For sd, each pos produces one expression
@@ -198,15 +217,15 @@ class InContactPairMode(ContactPairMode):
     def _create_force_constraint_formulas(self):
         formulas = []
         # If bodies A and B are in contact, A must be exerting some positive force on B, and vice versa
-        formulas.append(ge(self.vars_force_mag_AB, 0))
-        formulas.append(ge(self.vars_force_mag_BA, 0))
+        formulas.append(ge(self.vars_force_mag_AB, 0).item())
+        formulas.append(ge(self.vars_force_mag_BA, 0).item())
 
         # If one of the bodies is static, whatever force is being exerted on it, it exerts back with the same magnitude
         if (
             self.body_a.mobility_type == MobilityType.STATIC
             or self.body_b.mobility_type == MobilityType.STATIC
         ):
-            formulas.append(eq(self.vars_force_mag_AB, self.vars_force_mag_BA))
+            formulas.append(eq(self.vars_force_mag_AB, self.vars_force_mag_BA).item())
         return formulas
 
     def _create_horizontal_bounds_formulas(self):
@@ -495,7 +514,7 @@ def _face_horizontal_bounds_formulas(
     buff = buffer_ratio * ref_length
     lb = buff
     ub = ref_length + rel_length - buff
-    return [ge(dist, lb), le(dist, ub)]
+    return [ge(dist, lb).item(), le(dist, ub).item()]
 
 
 def generate_contact_pair_modes(
