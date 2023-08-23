@@ -70,9 +70,7 @@ class ContactGraph(Graph):
         # Note: The order of operations in this constructor is important
         self.vertex_inclusion = vertex_inclusion
         self.vertex_exclusion = vertex_exclusion
-        self.obstacles = None
-        self.objects = None
-        self.robots = None
+
         self.target_pos = None
         self.target_region_params = None
         self.target_regions = None
@@ -89,9 +87,9 @@ class ContactGraph(Graph):
             assert (
                 thing.mobility_type == MobilityType.ACTUATED
             ), f"{thing.name} is not actuated"
-        self.obstacles = static_obstacles
-        self.objects = unactuated_objects
-        self.robots = actuated_robots
+        self.obstacles: List[RigidBody] = static_obstacles
+        self.objects: List[RigidBody] = unactuated_objects
+        self.robots: List[RigidBody] = actuated_robots
 
         sets, set_ids = self._generate_contact_sets(
             contact_pair_modes, contact_set_mode_ids, vertex_exclusion, vertex_inclusion
@@ -332,6 +330,13 @@ class ContactGraph(Graph):
         movable = obj_names + rob_names
         self._movable = movable
 
+        self._workspace_constraints = []
+        self._base_workspace_constraints = []
+        for body in self.objects + self.robots:
+            body.create_workspace_position_constraints(self.workspace)
+            self._workspace_constraints += body.workspace_constraints
+            self._base_workspace_constraints += body.base_workspace_constraints
+
         static_movable_pairs = list(product(obs_names, movable))
         movable_pairs = list(combinations(movable, 2))
         rigid_body_pairs = static_movable_pairs + movable_pairs
@@ -372,10 +377,8 @@ class ContactGraph(Graph):
                 )
 
         set_force_constraints = []
-        workspace_pos_constraints = []
         for body_name in self._movable:
             body = self._body_dict[body_name]
-
             set_force_constraints += body.force_constraints
 
             if body.mobility_type == MobilityType.ACTUATED:
@@ -384,15 +387,12 @@ class ContactGraph(Graph):
                 eq(body.vars_force_res, body_force_sums[body_name]).tolist()
             )
 
-            workspace_pos_constraints += body.create_workspace_position_constraints(
-                self.workspace
-            )
-
         contact_set = ContactSet.from_objs_robs(
             [self._contact_pair_modes[mode_id] for mode_id in mode_ids],
             self.objects,
             self.robots,
-            additional_constraints=set_force_constraints + workspace_pos_constraints,
+            additional_constraints=set_force_constraints + self._workspace_constraints,
+            additional_base_constraints=self._base_workspace_constraints,
         )
 
         return contact_set

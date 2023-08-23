@@ -97,7 +97,15 @@ class RigidBody:
 
         self.force_constraints = constraints
 
-    def create_workspace_position_constraints(self, workspace, base_only=False):
+    def create_workspace_position_constraints(self, workspace):
+        self.base_workspace_constraints = self._create_workspace_position_constraints(
+            workspace, base_only=True
+        )
+        self.workspace_constraints = self._create_workspace_position_constraints(
+            workspace, base_only=False
+        )
+
+    def _create_workspace_position_constraints(self, workspace, base_only=False):
         constraints = []
         ws = workspace.T
         bbox = self.geometry.bounding_box

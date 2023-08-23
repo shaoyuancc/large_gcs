@@ -46,11 +46,7 @@ class IncrementalContactGraph(ContactGraph):
         target_pos_robs: List[np.ndarray] = None,
         target_region_params: List[ContactRegionParams] = None,
         workspace: np.ndarray = None,
-        vertex_exclusion: List[str] = None,
-        vertex_inclusion: List[str] = None,
-        contact_pair_modes: List[ContactPairMode] = None,  # For loading a saved graph
-        contact_set_mode_ids: List[List[str]] = None,  # For loading a saved graph
-        edge_keys: List[Tuple[str, str]] = None,  # For loading a saved graph
+        include_simultaneous_mode_swiches: bool = True,
     ):
         """
         Args:
@@ -62,14 +58,14 @@ class IncrementalContactGraph(ContactGraph):
         Graph.__init__(self, workspace=workspace)
         assert self.workspace is not None, "Workspace must be set"
         # Note: The order of operations in this constructor is important
-        self.vertex_inclusion = vertex_inclusion
-        self.vertex_exclusion = vertex_exclusion
+
         self.obstacles = None
         self.objects = None
         self.robots = None
         self.target_pos = None
         self.target_region_params = None
         self.target_regions = None
+        self.include_simultaneous_mode_swiches = include_simultaneous_mode_swiches
 
         for thing in static_obstacles:
             assert (
@@ -142,13 +138,6 @@ class IncrementalContactGraph(ContactGraph):
     ):
         self._initialize_set_generation_variables()
 
-        workspace_pos_constraints = {
-            body_name: self._body_dict[body_name].create_workspace_position_constraints(
-                self.workspace, base_only=True
-            )
-            for body_name in self._movable
-        }
-
         body_name_to_source_pos = {}
         for i, body in enumerate(self._movable):
             body_name_to_source_pos[body] = self.source_pos[i]
@@ -191,14 +180,14 @@ class IncrementalContactGraph(ContactGraph):
 
             for body_name in body_pair:
                 body = self._body_dict[body_name]
+                if body.mobility_type == MobilityType.STATIC:
+                    continue
+                additional_constraints.extend(body.base_workspace_constraints)
+                movable_body_name = body_name
                 if body.mobility_type == MobilityType.UNACTUATED:
                     objs.append(body)
-                    additional_constraints.extend(workspace_pos_constraints[body_name])
-                    movable_body_name = body_name
                 elif body.mobility_type == MobilityType.ACTUATED:
                     robs.append(body)
-                    additional_constraints.extend(workspace_pos_constraints[body_name])
-                    movable_body_name = body_name
 
             vars = ContactSetDecisionVariables.from_objs_robs(objs, robs)
             base_polyhedra = {
@@ -311,17 +300,35 @@ class IncrementalContactGraph(ContactGraph):
             raise ValueError("Should not need to generate neighbors for target vertex")
 
         # Convert string representation of tuple to actual tuple
-        mode_ids = list(ast.literal_eval(vertex_name))
-        # Flip the each mode through all possible adjacent modes (Only flip one mode at a time)
-        # This excludes multiple simultaneous flips, which are technically also valid neighbors
-        # but we are not considering them for now.
-        possible_edge_to_target = []
-        for i, id in enumerate(mode_ids):
-            for adj_id in self._adj_modes[id]:
-                neighbor_set_id = copy(mode_ids)
-                neighbor_set_id[i] = adj_id
-                self._generate_vertex_neighbor(vertex_name, neighbor_set_id)
+        mode_ids = ast.literal_eval(vertex_name)
 
+        if self.include_simultaneous_mode_swiches:
+            mode_ids_for_each_body_pair = []
+            for i, id in enumerate(mode_ids):
+                mode_ids_for_each_body_pair.append(
+                    # This order is what allows us to remove the first element in set_ids
+                    [id]
+                    + self._adj_modes[id]
+                )
+            set_ids = list(product(*mode_ids_for_each_body_pair))
+            # Remove the first entry in the list which would be the current set
+            set_ids = set_ids[1:]
+            logger.debug(f"Generating {len(set_ids)} neighbors for {vertex_name}")
+            for set_id in set_ids:
+                self._generate_vertex_neighbor(vertex_name, set_id)
+        else:
+            # Flip the each mode through all possible adjacent modes (Only flip one mode at a time)
+            # This excludes multiple simultaneous flips, which are technically also valid neighbors
+            # but we are not considering them for now.
+            for i, id in enumerate(mode_ids):
+                for adj_id in self._adj_modes[id]:
+                    neighbor_set_id = list(copy(mode_ids))
+                    neighbor_set_id[i] = adj_id
+                    self._generate_vertex_neighbor(vertex_name, neighbor_set_id)
+
+        # Determine if we can add an edge to the target vertex
+        possible_edge_to_target = []
+        for id in mode_ids:
             mode = self._contact_pair_modes[id]
             # Only consider body pairs that are not both movable (that's what our possible edge to target
             # conditions are based on)
@@ -355,12 +362,17 @@ class IncrementalContactGraph(ContactGraph):
 
         if (u, vertex_name) in self.edges:
             # vertex and edge already exits, do nothing.
+            logger.debug(f"vertex and edge already exist for {u} -> {vertex_name}")
             return
 
         if vertex_name not in self.vertices:
             v_set = self._create_contact_set_from_contact_pair_mode_ids(
                 v_contact_pair_mode_ids
             )
+            if v_set.set.IsEmpty():
+                logger.debug(f"Skipping empty set {vertex_name}")
+                return
+
             vertex = Vertex(
                 v_set,
                 costs=self._create_single_vertex_costs(v_set),
@@ -368,6 +380,16 @@ class IncrementalContactGraph(ContactGraph):
             )
             self.add_vertex(vertex, vertex_name, add_to_gcs=False)
 
+        if not self._check_intersection(
+            (
+                self.vertices[u].convex_set.base_set,
+                self.vertices[vertex_name].convex_set.base_set,
+            )
+        ):
+            logger.debug(
+                f"Skipping neighbor {vertex_name} because it does not intersect with {u}"
+            )
+            return
         self.add_edge(
             Edge(
                 u=u,
@@ -377,3 +399,56 @@ class IncrementalContactGraph(ContactGraph):
             ),
             add_to_gcs=False,
         )
+
+    ### SERIALIZATION METHODS ###
+
+    def save_to_file(self, path: str):
+        if self.target_pos is None:
+            target_pos_objs = None
+            target_pos_robs = None
+        else:
+            target_pos_objs = self.target_pos[: self.n_objects]
+            target_pos_robs = self.target_pos[self.n_objects :]
+        np.save(
+            path,
+            {
+                "obs_params": [obs.params for obs in self.obstacles],
+                "objs_params": [obj.params for obj in self.objects],
+                "robs_params": [rob.params for rob in self.robots],
+                "source_pos_objs": self.source_pos[: self.n_objects],
+                "source_pos_robs": self.source_pos[self.n_objects :],
+                "target_pos_objs": target_pos_objs,
+                "target_pos_robs": target_pos_robs,
+                "target_region_params": self.target_region_params,
+                "workspace": self.workspace,
+            },
+        )
+
+    @classmethod
+    def load_from_file(
+        cls,
+        path: str,
+        **kwargs,
+    ):
+        data = np.load(path, allow_pickle=True).item()
+        obs = [RigidBody.from_params(params) for params in data["obs_params"]]
+        objs = [RigidBody.from_params(params) for params in data["objs_params"]]
+        robs = [RigidBody.from_params(params) for params in data["robs_params"]]
+        if "target_region_params" in data:
+            target_region_params = data["target_region_params"]
+        else:
+            target_region_params = None
+
+        cg = cls(
+            static_obstacles=obs,
+            unactuated_objects=objs,
+            actuated_robots=robs,
+            source_pos_objs=data["source_pos_objs"],
+            source_pos_robs=data["source_pos_robs"],
+            target_pos_objs=data["target_pos_objs"],
+            target_pos_robs=data["target_pos_robs"],
+            target_region_params=target_region_params,
+            workspace=data["workspace"],
+            **kwargs,
+        )
+        return cg

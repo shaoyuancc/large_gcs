@@ -151,8 +151,6 @@ class ContactGraphGenerator:
             target_pos_robs=self._params.target_rob_pos,
             target_region_params=self._params.target_region_params,
             workspace=self._params.workspace,
-            vertex_exclusion=None,
-            vertex_inclusion=None,
         )
         if save_to_file:
             contact_graph.save_to_file(self._params.inc_graph_file_path)

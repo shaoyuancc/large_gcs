@@ -1,5 +1,6 @@
 import itertools
 from abc import ABC, abstractmethod
+from copy import copy
 from dataclasses import dataclass
 from typing import List, Tuple, Type
 
@@ -121,13 +122,13 @@ class ContactPairMode(ABC):
         vars: ContactSetDecisionVariables
         additional_constraints: Additional constraints to add to the base polyhedron
         """
-        constraints = self.base_constraint_formulas
+        constraints = copy(self.base_constraint_formulas)
         if additional_constraints is not None:
             constraints += additional_constraints
         return HPolyhedronFromConstraints(
             constraints,
             vars.base_all,
-            make_bounded=False,  # Should be bounded by workspace constraints
+            make_bounded=True,  # Should be bounded by workspace constraints
             remove_constraints_not_in_vars=False,
         )
 

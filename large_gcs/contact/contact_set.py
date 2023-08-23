@@ -1,5 +1,6 @@
 from typing import List
 
+import matplotlib.pyplot as plt
 import numpy as np
 from pydrake.all import Formula
 from pydrake.all import Point as DrakePoint
@@ -9,6 +10,7 @@ from large_gcs.contact.contact_set_decision_variables import ContactSetDecisionV
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.geometry_utils import HPolyhedronFromConstraints
+from large_gcs.geometry.polyhedron import Polyhedron
 
 
 class ContactPointSet(ConvexSet):
@@ -56,6 +58,7 @@ class ContactSet(ConvexSet):
         vars: ContactSetDecisionVariables,
         contact_pair_modes: List[ContactPairMode],
         additional_constraints: List[Formula] = None,
+        additional_base_constraints: List[Formula] = None,
         remove_constraints_not_in_vars=False,
     ):
         self.vars = vars
@@ -75,6 +78,8 @@ class ContactSet(ConvexSet):
         ]
         if additional_constraints is not None:
             self.constraint_formulas.extend(additional_constraints)
+        if additional_base_constraints is not None:
+            self.base_constraint_formulas.extend(additional_base_constraints)
         self._polyhedron = HPolyhedronFromConstraints(
             self.constraint_formulas,
             self.vars.all,
@@ -93,6 +98,7 @@ class ContactSet(ConvexSet):
         objects: List[RigidBody],
         robots: List[RigidBody],
         additional_constraints: List[Formula] = None,
+        additional_base_constraints: List[Formula] = None,
     ):
 
         if not all(obj.mobility_type == MobilityType.UNACTUATED for obj in objects):
@@ -103,7 +109,13 @@ class ContactSet(ConvexSet):
         vars = ContactSetDecisionVariables.from_contact_pair_modes(
             objects, robots, contact_pair_modes
         )
-        return cls(vars, contact_pair_modes, additional_constraints, False)
+        return cls(
+            vars,
+            contact_pair_modes,
+            additional_constraints,
+            additional_base_constraints,
+            False,
+        )
 
     @classmethod
     def from_factored_collision_free_body(
@@ -111,9 +123,29 @@ class ContactSet(ConvexSet):
         contact_pair_modes: List[ContactPairMode],
         body: RigidBody,
         additional_constraints: List[Formula] = None,
+        additional_base_constraints: List[Formula] = None,
     ):
         vars = ContactSetDecisionVariables.from_factored_collision_free_body(body)
-        return cls(vars, contact_pair_modes, additional_constraints, True)
+        return cls(
+            vars,
+            contact_pair_modes,
+            additional_constraints,
+            additional_base_constraints,
+            True,
+        )
+
+    # def plot_base_set(self):
+    #     full_A = self._polyhedron.A()
+    #     full_b = self._polyhedron.b()
+
+    #     base_set_polyhedron = Polyhedron(full_A, full_b)
+    #     print(f"full_A: {full_A}")
+    #     print(f"full_b: {full_b}")
+    #     vertices = base_set_polyhedron.vertices
+    #     print(f"vertices: {vertices}")
+    #     for i in range (0, base_set_polyhedron.dim, 2):
+    #         plt.fill(*vertices[:, i:i+2].T, alpha=0.5, label=f"body{i/2}")
+    #     plt.legend()
 
     @property
     def id(self):
