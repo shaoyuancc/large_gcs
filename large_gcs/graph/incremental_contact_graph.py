@@ -311,7 +311,7 @@ class IncrementalContactGraph(ContactGraph):
             raise ValueError("Should not need to generate neighbors for target vertex")
 
         # Convert string representation of tuple to actual tuple
-        mode_ids = ast.literal_eval(vertex_name)
+        mode_ids = list(ast.literal_eval(vertex_name))
         # Flip the each mode through all possible adjacent modes (Only flip one mode at a time)
         # This excludes multiple simultaneous flips, which are technically also valid neighbors
         # but we are not considering them for now.

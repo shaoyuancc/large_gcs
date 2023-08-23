@@ -98,10 +98,7 @@ class FactoredCollisionFreeCE(CostEstimator):
 
         # Add neighbor and edge temporarily to the visited subgraph
         if not neighbor_is_target:
-            logger.debug(f"neighbor {neighbor} is not target {self._graph.target_name}")
             subgraph.add_vertex(self._graph.vertices[neighbor], neighbor)
-        else:
-            logger.debug(f"neighbor {neighbor} is target {self._graph.target_name}")
         subgraph.add_edge(edge)
         if active_edges is None:
             active_edges = []
