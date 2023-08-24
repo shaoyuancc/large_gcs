@@ -4,7 +4,7 @@ from collections import defaultdict
 from copy import copy
 from itertools import combinations, product
 from multiprocessing import Pool
-from typing import Iterable, List
+from typing import Iterable, List, Tuple
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
@@ -46,26 +46,25 @@ class IncrementalContactGraph(ContactGraph):
         target_pos_robs: List[np.ndarray] = None,
         target_region_params: List[ContactRegionParams] = None,
         workspace: np.ndarray = None,
-        include_simultaneous_mode_swiches: bool = True,
+        should_incl_simul_mode_switches: bool = True,
+        should_add_gcs: bool = False,
     ):
         """
-        Args:
-            static_obstacles: List of static obstacles.
-            unactuated_objects: List of unactuated objects.
-            actuated_robots: List of actuated robots.
-            initial_positions: List of initial positions of.
+        Can either specify target_pos or target_region_params, but not both.
+        include_simultaneous_mode_switches determines whether or not to include simultaneous mode switches as neighbors.
+        add_gcs determines whether or not to add the drake gcs vertices and edges to the graph.
+        It is not required if you are only using the incremental graph as a reference but not actually
+        solving any gcs problems on it directly.
         """
         Graph.__init__(self, workspace=workspace)
         assert self.workspace is not None, "Workspace must be set"
         # Note: The order of operations in this constructor is important
 
-        self.obstacles = None
-        self.objects = None
-        self.robots = None
         self.target_pos = None
         self.target_region_params = None
         self.target_regions = None
-        self.include_simultaneous_mode_swiches = include_simultaneous_mode_swiches
+        self._should_incl_simul_mode_switches = should_incl_simul_mode_switches
+        self._should_add_gcs = should_add_gcs
 
         for thing in static_obstacles:
             assert (
@@ -264,31 +263,47 @@ class IncrementalContactGraph(ContactGraph):
             self.source_name, source_neighbor_contact_pair_modes
         )
 
-    # def solve_shortest_path(self, use_convex_relaxation=False) -> ShortestPathSolution:
-    #     raise NotImplementedError(
-    #         "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
-    #     )
+    def solve_shortest_path(self, use_convex_relaxation=False) -> ShortestPathSolution:
+        if self._should_add_gcs:
+            return super().solve_shortest_path(use_convex_relaxation)
+        else:
+            raise ValueError(
+                f"Incremental graph should_add_gcs is False. Must set to True in order to solve."
+            )
 
-    # def solve_convex_restriction(
-    #     self, active_edges: List[Tuple[str, str]]
-    # ) -> ShortestPathSolution:
-    #     raise NotImplementedError(
-    #         "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
-    #     )
+    def solve_convex_restriction(
+        self, active_edges: List[Tuple[str, str]]
+    ) -> ShortestPathSolution:
+        if self._should_add_gcs:
+            return super().solve_convex_restriction(active_edges)
+        else:
+            raise ValueError(
+                f"Incremental graph should_add_gcs is False. Must set to True in order to solve."
+            )
 
-    # def solve_factored_shortest_path(
-    #     self, transition: str, targets: List[str], use_convex_relaxation=False
-    # ) -> ShortestPathSolution:
-    #     raise NotImplementedError(
-    #         "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
-    #     )
+    def solve_factored_shortest_path(
+        self, transition: str, targets: List[str], use_convex_relaxation=False
+    ) -> ShortestPathSolution:
+        if self._should_add_gcs:
+            return super().solve_factored_shortest_path(
+                transition, targets, use_convex_relaxation
+            )
+        else:
+            raise ValueError(
+                f"Incremental graph should_add_gcs is False. Must set to True in order to solve."
+            )
 
-    # def solve_factored_partial_convex_restriction(
-    #     self, active_edges: List[Tuple[str, str]], transition: str, targets: List[str]
-    # ) -> ShortestPathSolution:
-    #     raise NotImplementedError(
-    #         "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
-    #     )
+    def solve_factored_partial_convex_restriction(
+        self, active_edges: List[Tuple[str, str]], transition: str, targets: List[str]
+    ) -> ShortestPathSolution:
+        if self._should_add_gcs:
+            return super().solve_factored_partial_convex_restriction(
+                active_edges, transition, targets
+            )
+        else:
+            raise ValueError(
+                f"Incremental graph should_add_gcs is False. Must set to True in order to solve."
+            )
 
     def generate_neighbors(self, vertex_name: str) -> None:
         """Generates neighbors and adds them to the graph, also adds edges from vertex to neighbors"""
@@ -301,7 +316,7 @@ class IncrementalContactGraph(ContactGraph):
         # Convert string representation of tuple to actual tuple
         mode_ids = ast.literal_eval(vertex_name)
 
-        if self.include_simultaneous_mode_swiches:
+        if self._should_incl_simul_mode_switches:
             mode_ids_for_each_body_pair = []
             for i, id in enumerate(mode_ids):
                 mode_ids_for_each_body_pair.append(
@@ -350,7 +365,7 @@ class IncrementalContactGraph(ContactGraph):
                         vertex_name, self.target_name
                     ),
                 ),
-                add_to_gcs=True,
+                should_add_to_gcs=self._should_add_gcs,
             )
 
     def _generate_vertex_neighbor(
@@ -377,7 +392,7 @@ class IncrementalContactGraph(ContactGraph):
                 costs=self._create_single_vertex_costs(v_set),
                 constraints=self._create_single_vertex_constraints(v_set),
             )
-            self.add_vertex(vertex, vertex_name, add_to_gcs=True)
+            self.add_vertex(vertex, vertex_name, should_add_to_gcs=self._should_add_gcs)
 
         if not self._check_intersection(
             (
@@ -396,7 +411,7 @@ class IncrementalContactGraph(ContactGraph):
                 costs=self._create_single_edge_costs(u, vertex_name),
                 constraints=self._create_single_edge_constraints(u, vertex_name),
             ),
-            add_to_gcs=True,
+            should_add_to_gcs=self._should_add_gcs,
         )
 
     ### SERIALIZATION METHODS ###

@@ -138,6 +138,8 @@ class FactoredCollisionFreeCE(CostEstimator):
         # Clean up
         if not neighbor_is_target:
             subgraph.remove_vertex(neighbor)
+        else:
+            subgraph.remove_edge(edge.key)
 
         if not self._use_combined_gcs and sol.is_success and not neighbor_is_target:
             cfree_cost = self._get_cfree_cost_split(

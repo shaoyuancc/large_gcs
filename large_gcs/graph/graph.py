@@ -161,7 +161,9 @@ class Graph:
         self._gcs_options_wo_relaxation = GraphOfConvexSetsOptions()
         self._gcs_options_wo_relaxation.convex_relaxation = False
 
-    def add_vertex(self, vertex: Vertex, name: str = "", add_to_gcs: bool = True):
+    def add_vertex(
+        self, vertex: Vertex, name: str = "", should_add_to_gcs: bool = True
+    ):
         """
         Add a vertex to the graph.
         """
@@ -185,7 +187,7 @@ class Graph:
         # Makes a copy so that the original vertex is not modified
         # allows for convenient adding of vertices from one graph to another
         v = copy(vertex)
-        if add_to_gcs:
+        if should_add_to_gcs:
             v.gcs_vertex = self._gcs.AddVertex(v.convex_set.set, name)
             # Add costs and constraints to gcs vertex
             if v.costs:
@@ -238,7 +240,7 @@ class Graph:
         ):
             self.add_vertex(Vertex(set, cost_list, constraint_list), name)
 
-    def add_edge(self, edge: Edge, add_to_gcs: bool = True):
+    def add_edge(self, edge: Edge, should_add_to_gcs: bool = True):
         """
         Add an edge to the graph.
         """
@@ -257,7 +259,7 @@ class Graph:
             ):
                 e.constraints = self._default_costs_constraints.edge_constraints
 
-        if add_to_gcs:
+        if should_add_to_gcs:
             e.gcs_edge = self._gcs.AddEdge(
                 self.vertices[e.u].gcs_vertex, self.vertices[e.v].gcs_vertex
             )

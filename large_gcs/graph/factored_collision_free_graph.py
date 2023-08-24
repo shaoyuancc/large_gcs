@@ -149,17 +149,17 @@ class FactoredCollisionFreeGraph(ContactGraph):
         # Each set is the cartesian product of the modes for each object pair
         set_ids = list(product(*body_pair_to_mode_names.values()))
 
-        additional_constraints = []
-        if self.workspace is not None:
-            additional_constraints = (
-                self.movable_body.create_workspace_position_constraints(self.workspace)
-            )
+        self._base_workspace_constraints = []
+        for body in self.objects + self.robots:
+            body.create_workspace_position_constraints(self.workspace)
+            self._base_workspace_constraints += body.base_workspace_constraints
 
         all_contact_sets = [
             ContactSet.from_factored_collision_free_body(
                 [mode_ids_to_mode[mode_id] for mode_id in set_id],
                 self.movable_body,
-                additional_constraints=additional_constraints,
+                additional_constraints=self._base_workspace_constraints,
+                additional_base_constraints=self._base_workspace_constraints,
             )
             for set_id in set_ids
         ]
