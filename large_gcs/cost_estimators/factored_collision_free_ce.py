@@ -163,7 +163,7 @@ class FactoredCollisionFreeCE(CostEstimator):
     ) -> None:
         # Add outgoing edges from transition vertex
         for i, cfree_vertex_name in enumerate(
-            self.convert_to_cfree_vertex_names(vertex_name)
+            self._convert_to_cfree_vertex_names(vertex_name)
         ):
             if i not in self._cfree_graphs:
                 continue
@@ -189,7 +189,7 @@ class FactoredCollisionFreeCE(CostEstimator):
         # Calculate or look up the collision free cost for each body
         cfree_cost = 0
         for i, cfree_vertex_name in enumerate(
-            self.convert_to_cfree_vertex_names(neighbor)
+            self._convert_to_cfree_vertex_names(neighbor)
         ):
             if i not in self._cfree_graphs:
                 continue
@@ -261,7 +261,7 @@ class FactoredCollisionFreeCE(CostEstimator):
             return None
 
     @staticmethod
-    def convert_to_cfree_vertex_names(vertex_name: str):
+    def _convert_to_cfree_vertex_names(vertex_name: str):
         # Convert string representation of tuple to actual tuple
         tuple_vertex = ast.literal_eval(vertex_name)
 
@@ -270,8 +270,9 @@ class FactoredCollisionFreeCE(CostEstimator):
         rob_modes = {}
 
         for mode in tuple_vertex:
-            # Check if mode contains both obj and rob
-            if "obj" in mode and "rob" in mode:
+            # Check if mode doesn't contain an object
+            # Cfree vertex modes are always wrt to a obstacle
+            if "obs" not in mode:
                 continue
 
             # Convert IC modes that are wrt obs faces to NC modes
