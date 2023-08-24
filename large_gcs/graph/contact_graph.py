@@ -114,7 +114,6 @@ class ContactGraph(Graph):
                 ),
             ]
         elif target_region_params is not None:
-
             self.target_region_params = target_region_params
             self.target_regions = [
                 Polyhedron.from_vertices(params.region_vertices)

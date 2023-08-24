@@ -36,7 +36,6 @@ class GcsAstar(SearchAlgorithm):
         tiebreak: TieBreak = TieBreak.LIFO,
         vis_params: AlgVisParams = AlgVisParams(),
     ):
-
         self._graph = graph
         self._cost_estimator = cost_estimator
         self._use_convex_relaxation = use_convex_relaxation
@@ -163,7 +162,6 @@ class GcsAstar(SearchAlgorithm):
                 self._writer.grab_frame()
             self._feasible_edges.add((edge.u, edge.v))
         else:
-
             logger.debug(f"edge {edge.u} -> {edge.v} not actually feasible")
 
     def _add_vertex_and_edges_to_visited_except_edges_to_target(self, vertex_name):

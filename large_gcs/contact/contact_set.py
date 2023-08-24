@@ -100,7 +100,6 @@ class ContactSet(ConvexSet):
         additional_constraints: List[Formula] = None,
         additional_base_constraints: List[Formula] = None,
     ):
-
         if not all(obj.mobility_type == MobilityType.UNACTUATED for obj in objects):
             raise ValueError("All objects must be unactuated")
         if not all(robot.mobility_type == MobilityType.ACTUATED for robot in robots):

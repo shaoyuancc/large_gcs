@@ -542,7 +542,6 @@ def generate_contact_pair_modes(
 
 
 def generate_cfree_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):
-
     # No contact relative to body_a
     no_contact_pair_modes = generate_no_contact_pair_modes(body_a=body_a, body_b=body_b)
 

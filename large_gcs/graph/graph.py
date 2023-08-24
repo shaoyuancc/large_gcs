@@ -370,7 +370,6 @@ class Graph:
     def solve_convex_restriction(
         self, active_edges: List[Tuple[str, str]]
     ) -> ShortestPathSolution:
-
         gcs_edges = [self.edges[edge_key].gcs_edge for edge_key in active_edges]
         result = self._gcs.SolveConvexRestriction(
             gcs_edges,
@@ -467,9 +466,12 @@ class Graph:
         ambient_path = []
         flows = []
         if result.is_success():
+            assert self.source_name is not None
+            assert self.target_name is not None
             vertex_path = self._convert_active_edges_to_vertex_path(
                 self.source_name, self.target_name, active_edges
             )
+
             ambient_path = [
                 result.GetSolution(self.vertices[v].gcs_vertex.x()) for v in vertex_path
             ]
@@ -508,7 +510,6 @@ class Graph:
     def _convert_active_edges_to_factored_vertex_ambient_paths(
         self, source_name, transition_name, target_names, edge_keys, result
     ):
-
         # Create a dictionary where the keys are the vertices and the values are their neighbors
         neighbors = {u: v for u, v in edge_keys}
         # Start with the source vertex

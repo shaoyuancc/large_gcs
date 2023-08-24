@@ -4,7 +4,7 @@ from collections import defaultdict
 from copy import copy
 from itertools import combinations, product
 from multiprocessing import Pool
-from typing import Iterable, List, Tuple
+from typing import Iterable, List
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
@@ -105,7 +105,6 @@ class IncrementalContactGraph(ContactGraph):
                 ),
             ]
         elif target_region_params is not None:
-
             self.target_region_params = target_region_params
             self.target_regions = [
                 Polyhedron.from_vertices(params.region_vertices)
@@ -265,31 +264,31 @@ class IncrementalContactGraph(ContactGraph):
             self.source_name, source_neighbor_contact_pair_modes
         )
 
-    def solve_shortest_path(self, use_convex_relaxation=False) -> ShortestPathSolution:
-        raise NotImplementedError(
-            "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
-        )
+    # def solve_shortest_path(self, use_convex_relaxation=False) -> ShortestPathSolution:
+    #     raise NotImplementedError(
+    #         "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
+    #     )
 
-    def solve_convex_restriction(
-        self, active_edges: List[Tuple[str, str]]
-    ) -> ShortestPathSolution:
-        raise NotImplementedError(
-            "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
-        )
+    # def solve_convex_restriction(
+    #     self, active_edges: List[Tuple[str, str]]
+    # ) -> ShortestPathSolution:
+    #     raise NotImplementedError(
+    #         "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
+    #     )
 
-    def solve_factored_shortest_path(
-        self, transition: str, targets: List[str], use_convex_relaxation=False
-    ) -> ShortestPathSolution:
-        raise NotImplementedError(
-            "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
-        )
+    # def solve_factored_shortest_path(
+    #     self, transition: str, targets: List[str], use_convex_relaxation=False
+    # ) -> ShortestPathSolution:
+    #     raise NotImplementedError(
+    #         "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
+    #     )
 
-    def solve_factored_partial_convex_restriction(
-        self, active_edges: List[Tuple[str, str]], transition: str, targets: List[str]
-    ) -> ShortestPathSolution:
-        raise NotImplementedError(
-            "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
-        )
+    # def solve_factored_partial_convex_restriction(
+    #     self, active_edges: List[Tuple[str, str]], transition: str, targets: List[str]
+    # ) -> ShortestPathSolution:
+    #     raise NotImplementedError(
+    #         "Not implemented for incremental contact graph, GCS vertices and edges are not created, inc graph is just meant to be used as a reference."
+    #     )
 
     def generate_neighbors(self, vertex_name: str) -> None:
         """Generates neighbors and adds them to the graph, also adds edges from vertex to neighbors"""
@@ -351,7 +350,7 @@ class IncrementalContactGraph(ContactGraph):
                         vertex_name, self.target_name
                     ),
                 ),
-                add_to_gcs=False,
+                add_to_gcs=True,
             )
 
     def _generate_vertex_neighbor(
@@ -378,7 +377,7 @@ class IncrementalContactGraph(ContactGraph):
                 costs=self._create_single_vertex_costs(v_set),
                 constraints=self._create_single_vertex_constraints(v_set),
             )
-            self.add_vertex(vertex, vertex_name, add_to_gcs=False)
+            self.add_vertex(vertex, vertex_name, add_to_gcs=True)
 
         if not self._check_intersection(
             (
@@ -397,7 +396,7 @@ class IncrementalContactGraph(ContactGraph):
                 costs=self._create_single_edge_costs(u, vertex_name),
                 constraints=self._create_single_edge_constraints(u, vertex_name),
             ),
-            add_to_gcs=False,
+            add_to_gcs=True,
         )
 
     ### SERIALIZATION METHODS ###

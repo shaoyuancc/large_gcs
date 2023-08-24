@@ -34,7 +34,6 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         tiebreak: TieBreak = TieBreak.LIFO,
         vis_params: AlgVisParams = AlgVisParams(),
     ):
-
         self._graph = graph
         self._cost_estimator = cost_estimator
         self._reexplore_level = (
@@ -101,7 +100,6 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         return None
 
     def _run_iteration(self):
-
         estimated_cost, _count, node, active_edges, contact_sol = heap.heappop(self._pq)
         if (
             self._reexplore_level == ReexploreLevel.NONE
@@ -209,7 +207,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         vertices_to_add = set(
             [self._graph.target_name, self._graph.source_name, vertex_name]
         )
-        for (_, v) in edge_keys:
+        for _, v in edge_keys:
             vertices_to_add.add(v)
 
         # Ignore cfree subgraph sets,
@@ -233,7 +231,8 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         for edge_key in edge_keys:
             if edge_key not in self._visited.edges:
                 self._visited.add_edge(self._graph.edges[edge_key])
-        logger.info(f"visited_fd_vertices: {self._visited_fd_vertices}")
+
+        logger.debug(f"visited subgraph edges: {self._visited.edge_keys}")
 
     def plot_graph(self, path=None, current_edge=None, is_final_path=False):
         plt.title("GCS A* Convex Restriction")

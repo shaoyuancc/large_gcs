@@ -55,11 +55,10 @@ class ShortcutEdgeCE(CostEstimator):
                 neighbor, self._graph.target_name, costs=direct_edge_costs
             )
             subgraph.add_edge(edge_to_target)
-        else:
-            logger.info(f"neighbor is target, edge: {edge}")
         subgraph.add_edge(edge)
 
         if solve_convex_restriction:
+            logger.debug(f"active edges: {subgraph.edges.keys()}")
             sol = subgraph.solve_convex_restriction(subgraph.edges.keys())
         else:
             sol = subgraph.solve_shortest_path(
@@ -71,6 +70,8 @@ class ShortcutEdgeCE(CostEstimator):
         # Clean up
         if neighbor != self._graph.target_name:
             subgraph.remove_vertex(neighbor)
+        else:
+            subgraph.remove_edge(edge.key)
 
         return sol
 
