@@ -147,6 +147,7 @@ class IncrementalContactGraph(ContactGraph):
 
         elif self.target_region_params is not None:
             body_name_to_indiv_target_region_params = {}
+            self._bodies_w_target_region = set()
             for params in self.target_region_params:
                 individual_params = copy(params)
                 if params.obj_indices is not None:
@@ -156,6 +157,7 @@ class IncrementalContactGraph(ContactGraph):
                         body_name_to_indiv_target_region_params[
                             self.objects[body_index].name
                         ] = individual_params
+                        self._bodies_w_target_region.add(self.objects[body_index].name)
                 if params.rob_indices is not None:
                     for body_index in params.rob_indices:
                         individual_params.rob_indices = [0]
@@ -163,6 +165,7 @@ class IncrementalContactGraph(ContactGraph):
                         body_name_to_indiv_target_region_params[
                             self.robots[body_index].name
                         ] = individual_params
+                        self._bodies_w_target_region.add(self.robots[body_index].name)
 
         self._modes_w_possible_edge_to_target = set()
 
@@ -327,7 +330,7 @@ class IncrementalContactGraph(ContactGraph):
             set_ids = list(product(*mode_ids_for_each_body_pair))
             # Remove the first entry in the list which would be the current set
             set_ids = set_ids[1:]
-            logger.debug(f"Generating {len(set_ids)} neighbors for {vertex_name}")
+            # logger.debug(f"Generating {len(set_ids)} neighbors for {vertex_name}")
             for set_id in set_ids:
                 self._generate_vertex_neighbor(vertex_name, set_id)
         else:
@@ -340,21 +343,7 @@ class IncrementalContactGraph(ContactGraph):
                     neighbor_set_id[i] = adj_id
                     self._generate_vertex_neighbor(vertex_name, neighbor_set_id)
 
-        # Determine if we can add an edge to the target vertex
-        possible_edge_to_target = []
-        for id in mode_ids:
-            mode = self._contact_pair_modes[id]
-            # Only consider body pairs that are not both movable (that's what our possible edge to target
-            # conditions are based on)
-            if (
-                mode.body_a.mobility_type != MobilityType.STATIC
-                and mode.body_b.mobility_type != MobilityType.STATIC
-            ):
-                possible_edge_to_target.append(
-                    id in self._modes_w_possible_edge_to_target
-                )
-
-        if all(possible_edge_to_target):
+        if self._does_vertex_have_possible_edge_to_target(vertex_name):
             # Add edge to target vertex
             self.add_edge(
                 Edge(
@@ -376,7 +365,7 @@ class IncrementalContactGraph(ContactGraph):
 
         if (u, vertex_name) in self.edges:
             # vertex and edge already exits, do nothing.
-            logger.debug(f"vertex and edge already exist for {u} -> {vertex_name}")
+            # logger.debug(f"vertex and edge already exist for {u} -> {vertex_name}")
             return
 
         if vertex_name not in self.vertices:
@@ -384,7 +373,7 @@ class IncrementalContactGraph(ContactGraph):
                 v_contact_pair_mode_ids
             )
             if v_set.set.IsEmpty():
-                logger.debug(f"Skipping empty set {vertex_name}")
+                # logger.debug(f"Skipping empty set {vertex_name}")
                 return
 
             vertex = Vertex(
@@ -400,9 +389,9 @@ class IncrementalContactGraph(ContactGraph):
                 self.vertices[vertex_name].convex_set.base_set,
             )
         ):
-            logger.debug(
-                f"Skipping neighbor {vertex_name} because it does not intersect with {u}"
-            )
+            # logger.debug(
+            #     f"Skipping neighbor {vertex_name} because it does not intersect with {u}"
+            # )
             return
         self.add_edge(
             Edge(
@@ -413,6 +402,44 @@ class IncrementalContactGraph(ContactGraph):
             ),
             should_add_to_gcs=self._should_add_gcs,
         )
+
+    def _does_vertex_have_possible_edge_to_target(self, vertex_name: str) -> bool:
+        # Determine if we can add an edge to the target vertex
+        # Convert string representation of tuple to actual tuple
+        mode_ids = ast.literal_eval(vertex_name)
+        possible_edge_to_target = []
+        if self.target_pos is not None:
+            for id in mode_ids:
+                mode = self._contact_pair_modes[id]
+                # Only consider body pairs that are not both movable
+                # Note for target pos, all movable bodies have a position set for them
+                if not (
+                    mode.body_a.mobility_type != MobilityType.STATIC
+                    and mode.body_b.mobility_type != MobilityType.STATIC
+                ):
+                    possible_edge_to_target.append(
+                        id in self._modes_w_possible_edge_to_target
+                    )
+        else:
+            for id in mode_ids:
+                mode = self._contact_pair_modes[id]
+                # Only consider body pairs that are not both movable AND
+                # where the movable body has a target set for it
+                if not (
+                    mode.body_a.mobility_type != MobilityType.STATIC
+                    and mode.body_b.mobility_type != MobilityType.STATIC
+                ) and (
+                    mode.body_a.name in self._bodies_w_target_region
+                    or mode.body_b.name in self._bodies_w_target_region
+                ):
+                    logger.debug(f"considering {id}")
+                    possible_edge_to_target.append(
+                        id in self._modes_w_possible_edge_to_target
+                    )
+        logger.debug(f"possible_edge_to_target: {possible_edge_to_target}")
+        if all(possible_edge_to_target):
+            return True
+        return False
 
     ### SERIALIZATION METHODS ###
 

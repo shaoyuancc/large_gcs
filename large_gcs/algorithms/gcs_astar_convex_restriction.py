@@ -232,7 +232,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             if edge_key not in self._visited.edges:
                 self._visited.add_edge(self._graph.edges[edge_key])
 
-        logger.debug(f"visited subgraph edges: {self._visited.edge_keys}")
+        # logger.debug(f"visited subgraph edges: {self._visited.edge_keys}")
 
     def plot_graph(self, path=None, current_edge=None, is_final_path=False):
         plt.title("GCS A* Convex Restriction")

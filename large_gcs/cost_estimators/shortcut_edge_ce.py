@@ -58,7 +58,7 @@ class ShortcutEdgeCE(CostEstimator):
         subgraph.add_edge(edge)
 
         if solve_convex_restriction:
-            logger.debug(f"active edges: {subgraph.edges.keys()}")
+            # logger.debug(f"active edges: {subgraph.edges.keys()}")
             sol = subgraph.solve_convex_restriction(subgraph.edges.keys())
         else:
             sol = subgraph.solve_shortest_path(
