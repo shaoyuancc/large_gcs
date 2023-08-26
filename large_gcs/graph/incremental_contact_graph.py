@@ -4,7 +4,7 @@ from collections import defaultdict
 from copy import copy
 from itertools import combinations, product
 from multiprocessing import Pool
-from typing import Iterable, List, Tuple
+from typing import List, Tuple
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
@@ -262,8 +262,13 @@ class IncrementalContactGraph(ContactGraph):
         assert len(self._body_pair_to_mode_ids) == len(
             source_neighbor_contact_pair_modes
         ), "Should have a single contact pair mode for each "
-        self._generate_vertex_neighbor(
-            self.source_name, source_neighbor_contact_pair_modes
+        self._generate_neighbor(
+            u=self.source_name,
+            v=str(tuple(source_neighbor_contact_pair_modes)),
+            is_v_in_vertices=False,
+            v_set=self._create_contact_set_from_contact_pair_mode_ids(
+                source_neighbor_contact_pair_modes
+            ),
         )
 
     def solve_shortest_path(self, use_convex_relaxation=False) -> ShortestPathSolution:
@@ -308,16 +313,16 @@ class IncrementalContactGraph(ContactGraph):
                 f"Incremental graph should_add_gcs is False. Must set to True in order to solve."
             )
 
-    def generate_neighbors(self, vertex_name: str) -> None:
+    def generate_neighbors(self, u_vertex_name: str) -> None:
         """Generates neighbors and adds them to the graph, also adds edges from vertex to neighbors"""
-        if vertex_name == self.source_name:
+        if u_vertex_name == self.source_name:
             # We already have the neighbors of the source vertex
             return
-        elif vertex_name == self.target_name:
+        elif u_vertex_name == self.target_name:
             raise ValueError("Should not need to generate neighbors for target vertex")
 
         # Convert string representation of tuple to actual tuple
-        mode_ids = ast.literal_eval(vertex_name)
+        mode_ids = ast.literal_eval(u_vertex_name)
 
         if self._should_incl_simul_mode_switches:
             mode_ids_for_each_body_pair = []
@@ -330,75 +335,88 @@ class IncrementalContactGraph(ContactGraph):
             set_ids = list(product(*mode_ids_for_each_body_pair))
             # Remove the first entry in the list which would be the current set
             set_ids = set_ids[1:]
-            # logger.debug(f"Generating {len(set_ids)} neighbors for {vertex_name}")
-            for set_id in set_ids:
-                self._generate_vertex_neighbor(vertex_name, set_id)
+
         else:
             # Flip the each mode through all possible adjacent modes (Only flip one mode at a time)
             # This excludes multiple simultaneous flips, which are technically also valid neighbors
             # but we are not considering them for now.
+            set_ids = []
             for i, id in enumerate(mode_ids):
                 for adj_id in self._adj_modes[id]:
                     neighbor_set_id = list(copy(mode_ids))
                     neighbor_set_id[i] = adj_id
-                    self._generate_vertex_neighbor(vertex_name, neighbor_set_id)
+                    set_ids.append(tuple(neighbor_set_id))
+        potential_neighbors = []
+        neighbor_generator_inputs = []
+        for set_id in set_ids:
+            v_name = str(set_id)
+            if (u_vertex_name, v_name) in self.edges:
+                # vertex and edge already exits, do nothing.
+                logger.debug(
+                    f"vertex and edge already exist for {u_vertex_name} -> {v_name}"
+                )
+                continue
 
-        if self._does_vertex_have_possible_edge_to_target(vertex_name):
-            # Add edge to target vertex
-            self.add_edge(
-                Edge(
-                    u=vertex_name,
-                    v=self.target_name,
-                    costs=self._create_single_edge_costs(vertex_name, self.target_name),
-                    constraints=self._create_single_edge_constraints(
-                        vertex_name, self.target_name
-                    ),
-                ),
-                should_add_to_gcs=self._should_add_gcs,
+            if v_name in self.vertices:
+                is_v_in_vertices = True
+                v_set = self.vertices[v_name].convex_set
+            else:
+                is_v_in_vertices = False
+                v_set = self._create_contact_set_from_contact_pair_mode_ids(set_id)
+            potential_neighbors.append(
+                (self.vertices[u_vertex_name].convex_set.base_set, v_set.base_set)
+            )
+            neighbor_generator_inputs.append(
+                (u_vertex_name, v_name, is_v_in_vertices, v_set)
             )
 
-    def _generate_vertex_neighbor(
-        self, u: str, v_contact_pair_mode_ids: Iterable[str]
+        if self._does_vertex_have_possible_edge_to_target(u_vertex_name):
+            potential_neighbors.append(
+                (
+                    self.vertices[u_vertex_name].convex_set.base_set,
+                    self.vertices[self.target_name].convex_set.base_set,
+                )
+            )
+            neighbor_generator_inputs.append(
+                (
+                    u_vertex_name,
+                    self.target_name,
+                    True,
+                    self.vertices[self.target_name].convex_set,
+                )
+            )
+
+        # Parallelization seems to add significant overhead and the above code is already very slow when there are many potential neighbors
+        # with Pool() as pool:
+        #     logger.debug(f"Generating {len(set_ids)} possible neighbors for {u_vertex_name}")
+        #     intersections = list(
+        #         tqdm(pool.imap(self._check_intersection, potential_neighbors), total=len(potential_neighbors))
+        #     )
+        intersections = [
+            self._check_intersection(potential_neighbor)
+            for potential_neighbor in potential_neighbors
+        ]
+
+        for inputs, intersect in zip(neighbor_generator_inputs, intersections):
+            if intersect:
+                self._generate_neighbor(*inputs)
+
+    def _generate_neighbor(
+        self, u: str, v: str, is_v_in_vertices: bool, v_set: ContactSet
     ) -> None:
-        """Assumes that u is already a vertex in the graph."""
-        vertex_name = str(tuple(v_contact_pair_mode_ids))
-
-        if (u, vertex_name) in self.edges:
-            # vertex and edge already exits, do nothing.
-            # logger.debug(f"vertex and edge already exist for {u} -> {vertex_name}")
-            return
-
-        if vertex_name not in self.vertices:
-            v_set = self._create_contact_set_from_contact_pair_mode_ids(
-                v_contact_pair_mode_ids
-            )
-            if v_set.set.IsEmpty():
-                # logger.debug(f"Skipping empty set {vertex_name}")
-                return
-
+        if not is_v_in_vertices:
             vertex = Vertex(
                 v_set,
                 costs=self._create_single_vertex_costs(v_set),
                 constraints=self._create_single_vertex_constraints(v_set),
             )
-            self.add_vertex(vertex, vertex_name, should_add_to_gcs=self._should_add_gcs)
-
-        if not self._check_intersection(
-            (
-                self.vertices[u].convex_set.base_set,
-                self.vertices[vertex_name].convex_set.base_set,
-            )
-        ):
-            # logger.debug(
-            #     f"Skipping neighbor {vertex_name} because it does not intersect with {u}"
-            # )
-            return
+            self.add_vertex(vertex, v, should_add_to_gcs=self._should_add_gcs)
         self.add_edge(
             Edge(
                 u=u,
-                v=vertex_name,
-                costs=self._create_single_edge_costs(u, vertex_name),
-                constraints=self._create_single_edge_constraints(u, vertex_name),
+                v=v,
+                costs=self._create_single_edge_costs(u, v),
+                constraints=self._create_single_edge_constraints(u, v),
             ),
             should_add_to_gcs=self._should_add_gcs,
         )
@@ -436,7 +454,6 @@ class IncrementalContactGraph(ContactGraph):
                     possible_edge_to_target.append(
                         id in self._modes_w_possible_edge_to_target
                     )
-        logger.debug(f"possible_edge_to_target: {possible_edge_to_target}")
         if all(possible_edge_to_target):
             return True
         return False
