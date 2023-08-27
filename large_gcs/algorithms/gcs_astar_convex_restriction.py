@@ -118,6 +118,8 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         logger.info(
             f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({estimated_cost})"
         )
+        self.log_metrics_to_wandb(estimated_cost)
+
         if self._animate_intermediate and contact_sol is not None:
             self._graph.contact_spp_sol = contact_sol
             anim = self._graph.animate_solution()

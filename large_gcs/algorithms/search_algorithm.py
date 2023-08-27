@@ -5,6 +5,8 @@ from math import inf
 
 import numpy as np
 
+import wandb
+
 
 class TieBreak(Enum):
     FIFO = 1
@@ -124,8 +126,24 @@ class SearchAlgorithm(ABC):
     Abstract base class for search algorithms.
     """
 
+    def __init__(self):
+        self._alg_metrics = AlgMetrics()
+
     @abstractmethod
     def run(self):
         """
         Searches for a shortest path in the given graph.
         """
+
+    @property
+    def alg_metrics(self):
+        return self._alg_metrics
+
+    def log_metrics_to_wandb(self, total_estimated_cost: float):
+        if wandb.run is not None:
+            wandb.log(
+                {
+                    "total_estimated_cost": total_estimated_cost,
+                    "alg_metrics": self.alg_metrics.to_dict(),
+                }
+            )

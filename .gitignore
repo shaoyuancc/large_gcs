@@ -163,4 +163,5 @@ cython_debug/
 *.mp4
 output/
 outputs/
+multirun/
 wandb/

@@ -121,6 +121,8 @@ class GcsAstar(SearchAlgorithm):
         logger.info(
             f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({estimated_cost})"
         )
+        self.log_metrics_to_wandb(estimated_cost)
+
         if self._writer:
             self._writer.fig.clear()
             self.plot_graph()
