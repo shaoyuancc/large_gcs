@@ -25,5 +25,5 @@ hydra:
     params:
       should_incl_simul_mode_switches: false, true
       should_add_const_edge_cost: false, true
-      graph_name: "cg_trichal2", "cg_trichal3", "cg_trichal4", "cg_maze_a2", "cg_maze_a1"
       cost_estimator: factored_collision_free, shortcut_edge
+      graph_name: cg_trichal2, cg_trichal4, cg_trichal4, cg_maze_a2, cg_maze_a1
