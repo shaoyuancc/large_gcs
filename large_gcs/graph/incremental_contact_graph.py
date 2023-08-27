@@ -48,6 +48,7 @@ class IncrementalContactGraph(ContactGraph):
         workspace: np.ndarray = None,
         should_incl_simul_mode_switches: bool = True,
         should_add_gcs: bool = False,
+        should_add_const_edge_cost: bool = True,
     ):
         """
         Can either specify target_pos or target_region_params, but not both.
@@ -65,6 +66,13 @@ class IncrementalContactGraph(ContactGraph):
         self.target_regions = None
         self._should_incl_simul_mode_switches = should_incl_simul_mode_switches
         self._should_add_gcs = should_add_gcs
+
+        if not should_add_const_edge_cost:
+
+            def _create_single_empty_edge_cost(u: str, v: str) -> List[Cost]:
+                return []
+
+            self._create_single_edge_costs = _create_single_empty_edge_cost
 
         for thing in static_obstacles:
             assert (

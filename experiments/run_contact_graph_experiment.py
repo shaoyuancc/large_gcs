@@ -14,6 +14,7 @@ from large_gcs.algorithms.search_algorithm import SearchAlgorithm
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.graph import ShortestPathSolution
+from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 from large_gcs.graph_generators.contact_graph_generator import (
     ContactGraphGeneratorParams,
 )
@@ -56,14 +57,26 @@ def main(cfg: OmegaConf) -> None:
         wandb.run.log_code(root=os.path.join(os.environ["PROJECT_ROOT"], "large_gcs"))
 
     logger.info(cfg)
-
-    graph_file = ContactGraphGeneratorParams.graph_file_path_from_name(cfg.graph_name)
-    cg = ContactGraph.load_from_file(graph_file)
+    if cfg.should_use_incremental_graph:
+        graph_file = ContactGraphGeneratorParams.inc_graph_file_path_from_name(
+            cfg.graph_name
+        )
+        cg = IncrementalContactGraph.load_from_file(
+            graph_file,
+            should_incl_simul_mode_switches=cfg.should_incl_simul_mode_switches,
+            should_add_const_edge_cost=cfg.should_add_const_edge_cost,
+        )
+    else:
+        graph_file = ContactGraphGeneratorParams.graph_file_path_from_name(
+            cfg.graph_name
+        )
+        cg = ContactGraph.load_from_file(graph_file)
 
     cost_estimator: CostEstimator = instantiate(cfg.cost_estimator, graph=cg)
     alg: SearchAlgorithm = instantiate(
         cfg.algorithm, graph=cg, cost_estimator=cost_estimator
     )
+
     sol: ShortestPathSolution = alg.run()
 
     if sol is not None and cfg.save_visualization:
