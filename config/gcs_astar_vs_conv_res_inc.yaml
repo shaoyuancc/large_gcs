@@ -1,0 +1,20 @@
+defaults:
+  - algorithm: gcs_astar_convex_restriction
+  - cost_estimator: factored_collision_free #shortcut_edge
+  - hydra: hydra
+
+graph_name: "cg_trichal2"
+should_use_incremental_graph: true
+should_incl_simul_mode_switches: false
+should_add_const_edge_cost: false
+
+save_visualization: true
+save_to_wandb: true
+
+hydra:
+  mode: MULTIRUN
+  sweeper:
+    params:
+      algorithm: gcs_astar_convex_restriction, gcs_astar
+      cost_estimator: factored_collision_free, shortcut_edge
+      graph_name: cg_trichal2, cg_trichal4, cg_maze_a2, cg_stackpush_a1, cg_radialsort_a1

@@ -31,7 +31,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         graph: Graph,
         cost_estimator: CostEstimator,
         reexplore_level: ReexploreLevel = ReexploreLevel.NONE,
-        tiebreak: TieBreak = TieBreak.LIFO,
+        tiebreak: TieBreak = TieBreak.FIFO,
         vis_params: AlgVisParams = AlgVisParams(),
     ):
         self._graph = graph
