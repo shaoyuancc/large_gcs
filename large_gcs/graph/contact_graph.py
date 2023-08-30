@@ -577,7 +577,7 @@ class ContactGraph(Graph):
             for body, label in zip(bodies, label_text)
         ]
         # Wrap the text to fit within the width of the plot
-        text_wrap_width = 80
+        text_wrap_width = 180
         wrapped_text = "\n".join(
             textwrap.wrap(
                 self.contact_spp_sol.vertex_path[transition_map[0]],
@@ -597,6 +597,7 @@ class ContactGraph(Graph):
             ha="center",
             va="bottom",
             bbox=dict(boxstyle="round", fc="w"),
+            fontsize=5,
         )
         plt.subplots_adjust(
             top=0.85
