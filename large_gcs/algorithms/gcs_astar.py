@@ -33,7 +33,7 @@ class GcsAstar(SearchAlgorithm):
         graph: Graph,
         cost_estimator: CostEstimator,
         use_convex_relaxation: bool = False,
-        tiebreak: TieBreak = TieBreak.LIFO,
+        tiebreak: TieBreak = TieBreak.FIFO,
         vis_params: AlgVisParams = AlgVisParams(),
     ):
         self._graph = graph
