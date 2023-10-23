@@ -27,10 +27,12 @@ class FactoredCollisionFreeGraph(ContactGraph):
         self,
         movable_body: RigidBody,
         static_obstacles: List[RigidBody],
+        source_pos: np.ndarray,
         target_pos: np.ndarray = None,
         target_region_params: ContactRegionParams = None,
         cost_scaling: float = 1.0,
         workspace: np.ndarray = None,
+        add_source_set: bool = False,
     ):
         Graph.__init__(self, workspace=workspace)
         self._cost_scaling = cost_scaling
@@ -38,6 +40,8 @@ class FactoredCollisionFreeGraph(ContactGraph):
         self.obstacles = []
         self.objects = []
         self.robots = []
+        self.target_region_params = None
+        self.target_regions = None
         rob_indicies = None
         obj_indices = None
 
@@ -47,11 +51,15 @@ class FactoredCollisionFreeGraph(ContactGraph):
             ), f"{thing.name} is not static"
         if movable_body.mobility_type == MobilityType.UNACTUATED:
             self.objects = [movable_body]
+            source_pos_objs = [source_pos]
+            source_pos_robs = []
             target_pos_objs = [target_pos]
             target_pos_robs = []
             obj_indices = [0]
         elif movable_body.mobility_type == MobilityType.ACTUATED:
             self.robots = [movable_body]
+            source_pos_robs = [source_pos]
+            source_pos_objs = []
             target_pos_robs = [target_pos]
             target_pos_objs = []
             rob_indicies = [0]
@@ -59,7 +67,8 @@ class FactoredCollisionFreeGraph(ContactGraph):
             raise ValueError(
                 f"Mobility type for movable body {movable_body.mobility_type} not supported"
             )
-        self.source_pos = None
+        self.source_pos = source_pos_objs + source_pos_robs
+
         self.target_pos = None
         self.obstacles = static_obstacles
         target_name = f"target_{self.movable_body.name}"
@@ -76,6 +85,10 @@ class FactoredCollisionFreeGraph(ContactGraph):
                 )
             )
         elif target_region_params is not None:
+            self.target_region_params = [target_region_params]
+            self.target_regions = [
+                Polyhedron.from_vertices(target_region_params.region_vertices)
+            ]
             # We override the obj and rob indices here because we are only passing a single rigid body.
             factored_params = ContactRegionParams(
                 target_region_params.region_vertices,
@@ -90,6 +103,18 @@ class FactoredCollisionFreeGraph(ContactGraph):
         else:
             raise ValueError("Must specify either target_pos or target_region_params")
         set_ids.append(target_name)
+        if add_source_set:
+            source_name = f"source_{self.movable_body.name}"
+            sets += [
+                ContactPointSet(
+                    source_name,
+                    self.objects,
+                    self.robots,
+                    source_pos_objs,
+                    source_pos_robs,
+                )
+            ]
+            set_ids.append(source_name)
 
         # Add convex sets to graph (Need to do this before generating edges)
         self.add_vertices_from_sets(
@@ -99,6 +124,8 @@ class FactoredCollisionFreeGraph(ContactGraph):
             names=set_ids,
         )
         self.set_target(target_name)
+        if add_source_set:
+            self.set_source(source_name)
         edges = self._generate_contact_graph_edges(set_ids)
         self.add_edges_from_vertex_names(
             *zip(*edges),

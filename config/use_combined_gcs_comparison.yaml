@@ -1,0 +1,26 @@
+defaults:
+  - algorithm: gcs_astar_convex_restriction
+  - cost_estimator: factored_collision_free #shortcut_edge
+  - hydra: hydra
+
+graph_name: "cg_maze_a2"
+should_use_incremental_graph: true
+should_incl_simul_mode_switches: true
+should_add_const_edge_cost: false
+
+cost_estimator:
+  obj_multiplier: 100
+  use_combined_gcs: false
+#   shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted"
+algorithm:
+  reexplore_level: 'NONE'
+  tiebreak: 'FIFO'
+
+save_visualization: true
+save_to_wandb: true
+
+hydra:
+  mode: MULTIRUN
+  sweeper:
+    params:
+      cost_estimator.use_combined_gcs: false, true

@@ -38,6 +38,7 @@ class FactoredCollisionFreeCE(CostEstimator):
                 i: FactoredCollisionFreeGraph(
                     movable_body=body,
                     static_obstacles=self._graph.obstacles,
+                    source_pos=self._graph.source_pos[i],
                     target_pos=self._graph.target_pos[i],
                     cost_scaling=1.0
                     if body.mobility_type == MobilityType.ACTUATED
@@ -63,6 +64,7 @@ class FactoredCollisionFreeCE(CostEstimator):
                     self._cfree_graphs[i] = FactoredCollisionFreeGraph(
                         movable_body=body,
                         static_obstacles=self._graph.obstacles,
+                        source_pos=self._graph.source_pos[i],
                         target_region_params=region_params,
                         cost_scaling=1.0
                         if body.mobility_type == MobilityType.ACTUATED
