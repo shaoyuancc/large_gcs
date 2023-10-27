@@ -591,7 +591,13 @@ class Graph:
         path = [source_name]
 
         # While the last vertex in the path has a neighbor
+
         while path[-1] in neighbors:
+            if neighbors[path[-1]] in path:
+                # We have a cycle
+                raise RuntimeError(
+                    f"Cycle detected in path {np.array(path)}\n{np.array(edges)}"
+                )
             # Add the neighbor to the path
             path.append(neighbors[path[-1]])
 

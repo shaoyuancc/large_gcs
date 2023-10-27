@@ -1,21 +1,12 @@
 import numpy as np
-from pydrake.all import (
-    Binding,
-    Cost,
-    GraphOfConvexSets,
-    GraphOfConvexSetsOptions,
-    HPolyhedron,
-    L2NormCost,
-)
+from pydrake.all import GraphOfConvexSets, GraphOfConvexSetsOptions
 from pydrake.all import Point as Point
-from pydrake.all import eq
 
 gcs = GraphOfConvexSets()
 
-
 sets = [
     Point([-5, -1]),
-    HPolyhedron.MakeBox([-1, -1], [1, 1]),
+    Point([0, 0]),
     Point([3, 1]),
 ]
 
@@ -40,6 +31,7 @@ for u, vs in edges.items():
 options = GraphOfConvexSetsOptions()
 options.convex_relaxation = False
 
+print("standard solve:")
 result = gcs.SolveShortestPath(
     gcs_vertices["s"],
     gcs_vertices["t"],
@@ -48,13 +40,13 @@ result = gcs.SolveShortestPath(
 
 assert result.is_success()
 
-print("standard solve:")
-
 
 def print_results(result, gcs):
     print(f"optimal cost {result.get_optimal_cost()}")
     for e in gcs.Edges():
-        print(f"{e.u().name()} -> {e.v().name()}, flow: {result.GetSolution(e.phi())}")
+        print(
+            f"{e.u().name()} -> {e.v().name()}, flow: {result.GetSolution(e.phi())}, cost: {e.GetSolutionCost(result)}"
+        )
     for v in gcs.Vertices():
         print(v.name(), result.GetSolution(v.x()), v.GetSolutionCost(result))
 
