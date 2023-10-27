@@ -172,6 +172,7 @@ class Graph:
         assert name not in self.vertices
 
         # Set default costs and constraints if necessary
+        v = vertex
         if self._default_costs_constraints:  # Have defaults
             if (
                 v.costs

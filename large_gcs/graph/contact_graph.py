@@ -228,8 +228,10 @@ class ContactGraph(Graph):
             edges = []
             for (u, v), intersect in zip(pairs, intersections):
                 if intersect:
-                    edges.append((u, v))
-                    edges.append((v, u))
+                    if v != self.source_name:
+                        edges.append((u, v))
+                    if v != self.target_name:
+                        edges.append((v, u))
         logger.info(f"{len(edges)} edges generated")
         return edges
 
