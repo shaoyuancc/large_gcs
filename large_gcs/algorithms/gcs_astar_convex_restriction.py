@@ -197,10 +197,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         elif self._reexplore_level == ReexploreLevel.PARTIAL:
             return new_dist < self._node_dists[neighbor]
         elif self._reexplore_level == ReexploreLevel.NONE:
-            return (
-                new_dist < self._node_dists[neighbor]
-                and neighbor not in self._visited_vertices
-            )
+            return neighbor not in self._visited_vertices
 
     def _set_visited_vertices_and_edges(self, vertex_name, edge_keys):
         """Also adds source and target regardless of whether they are in edges"""

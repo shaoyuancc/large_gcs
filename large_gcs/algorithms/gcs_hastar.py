@@ -91,8 +91,10 @@ class GcsHAstar:
         # print(f"Lowest 10 in Q: {bottom_10}")
 
         n: GCSHANode = heap.heappop(self._Q)
-        logger.info(f"{n.id} popped off Q")
+        if not self._should_reexpand(n):
+            return
 
+        logger.info(f"expanding {n.id}")
         self._S[n.id] = n
 
         if isinstance(n, StatementNode):
@@ -260,14 +262,21 @@ class GcsHAstar:
             # TODO Implement
             rule_weight = 0
             n_conclusion.priority += rule_weight + abs_context.weight
-        if self._should_add_to_pq(n_conclusion):
+        if self._should_reexpand(n_conclusion):
             heap.heappush(self._Q, n_conclusion)
 
-    def _should_add_to_pq(self, n_conclusion):
-        reexplore_level = self._reexplore_levels[n_conclusion.abs_level]
-        if reexplore_level == ReexploreLevel.FULL or not (n_conclusion.id in self._S):
+    def _should_reexpand(self, n_conclusion):
+        if n_conclusion.abs_level == len(self._reexplore_levels):
+            # This handles the START level of abstraction (highest)
+            reexplore_level = ReexploreLevel.NONE
+        else:
+            reexplore_level = self._reexplore_levels[n_conclusion.abs_level]
+
+        if reexplore_level == ReexploreLevel.FULL:
             return True
-        else:  # reexplore_level == ReexploreLevel.PARTIAL:
-            return n_conclusion.priority < self._S[n_conclusion.id].priority
-        # Note that ReexploreLevel.NONE will never be reached in this function
-        # Because it would not have been visited in the first place (the edge wouldn't have been expanded)
+        elif reexplore_level == ReexploreLevel.PARTIAL:  # and (n_conclusion in S)
+            return not (n_conclusion.id in self._S) or (
+                n_conclusion.priority < self._S[n_conclusion.id].priority
+            )
+        elif reexplore_level == ReexploreLevel.NONE:
+            return not (n_conclusion.id in self._S)
