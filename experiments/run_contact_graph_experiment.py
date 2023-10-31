@@ -9,6 +9,7 @@ from hydra.utils import get_original_cwd, instantiate
 from omegaconf import OmegaConf, open_dict
 
 import wandb
+from large_gcs.algorithms.gcs_hastar import GcsHAstar
 from large_gcs.algorithms.search_algorithm import SearchAlgorithm
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.graph.contact_graph import ContactGraph
@@ -64,35 +65,42 @@ def main(cfg: OmegaConf) -> None:
             graph_file,
             should_incl_simul_mode_switches=cfg.should_incl_simul_mode_switches,
             should_add_const_edge_cost=cfg.should_add_const_edge_cost,
+            should_add_gcs=(True if cfg.abstraction_model_generator else False),
         )
     else:
         graph_file = ContactGraphGeneratorParams.graph_file_path_from_name(
             cfg.graph_name
         )
         cg = ContactGraph.load_from_file(graph_file)
-
-    cost_estimator: CostEstimator = instantiate(cfg.cost_estimator, graph=cg)
-    alg: SearchAlgorithm = instantiate(
-        cfg.algorithm, graph=cg, cost_estimator=cost_estimator
-    )
+    if cfg.abstraction_model_generator:
+        abs_model_generator = instantiate(cfg.abstraction_model_generator)
+        abs_model = abs_model_generator.generate(concrete_graph=cg)
+        alg: SearchAlgorithm = instantiate(cfg.algorithm, abs_model=abs_model)
+        # alg = GcsHAstar(abs_model=abs_model, reexplore_levels=['NONE', 'FULL'])
+    else:
+        cost_estimator: CostEstimator = instantiate(cfg.cost_estimator, graph=cg)
+        alg: SearchAlgorithm = instantiate(
+            cfg.algorithm, graph=cg, cost_estimator=cost_estimator
+        )
 
     sol: ShortestPathSolution = alg.run()
 
     if sol is not None and cfg.save_visualization:
-        output_base = (
-            f"{alg.__class__.__name__}_{cost_estimator.finger_print}_{cfg.graph_name}"
-        )
+        if cfg.abstraction_model_generator:
+            output_base = f"{alg.__class__.__name__}_{cfg.abstraction_model_generator}_{cfg.graph_name}"
+        else:
+            output_base = f"{alg.__class__.__name__}_{cost_estimator.finger_print}_{cfg.graph_name}"
         vid_file = os.path.join(full_log_dir, f"{output_base}.mp4")
-        graphviz_file = os.path.join(full_log_dir, f"{output_base}_visited_subgraph")
-        gviz = alg._visited.graphviz()
-        gviz.format = "pdf"
-        gviz.render(graphviz_file, view=False)
+        # graphviz_file = os.path.join(full_log_dir, f"{output_base}_visited_subgraph")
+        # gviz = alg._visited.graphviz()
+        # gviz.format = "pdf"
+        # gviz.render(graphviz_file, view=False)
 
         anim = cg.animate_solution()
         anim.save(vid_file)
         if cfg.save_to_wandb:
             wandb.log({"animation": wandb.Video(vid_file)})
-            wandb.save(graphviz_file + ".pdf")
+            # wandb.save(graphviz_file + ".pdf")
 
     logger.info(f"hydra log dir: {full_log_dir}")
 

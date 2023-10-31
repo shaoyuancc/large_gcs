@@ -19,12 +19,7 @@ from large_gcs.algorithms.search_algorithm import (
     SearchAlgorithm,
 )
 from large_gcs.graph.contact_graph import ContactGraph
-from large_gcs.graph.factored_collision_free_graph import FactoredCollisionFreeGraph
-from large_gcs.graph.graph import Graph, ShortestPathSolution
-from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
-from large_gcs.graph_generators.contact_graph_generator import (
-    ContactGraphGeneratorParams,
-)
+from large_gcs.graph.graph import Graph
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +98,7 @@ class GcsHAstar(SearchAlgorithm):
         logger.info(
             f"Gcs HA* Convex Restriction complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
         )
+        return sol
 
     def _run_iteration(self):
         self._iteration += 1
