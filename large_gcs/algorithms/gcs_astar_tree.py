@@ -62,9 +62,8 @@ class GcsAstarTree(SearchAlgorithm):
             self._graph.vertices[self._graph.target_name], self._graph.target_name
         )
         self._visited.set_target(self._graph.target_name)
-        self.alg_metrics.n_vertices_visited = (
-            1  # Start with the target node in the visited subgraph
-        )
+        # Start with the target node in the visited subgraph
+        self.alg_metrics.n_vertices_expanded[0] = 1
 
     def run(self):
         logger.info(
@@ -102,9 +101,9 @@ class GcsAstarTree(SearchAlgorithm):
         ):
             return
         if node in self._visited.vertices:
-            self._alg_metrics.n_vertices_revisited += 1
+            self._alg_metrics.n_vertices_reexpanded[0] += 1
         else:
-            self._alg_metrics.n_vertices_visited += 1
+            self._alg_metrics.n_vertices_expanded[0] += 1
 
         self._add_vertex_and_edges_to_visited_except_edges_to_target(node)
 
@@ -126,9 +125,9 @@ class GcsAstarTree(SearchAlgorithm):
         neighbor = edge.v
         assert neighbor != self._graph.target_name
         if neighbor in self._visited.vertices:
-            self._alg_metrics.n_vertices_reexplored += 1
+            self._alg_metrics.n_vertices_revisited[0] += 1
         else:
-            self._alg_metrics.n_vertices_explored += 1
+            self._alg_metrics.n_vertices_visited[0] += 1
 
         sol = self._cost_estimator.estimate_cost(
             self._visited, edge, solve_convex_restriction=False
@@ -239,13 +238,3 @@ class GcsAstarTree(SearchAlgorithm):
             else:
                 path_color = self._vis_params.intermediate_path_color
             self._graph.plot_path(path, color=path_color, linestyle="--")
-
-    @property
-    def alg_metrics(self):
-        """Recompute metrics based on the current state of the algorithm.
-        n_vertices_visited, n_gcs_solves, gcs_solve_time_total/min/max are manually updated.
-        The rest are computed from the manually updated metrics.
-        """
-        return self._alg_metrics.update_derived_metrics(
-            self._graph.n_vertices, self._graph.n_edges, self._visited.n_edges
-        )

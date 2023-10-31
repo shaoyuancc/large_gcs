@@ -67,9 +67,8 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             self._graph.vertices[self._graph.target_name], self._graph.target_name
         )
         self._visited.set_target(self._graph.target_name)
-        self.alg_metrics.n_vertices_visited = (
-            1  # Start with the target node in the visited subgraph
-        )
+        # Start with the target node in the visited subgraph
+        self.alg_metrics.n_vertices_expanded[0] = 1
         self._visited_fd_vertices.add(self._graph.target_name)
 
         self._cost_estimator.setup_subgraph(self._visited)
@@ -107,9 +106,9 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         ):
             return
         if node in self._visited_vertices:
-            self._alg_metrics.n_vertices_revisited += 1
+            self._alg_metrics.n_vertices_reexpanded[0] += 1
         else:
-            self._alg_metrics.n_vertices_visited += 1
+            self._alg_metrics.n_vertices_expanded[0] += 1
 
         self._set_visited_vertices_and_edges(node, active_edges)
 
@@ -143,9 +142,9 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
     def _explore_edge(self, edge: Edge, active_edges: List[Tuple[str, str]]):
         neighbor = edge.v
         if neighbor in self._visited_vertices:
-            self._alg_metrics.n_vertices_reexplored += 1
+            self._alg_metrics.n_vertices_revisited[0] += 1
         else:
-            self._alg_metrics.n_vertices_explored += 1
+            self._alg_metrics.n_vertices_visited[0] += 1
         # logger.info(f"exploring edge {edge.u} -> {edge.v}")
         sol = self._cost_estimator.estimate_cost(
             self._visited,
@@ -279,13 +278,3 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             else:
                 path_color = self._vis_params.intermediate_path_color
             self._graph.plot_path(path, color=path_color, linestyle="--")
-
-    @property
-    def alg_metrics(self):
-        """Recompute metrics based on the current state of the algorithm.
-        n_vertices_visited, n_gcs_solves, gcs_solve_time_total/min/max are manually updated.
-        The rest are computed from the manually updated metrics.
-        """
-        return self._alg_metrics.update_derived_metrics(
-            self._graph.n_vertices, self._graph.n_edges, self._visited.n_edges
-        )

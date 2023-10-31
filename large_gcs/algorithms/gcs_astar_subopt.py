@@ -62,9 +62,8 @@ class GcsAstarSubOpt(SearchAlgorithm):
             self._graph.vertices[self._graph.target_name], self._graph.target_name
         )
         self._visited.set_target(self._graph.target_name)
-        self.alg_metrics.n_vertices_visited = (
-            1  # Start with the target node in the visited subgraph
-        )
+        # Start with the target node in the visited subgraph
+        self.alg_metrics.n_vertices_expanded[0] = 1
 
     def run(
         self, verbose: bool = False, animate: bool = False, final_plot: bool = False
@@ -135,7 +134,7 @@ class GcsAstarSubOpt(SearchAlgorithm):
                 self._explore_edge(edge, verbose=verbose)
 
     def _explore_edge(self, edge: Edge, verbose: bool = False):
-        self._alg_metrics.n_vertices_explored += 1
+        self._alg_metrics.n_vertices_visited[0] += 1
         neighbor = edge.v
         assert neighbor != self._graph.target_name
         """
@@ -209,7 +208,7 @@ class GcsAstarSubOpt(SearchAlgorithm):
     def _add_vertex_and_edges_to_visited_except_edges_to_target(self, vertex_name):
         # Add node to the visited subgraph along with all of its incoming and outgoing edges to the visited subgraph
         self._visited.add_vertex(self._graph.vertices[vertex_name], vertex_name)
-        self._alg_metrics.n_vertices_visited += 1
+        self._alg_metrics.n_vertices_expanded[0] += 1
         edges = self._graph.incident_edges(vertex_name)
         for edge in edges:
             if (
@@ -286,9 +285,6 @@ class GcsAstarSubOpt(SearchAlgorithm):
         The rest are computed from the manually updated metrics.
         """
         m = self._alg_metrics
-        m.vertex_coverage = round(m.n_vertices_visited / self._graph.n_vertices, 2)
-        m.n_edges_visited = self._visited.n_edges
-        m.edge_coverage = round(m.n_edges_visited / self._graph.n_edges, 2)
         if m.n_gcs_solves > 0:
             m.gcs_solve_time_iter_mean = m.gcs_solve_time_total / m.n_gcs_solves
             m.gcs_solve_time_iter_std = np.std(self._gcs_solve_times)

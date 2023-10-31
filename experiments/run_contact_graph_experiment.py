@@ -1,6 +1,5 @@
 import logging
 import os
-from dataclasses import asdict
 from datetime import datetime
 
 import hydra
@@ -100,7 +99,7 @@ def main(cfg: OmegaConf) -> None:
     if cfg.save_to_wandb:
         if sol is not None:
             wandb.run.summary["final_sol"] = sol.to_serializable_dict()
-        wandb.run.summary["alg_metrics"] = asdict(alg.alg_metrics)
+        wandb.run.summary["alg_metrics"] = alg.alg_metrics.to_dict()
 
         wandb.finish()
 

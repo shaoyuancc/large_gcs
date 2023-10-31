@@ -65,9 +65,8 @@ class GcsAstar(SearchAlgorithm):
         )
         self._visited.set_source(self._graph.source_name)
         self._visited.set_target(self._graph.target_name)
-        self.alg_metrics.n_vertices_visited = (
-            2  # Start with the source and target node in the visited subgraph
-        )
+        # Start with the source and target node in the visited subgraph
+        self.alg_metrics.n_vertices_expanded[0] = 2
 
         self._cost_estimator.setup_subgraph(self._visited)
 
@@ -133,7 +132,7 @@ class GcsAstar(SearchAlgorithm):
                 edge.v not in self._visited.vertex_names
                 or edge.v == self._graph.target_name
             ):
-                self._alg_metrics.n_vertices_explored += 1
+                self._alg_metrics.n_vertices_visited[0] += 1
                 self._explore_edge(edge)
 
     def _explore_edge(self, edge: Edge):
@@ -174,7 +173,7 @@ class GcsAstar(SearchAlgorithm):
             return
 
         self._visited.add_vertex(self._graph.vertices[vertex_name], vertex_name)
-        self._alg_metrics.n_vertices_visited += 1
+        self._alg_metrics.n_vertices_expanded[0] += 1
         edges = self._graph.incident_edges(vertex_name)
         for edge in edges:
             if (
@@ -230,13 +229,3 @@ class GcsAstar(SearchAlgorithm):
             else:
                 path_color = self._vis_params.intermediate_path_color
             self._graph.plot_path(path, color=path_color, linestyle="--")
-
-    @property
-    def alg_metrics(self):
-        """Recompute metrics based on the current state of the algorithm.
-        n_vertices_visited, n_gcs_solves, gcs_solve_time_total/min/max are manually updated.
-        The rest are computed from the manually updated metrics.
-        """
-        return self._alg_metrics.update_derived_metrics(
-            self._graph.n_vertices, self._graph.n_edges, self._visited.n_edges
-        )

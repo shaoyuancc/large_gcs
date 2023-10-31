@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from enum import Enum
 from math import inf
+from typing import Dict
 
 import numpy as np
 
@@ -47,12 +48,8 @@ class AlgMetrics:
     Metrics for the algorithself.
     """
 
-    n_vertices_visited: int = 0
-    # Note that this is not the number of edges relaxed. It is the number of edges in the visited subgraph.
-    n_edges_visited: int = 0
-    n_vertices_explored: int = 0
-    vertex_coverage: float = 0
-    edge_coverage: float = 0
+    n_vertices_expanded: Dict[int, int] = field(default_factory=lambda: {0: 0})
+    n_vertices_visited: Dict[int, int] = field(default_factory=lambda: {0: 0})
     time_wall_clock: float = 0.0
     n_gcs_solves: int = 0
     gcs_solve_time_total: float = 0.0
@@ -61,8 +58,8 @@ class AlgMetrics:
     gcs_solve_time_iter_std: float = 0.0
     gcs_solve_time_iter_min: float = inf
     gcs_solve_time_iter_max: float = 0.0
-    n_vertices_revisited: int = 0
-    n_vertices_reexplored: int = 0
+    n_vertices_reexpanded: Dict[int, int] = field(default_factory=lambda: {0: 0})
+    n_vertices_revisited: Dict[int, int] = field(default_factory=lambda: {0: 0})
 
     def __post_init__(self):
         self._gcs_solve_times = np.empty((0,))
@@ -79,17 +76,11 @@ class AlgMetrics:
 
     def update_derived_metrics(
         self,
-        n_vertices,
-        n_edges,
-        n_visited_edges,
     ):
         """Recompute metrics based on the current state of the algorithself.
         n_vertices_visited, n_gcs_solves, gcs_solve_time_total/min/max are manually updated.
         The rest are computed from the manually updated metrics.
         """
-        self.vertex_coverage = round(self.n_vertices_visited / n_vertices, 4)
-        self.n_edges_visited = n_visited_edges
-        self.edge_coverage = round(self.n_edges_visited / n_edges, 4)
         if self.n_gcs_solves > 0:
             self.gcs_solve_time_iter_mean = (
                 self.gcs_solve_time_total / self.n_gcs_solves
@@ -114,11 +105,20 @@ class AlgMetrics:
 
     def to_dict(self):
         """Hide private fields and return a dictionary of the public fields."""
-        return {
-            f.name: getattr(self, f.name)
-            for f in fields(self)
-            if not f.name.startswith("_")
-        }
+        res = {}
+        for f in fields(self):
+            # Skip private fields
+            if f.name.startswith("_"):
+                continue
+            attr = getattr(self, f.name)
+            if isinstance(attr, dict):
+                # Convert the keys to strings if they are ints (it's creating problems for wandb)
+                res[f.name] = {
+                    (str(k) if isinstance(k, int) else k): v for k, v in attr.items()
+                }
+            else:
+                res[f.name] = attr
+        return res
 
 
 class SearchAlgorithm(ABC):
@@ -137,7 +137,7 @@ class SearchAlgorithm(ABC):
 
     @property
     def alg_metrics(self):
-        return self._alg_metrics
+        return self._alg_metrics.update_derived_metrics()
 
     def log_metrics_to_wandb(self, total_estimated_cost: float):
         if wandb.run is not None:

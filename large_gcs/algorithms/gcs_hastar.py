@@ -1,5 +1,7 @@
 import heapq as heap
 import logging
+import time
+from copy import deepcopy
 from typing import List, Optional
 
 import numpy as np
@@ -10,7 +12,12 @@ from large_gcs.abstraction_models.gcshastar_node import (
     GCSHANode,
     StatementNode,
 )
-from large_gcs.algorithms.search_algorithm import AlgVisParams, ReexploreLevel
+from large_gcs.algorithms.search_algorithm import (
+    AlgMetrics,
+    AlgVisParams,
+    ReexploreLevel,
+    SearchAlgorithm,
+)
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.factored_collision_free_graph import FactoredCollisionFreeGraph
 from large_gcs.graph.graph import Graph, ShortestPathSolution
@@ -22,7 +29,22 @@ from large_gcs.graph_generators.contact_graph_generator import (
 logger = logging.getLogger(__name__)
 
 
-class GcsHAstar:
+class GcsHAstarMetrics(AlgMetrics):
+    def initialize(self, n_levels: int):
+        empty_dict = {
+            i: {
+                StatementNode.__name__: 0,
+                ContextNode.__name__: 0,
+            }
+            for i in range(n_levels)
+        }
+        self.n_vertices_expanded = deepcopy(empty_dict)
+        self.n_vertices_reexpanded = deepcopy(empty_dict)
+        self.n_vertices_visited = deepcopy(empty_dict)
+        self.n_vertices_revisited = deepcopy(empty_dict)
+
+
+class GcsHAstar(SearchAlgorithm):
     def __init__(
         self,
         abs_model: AbstractionModel,
@@ -45,6 +67,8 @@ class GcsHAstar:
         self._S: dict[str, GCSHANode] = {}  # Expanded/Closed set
         self._Q: list[GCSHANode] = []  # Priority queue
         max_abs_level = len(self._graphs)
+        self._alg_metrics = GcsHAstarMetrics()
+        self._alg_metrics.initialize(n_levels=max_abs_level + 1)
         start_node = StatementNode(
             priority=0, abs_level=max_abs_level, vertex_name="START", path=[], weight=0
         )
@@ -62,9 +86,12 @@ class GcsHAstar:
         self._iteration = 0
 
     def run(self):
+        self._start_time = time.time()
+
         sol = None
         while sol == None and len(self._Q) > 0:
             sol = self._run_iteration()
+            self._alg_metrics.time_wall_clock = time.time() - self._start_time
         if sol is None:
             logger.warn(
                 f"Gcs HA* Convex Restriction failed to find a path to the target."
@@ -74,7 +101,7 @@ class GcsHAstar:
         g = self._graphs[0]
         g._post_solve(sol)
         logger.info(
-            f"Gcs HA* Convex Restriction complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}"
+            f"Gcs HA* Convex Restriction complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
         )
 
     def _run_iteration(self):
@@ -94,8 +121,14 @@ class GcsHAstar:
         if not self._should_reexpand(n):
             return
 
-        logger.info(f"expanding {n.id}")
+        if n.id in self._S:
+            self._alg_metrics.n_vertices_reexpanded[n.abs_level][type(n).__name__] += 1
+        else:
+            self._alg_metrics.n_vertices_expanded[n.abs_level][type(n).__name__] += 1
+
+        logger.info(f"\n{self.alg_metrics}\nexpanding {n.id}")
         self._S[n.id] = n
+        self.log_metrics_to_wandb(n.priority)
 
         if isinstance(n, StatementNode):
             # Check if BASE rule applies (the goal of a level is reached)
@@ -117,7 +150,7 @@ class GcsHAstar:
                     neighbor = StatementNode.from_parent(
                         child_vertex_name=edge.v, parent=n
                     )
-                    if neighbor.id not in self._S:  # No reexploring
+                    if neighbor.id not in self._S:  # No revisiting
                         abs_neighbor_nodes = self._abs_fns[n.abs_level](neighbor)
                         # Check if all required contexts of the abstracted neighbor are in S
                         if all(
@@ -203,13 +236,13 @@ class GcsHAstar:
             path_costs=path_costs,
             sol=n_antecedent.sol,
         )
+        self._update_vertex_visit_revisit(n_next)
         heap.heappush(self._Q, n_next)
 
     def _execute_down_rule(self, n_antecedent: ContextNode):
         logger.info(f"Executing DOWN rule for antecedent {n_antecedent.id}")
 
         child = ContextNode(
-            # Slightly confused about the priority, need to think through
             priority=n_antecedent.sol.cost,
             abs_level=n_antecedent.abs_level,
             vertex_name=n_antecedent.path[-1][0],
@@ -221,11 +254,14 @@ class GcsHAstar:
             parent=n_antecedent,
         )
 
+        self._update_vertex_visit_revisit(child)
         heap.heappush(self._Q, child)
 
     def _execute_source_up_rule(self, n_antecedent: ContextNode):
         logger.info(f"Executing SOURCE UP rule for antecedent {n_antecedent.id}")
+
         lower_abs_level = n_antecedent.abs_level - 1
+
         source_name = self._graphs[lower_abs_level].source_name
         # add the source node of the next level to the queue
         n_source = StatementNode(
@@ -235,16 +271,21 @@ class GcsHAstar:
             path=[],
             weight=0,
         )
+        self._update_vertex_visit_revisit(n_source)
         heap.heappush(self._Q, n_source)
 
     def _execute_up_rule(self, n_conclusion: GCSHANode):
-        logger.info(f"Executing UP rule for conclusion {n_conclusion.id}")
+        logger.debug(f"Executing UP rule for conclusion {n_conclusion.id}")
+
+        self._update_vertex_visit_revisit(n_conclusion)
+
         g: ContactGraph = self._graphs[n_conclusion.abs_level]
         abs_fn = self._abs_fns[n_conclusion.abs_level]
 
         # Solve convex restriction on the path from the source to the conclusion to get the weight
         g.set_target(n_conclusion.vertex_name)
         sol = g.solve_convex_restriction(n_conclusion.path)
+        self._alg_metrics.update_after_gcs_solve(sol.time)
         g.set_target(self._targets[n_conclusion.abs_level])
         if not sol.is_success:
             logger.debug(
@@ -280,3 +321,9 @@ class GcsHAstar:
             )
         elif reexplore_level == ReexploreLevel.NONE:
             return not (n_conclusion.id in self._S)
+
+    def _update_vertex_visit_revisit(self, n: GCSHANode):
+        if n.id in self._S:
+            self._alg_metrics.n_vertices_revisited[n.abs_level][type(n).__name__] += 1
+        else:
+            self._alg_metrics.n_vertices_visited[n.abs_level][type(n).__name__] += 1

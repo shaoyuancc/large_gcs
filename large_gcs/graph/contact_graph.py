@@ -406,8 +406,8 @@ class ContactGraph(Graph):
             self.contact_spp_sol = self.create_contact_spp_sol(
                 sol.vertex_path, sol.ambient_path
             )
-        else:
-            logger.warn("No Shortest Path Solution Found")
+        # else:
+        #     logger.debug("No Shortest Path Solution Found")
 
     def create_contact_spp_sol(self, vertex_path, ambient_path, ref_graph=None):
         """An ambient path is a list of vertices in the higher dimensional space"""
