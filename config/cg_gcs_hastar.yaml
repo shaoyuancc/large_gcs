@@ -9,7 +9,7 @@ should_incl_simul_mode_switches: false
 should_add_const_edge_cost: false
 
 algorithm:
-  reexplore_levels: ['NONE', 'FULL']
+  reexplore_levels: ["NONE", "FULL"]
 
 save_visualization: true
 save_to_wandb: true

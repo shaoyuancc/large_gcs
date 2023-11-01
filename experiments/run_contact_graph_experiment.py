@@ -73,11 +73,14 @@ def main(cfg: OmegaConf) -> None:
         )
         cg = ContactGraph.load_from_file(graph_file)
     if cfg.abstraction_model_generator:
+        print("Using abstraction model generator")
         abs_model_generator = instantiate(cfg.abstraction_model_generator)
         abs_model = abs_model_generator.generate(concrete_graph=cg)
-        alg: SearchAlgorithm = instantiate(cfg.algorithm, abs_model=abs_model)
-        # alg = GcsHAstar(abs_model=abs_model, reexplore_levels=['NONE', 'FULL'])
+        alg = GcsHAstar(
+            abs_model=abs_model, reexplore_levels=cfg.algorithm.reexplore_levels
+        )
     else:
+        print("No abstraction model generator")
         cost_estimator: CostEstimator = instantiate(cfg.cost_estimator, graph=cg)
         alg: SearchAlgorithm = instantiate(
             cfg.algorithm, graph=cg, cost_estimator=cost_estimator
@@ -87,7 +90,8 @@ def main(cfg: OmegaConf) -> None:
 
     if sol is not None and cfg.save_visualization:
         if cfg.abstraction_model_generator:
-            output_base = f"{alg.__class__.__name__}_{cfg.abstraction_model_generator}_{cfg.graph_name}"
+            model_name = cfg.abstraction_model_generator["_target_"].split(".")[-1]
+            output_base = f"{alg.__class__.__name__}_{model_name}_{cfg.graph_name}"
         else:
             output_base = f"{alg.__class__.__name__}_{cost_estimator.finger_print}_{cfg.graph_name}"
         vid_file = os.path.join(full_log_dir, f"{output_base}.mp4")

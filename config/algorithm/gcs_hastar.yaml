@@ -1,1 +1,3 @@
 _target_: large_gcs.algorithms.gcs_hastar.GcsHAstar
+# Note that this is not actually used to instantiate the algorithm because hydra has
+# some problems with receiving abstraction_model as an input.
