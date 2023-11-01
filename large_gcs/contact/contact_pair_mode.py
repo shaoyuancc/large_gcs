@@ -2,7 +2,7 @@ import itertools
 from abc import ABC, abstractmethod
 from copy import copy
 from dataclasses import dataclass
-from typing import List, Tuple, Type
+from typing import List, Optional, Tuple, Type
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,19 +25,20 @@ class ContactPairMode(ABC):
 
     body_a: RigidBody
     body_b: RigidBody
-    contact_location_a: ContactLocation
-    contact_location_b: ContactLocation
+    contact_location_a: Optional[ContactLocation]
+    contact_location_b: Optional[ContactLocation]
 
     def __post_init__(self):
         assert self.body_a.dim == self.body_b.dim
-        assert not (
-            isinstance(self.contact_location_a, ContactLocationVertex)
-            and isinstance(self.contact_location_b, ContactLocationVertex)
-        ), "Vertex-vertex contact not supported"
-        assert not (
-            self.body_a.mobility_type == MobilityType.STATIC
-            and self.body_b.mobility_type == MobilityType.STATIC
-        ), "Static-static contact does not need to be considered"
+        if self.contact_location_a is not None and self.contact_location_b is not None:
+            assert not (
+                isinstance(self.contact_location_a, ContactLocationVertex)
+                and isinstance(self.contact_location_b, ContactLocationVertex)
+            ), "Vertex-vertex contact not supported"
+            assert not (
+                self.body_a.mobility_type == MobilityType.STATIC
+                and self.body_b.mobility_type == MobilityType.STATIC
+            ), "Static-static contact does not need to be considered"
         self._create_decision_vars()
         (
             self.constraint_formulas,
@@ -168,6 +169,80 @@ class NoContactPairMode(ContactPairMode):
     @property
     def compact_class_name(self):
         return "NC"
+
+
+@dataclass
+class RelaxedContactPairMode(ContactPairMode):
+    contact_location_a: Optional[ContactLocation] = None
+    contact_location_b: Optional[ContactLocation] = None
+
+    def __post_init__(self):
+        assert (
+            self.contact_location_a is None and self.contact_location_b is None
+        ), "Relaxed contact pair modes must not specify contact locations"
+        super().__post_init__()
+
+    def _plot(self, **kwargs):
+        self.contact_location_a.plot(**kwargs)
+        self.contact_location_b.plot(**kwargs)
+
+    @property
+    def id(self) -> str:
+        return f"{self.compact_class_name}|{self.body_a.name}-{self.body_b.name}"
+
+
+@dataclass
+class RelaxedInContactPairMode(RelaxedContactPairMode):
+    """Note: RelaxedInContactPairMode generated wrt the faces in body A (not body B)"""
+
+    def _create_constraint_formulas(self):
+        constraints = []
+        base_constraints = []
+
+        no_contact_pair_modes = generate_no_contact_pair_modes(self.body_a, self.body_b)
+        # Position Constraints
+        for nc_mode in no_contact_pair_modes:
+            signed_dist_exprs = nc_mode._create_signed_dist_surrog_constraint_exprs()
+            # Note how the position constraint is flipped to be <= 0 (compared to the NC case)
+            pos_constraints = [le(expr, 0).item() for expr in signed_dist_exprs]
+            constraints += pos_constraints
+            base_constraints += [pos_constraints[0]]
+
+        # Force Constraints
+        # Make all force vectors equal
+        force_constraints = []
+        for body in [self.body_a, self.body_b]:
+            if body.mobility_type == MobilityType.ACTUATED:
+                force_constraints += eq(
+                    body.vars_force_act, body.vars_force_res
+                ).tolist()
+        force_constraints += eq(
+            self.body_a.vars_force_res, self.body_b.vars_force_res
+        ).tolist()
+
+        constraints += force_constraints
+
+        return constraints, base_constraints
+
+    @property
+    def compact_class_name(self):
+        return "RIC"
+
+
+@dataclass
+class RelaxedNoContactPairMode(RelaxedContactPairMode):
+    """RelaxedNoContactPairMode has no constraints, functions kind of like a placeholder in the contact set"""
+
+    def _create_constraint_formulas(self):
+        """No constraints"""
+        constraints = []
+        base_constraints = []
+
+        return constraints, base_constraints
+
+    @property
+    def compact_class_name(self):
+        return "RNC"
 
 
 @dataclass
@@ -539,6 +614,13 @@ def generate_contact_pair_modes(
     else:
         in_contact_pair_modes = generate_in_contact_pair_modes(body_a, body_b)
         return in_contact_pair_modes + no_contact_pair_modes
+
+
+def generate_relaxed_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):
+    return [
+        RelaxedNoContactPairMode(body_a=body_a, body_b=body_b),
+        RelaxedInContactPairMode(body_a=body_a, body_b=body_b),
+    ]
 
 
 def generate_cfree_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):

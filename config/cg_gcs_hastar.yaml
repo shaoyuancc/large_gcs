@@ -3,7 +3,7 @@ defaults:
   - abstraction_model_generator: contact_two
   - hydra: hydra
 
-graph_name: "cg_trichal4"
+graph_name: "cg_maze_a2"
 should_use_incremental_graph: true
 should_incl_simul_mode_switches: false
 should_add_const_edge_cost: false
@@ -13,3 +13,9 @@ algorithm:
 
 save_visualization: true
 save_to_wandb: true
+
+# hydra:
+#   mode: MULTIRUN
+#   sweeper:
+#     params:
+#       graph_name: cg_trichal2, cg_trichal4, cg_maze_a2, cg_radialsort_a1
