@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from itertools import combinations, product
 from typing import Dict, Iterable
 
@@ -11,7 +12,9 @@ from tqdm import tqdm
 from large_gcs.contact.contact_pair_mode import (
     ContactPairMode,
     InContactPairMode,
+    RelaxedContactPairMode,
     RelaxedInContactPairMode,
+    RelaxedNoContactPairMode,
     generate_contact_pair_modes,
     generate_relaxed_contact_pair_modes,
 )
@@ -67,20 +70,14 @@ class IncrementalRelaxedContactGraph(IncrementalContactGraph):
     def _create_contact_set_from_contact_pair_mode_ids(
         self, mode_ids: Iterable[str]
     ) -> ContactSet:
-        # No additional force constraints because for RIC, it is all added in the contact pair mode
-        # No other force constraints in other modes for the RIC graph.
-
+        # Calculate contact chains with no robots
         # Objects not in some RIC must have 0 resultant force.
-        no_contact_objs = set([obj.name for obj in self.objects])
-        for mode_id in mode_ids:
-            mode = self._contact_pair_modes[mode_id]
-            if isinstance(mode, RelaxedInContactPairMode):
-                no_contact_objs.discard(mode.body_a.name)
-                no_contact_objs.discard(mode.body_b.name)
+        no_contact_objs = self._get_no_rob_contact_objs(mode_ids)
         set_force_constraints = []
         for obj_name in no_contact_objs:
+            vars_force_res = self._body_dict[obj_name].vars_force_res
             set_force_constraints += eq(
-                self._body_dict[obj_name].vars_force_res, 0
+                vars_force_res, np.zeros_like(vars_force_res)
             ).tolist()
 
         for body_name in self._movable:
@@ -96,6 +93,41 @@ class IncrementalRelaxedContactGraph(IncrementalContactGraph):
         )
 
         return contact_set
+
+    def _get_no_rob_contact_objs(self, mode_ids: Iterable[str]):
+        # DFS on contact chains to determine if a obj is in contact with a rob.
+        adj_list = defaultdict(set)
+        all_modes = [self._contact_pair_modes[mode_id] for mode_id in mode_ids]
+        modes = [
+            mode for mode in all_modes if isinstance(mode, RelaxedInContactPairMode)
+        ]
+        body_pairs = [(mode.body_a.name, mode.body_b.name) for mode in modes]
+        for u, v in body_pairs:
+            adj_list[u].add(v)
+            adj_list[v].add(u)
+
+        def dfs(v, visited, marked_objs):
+            visited.add(v)
+            v_body = self._body_dict[v]
+            if v_body.mobility_type == MobilityType.UNACTUATED:
+                marked_objs.add(v)
+            has_robot = v_body.mobility_type == MobilityType.ACTUATED
+            for neighbor in adj_list[v]:
+                if neighbor not in visited:
+                    has_robot = has_robot or dfs(neighbor, visited, marked_objs)
+            return has_robot
+
+        visited = set()
+        marked_objs = set()
+        for v in adj_list:
+            if v not in visited:
+                component = set()
+                has_robot = dfs(v, visited, component)
+                if has_robot:
+                    marked_objs.update(component)
+        all_objs = set([obj.name for obj in self.objects])
+
+        return list(all_objs - marked_objs)
 
     def _initialize_set_generation_variables(self):
         self._body_dict: Dict[str, RigidBody] = {
