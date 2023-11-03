@@ -101,9 +101,9 @@ class GcsHAstar(SearchAlgorithm):
         return sol
 
     def _run_iteration(self):
-        self._iteration += 1
-        # print(f"\niteration: {self._iteration}")
-        # print(f"S {[(key, val.weight) for (key, val) in self._S.items()]}")
+        # self._iteration += 1
+        # logger.info(f"\niteration: {self._iteration}")
+        # logger.info(f"S {[(key, val.weight) for (key, val) in self._S.items()]}")
         # # Make a copy of the priority queue.
         # pq_copy = copy(self._Q)
         # # Pop the top 10 items from the priority queue copy.
@@ -111,7 +111,7 @@ class GcsHAstar(SearchAlgorithm):
         # for _ in range(min(10, len(pq_copy))):
         #     n = heap.heappop(pq_copy)
         #     bottom_10.append((n.id, n.priority))
-        # print(f"Lowest 10 in Q: {bottom_10}")
+        # logger.info(f"Lowest 10 in Q: {bottom_10}")
 
         n: GCSHANode = heap.heappop(self._Q)
         if not self._should_reexpand(n):
@@ -122,7 +122,7 @@ class GcsHAstar(SearchAlgorithm):
         else:
             self._alg_metrics.n_vertices_expanded[n.abs_level][type(n).__name__] += 1
 
-        logger.info(f"\n{self.alg_metrics}\nexpanding {n.id}")
+        logger.info(f"\n\n{self.alg_metrics}\nexpanding {n.id}, priority {n.priority}")
         self._S[n.id] = n
         self.log_metrics_to_wandb(n.priority)
 
@@ -299,6 +299,9 @@ class GcsHAstar(SearchAlgorithm):
             # TODO Implement
             rule_weight = 0
             n_conclusion.priority += rule_weight + abs_context.weight
+            logger.debug(
+                f"priority: {n_conclusion.priority} sol_cost: {sol.cost}, abs_context_weight: {abs_context.weight}"
+            )
         if self._should_reexpand(n_conclusion):
             heap.heappush(self._Q, n_conclusion)
 

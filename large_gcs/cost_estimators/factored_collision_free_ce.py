@@ -165,7 +165,7 @@ class FactoredCollisionFreeCE(CostEstimator):
     ) -> None:
         # Add outgoing edges from transition vertex
         for i, cfree_vertex_name in enumerate(
-            self._convert_to_cfree_vertex_names(vertex_name)
+            self.convert_to_cfree_vertex_names(vertex_name)
         ):
             if i not in self._cfree_graphs:
                 continue
@@ -191,7 +191,7 @@ class FactoredCollisionFreeCE(CostEstimator):
         # Calculate or look up the collision free cost for each body
         cfree_cost = 0
         for i, cfree_vertex_name in enumerate(
-            self._convert_to_cfree_vertex_names(neighbor)
+            self.convert_to_cfree_vertex_names(neighbor)
         ):
             if i not in self._cfree_graphs:
                 continue
@@ -263,7 +263,8 @@ class FactoredCollisionFreeCE(CostEstimator):
             return None
 
     @staticmethod
-    def _convert_to_cfree_vertex_names(vertex_name: str):
+    def convert_to_cfree_vertex_names(vertex_name: str):
+        """Works for full vertex names, and relaxed contact vertex names"""
         # Convert string representation of tuple to actual tuple
         tuple_vertex = ast.literal_eval(vertex_name)
 

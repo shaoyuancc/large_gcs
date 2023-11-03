@@ -9,6 +9,6 @@ def test_convert_to_cfree_vertex_names_mult_objs():
         "('NC|obs0_f3-rob0_v1',)",
     ]
     assert (
-        FactoredCollisionFreeCE._convert_to_cfree_vertex_names(vertex_name)
+        FactoredCollisionFreeCE.convert_to_cfree_vertex_names(vertex_name)
         == cfree_vertex_names
     )

@@ -1,4 +1,6 @@
+import ast
 import logging
+import re
 from collections import defaultdict
 from itertools import combinations, product
 from typing import Dict, Iterable
@@ -37,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 class IncrementalRelaxedContactGraph(IncrementalContactGraph):
     @classmethod
-    def from_inc_contact_graph(self, inc_contact_graph: IncrementalContactGraph):
+    def from_inc_contact_graph(cls, inc_contact_graph: IncrementalContactGraph):
         if inc_contact_graph.target_pos is None:
             target_pos_objs = None
             target_pos_robs = None
@@ -48,7 +50,7 @@ class IncrementalRelaxedContactGraph(IncrementalContactGraph):
             target_pos_robs = inc_contact_graph.target_pos[
                 len(inc_contact_graph.objects) :
             ]
-        super().__init__(
+        return cls(
             static_obstacles=inc_contact_graph.obstacles,
             unactuated_objects=inc_contact_graph.objects,
             actuated_robots=inc_contact_graph.robots,
@@ -175,3 +177,35 @@ class IncrementalRelaxedContactGraph(IncrementalContactGraph):
             mode.id: mode for modes in body_pair_to_modes.values() for mode in modes
         }
         self._contact_pair_modes = mode_ids_to_mode
+
+    @staticmethod
+    def full_to_relaxed_contact_vertex_name(vertex_name: str):
+        # Convert string representation of tuple to actual tuple
+        tuple_vertex = ast.literal_eval(vertex_name)
+
+        # Initialize dictionaries to store modes for each obj and rob
+        res_modes = []
+
+        for mode in tuple_vertex:
+            # If mode has obs, then it will be exactly the same
+            if "obs" in mode:
+                res_modes.append(mode)
+                continue
+
+            # Rob-rob modes are not considered in the relaxed contact graph
+            if "obj" not in mode:
+                continue
+
+            # Convert contact modes to relaxed contact modes
+            if "IC" in mode:
+                mode = mode.replace("IC|", "RIC|")
+            elif "NC" in mode:
+                mode = mode.replace("NC|", "RNC|")
+
+            # Remove contact locations from mode
+            # This regex will match the undesired parts, like _f1, _v2, or their combinations with other characters
+            pattern = r"(_f\d+|_v\d+|\_f\d+_\w+|\_v\d+_\w+)"
+            mode = re.sub(pattern, "", mode)
+            res_modes.append(mode)
+
+        return str(tuple(res_modes))

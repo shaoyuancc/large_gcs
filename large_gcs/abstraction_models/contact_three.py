@@ -12,9 +12,12 @@ from large_gcs.abstraction_models.gcshastar_node import (
 from large_gcs.cost_estimators.factored_collision_free_ce import FactoredCollisionFreeCE
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.factored_collision_free_graph import FactoredCollisionFreeGraph
+from large_gcs.graph.incremental_relaxed_contact_graph import (
+    IncrementalRelaxedContactGraph,
+)
 
 
-class ContactTwo(AbstractionModelGenerator):
+class ContactThree(AbstractionModelGenerator):
     def generate(self, concrete_graph: ContactGraph) -> AbstractionModel:
         """
         Generate the abstraction model for the contact two abstraction.
@@ -23,6 +26,11 @@ class ContactTwo(AbstractionModelGenerator):
         graphs = []
         graphs.append(concrete_graph)
         # Define level 1 graph
+        cg_relaxed = IncrementalRelaxedContactGraph.from_inc_contact_graph(
+            concrete_graph
+        )
+        graphs.append(cg_relaxed)
+        # Define level 2 graph
         # Right now the body is hardcoded and limited to one, soon we will extend this to multiple bodies.
         body = graphs[0].objects[0]
         cg_factored_cfree = FactoredCollisionFreeGraph(
@@ -41,8 +49,32 @@ class ContactTwo(AbstractionModelGenerator):
             new_abs_level = n.abs_level + 1
             abstract_nodes = []
             # HACK find a better way to handle this case/feed this info in.
-            if n.vertex_name == graphs[0].target_name:
-                split_names = [graphs[1].target_name]
+            if n.vertex_name == graphs[n.abs_level].target_name:
+                relaxed_name = [graphs[new_abs_level].target_name]
+            else:
+                relaxed_name = (
+                    IncrementalRelaxedContactGraph.full_to_relaxed_contact_vertex_name(
+                        n.vertex_name
+                    )
+                )
+
+            abstract_nodes.append(
+                StatementNode(
+                    priority=None,
+                    abs_level=new_abs_level,
+                    vertex_name=relaxed_name,
+                    weight=None,
+                    path=[],
+                )
+            )
+            return abstract_nodes
+
+        def abs_relaxed_contact(n: StatementNode) -> List[StatementNode]:
+            new_abs_level = n.abs_level + 1
+            abstract_nodes = []
+            # HACK find a better way to handle this case/feed this info in.
+            if n.vertex_name == graphs[n.abs_level].target_name:
+                split_names = [graphs[new_abs_level].target_name]
             else:
                 split_names = FactoredCollisionFreeCE.convert_to_cfree_vertex_names(
                     n.vertex_name
@@ -77,6 +109,10 @@ class ContactTwo(AbstractionModelGenerator):
                 )
             ]
 
-        abs_fns = [abs_full_problem, abs_factored_cfree_bodies_with_goals]
+        abs_fns = [
+            abs_full_problem,
+            abs_relaxed_contact,
+            abs_factored_cfree_bodies_with_goals,
+        ]
 
         return AbstractionModel(graphs=graphs, abs_fns=abs_fns)
