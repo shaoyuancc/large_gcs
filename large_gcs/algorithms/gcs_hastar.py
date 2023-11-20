@@ -61,6 +61,7 @@ class GcsHAstar(SearchAlgorithm):
 
         self._S: dict[str, GCSHANode] = {}  # Expanded/Closed set
         self._Q: list[GCSHANode] = []  # Priority queue
+        self._stalled: list[GCSHANode] = []  # Stalled nodes
         max_abs_level = len(self._graphs)
         self._alg_metrics = GcsHAstarMetrics()
         self._alg_metrics.initialize(n_levels=max_abs_level + 1)
@@ -98,6 +99,10 @@ class GcsHAstar(SearchAlgorithm):
         logger.info(
             f"Gcs HA* Convex Restriction complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
         )
+        edge_path = []
+        for i in range(len(sol.vertex_path) - 1):
+            edge_path.append(f"{sol.vertex_path[i]} -> {sol.vertex_path[i+1]}")
+        logger.debug(f"edge path: {np.array(edge_path)}")
         return sol
 
     def _run_iteration(self):
@@ -157,9 +162,10 @@ class GcsHAstar(SearchAlgorithm):
                         ):
                             self._execute_up_rule(neighbor)
                         else:
-                            logger.debug(
+                            logger.info(
                                 f"required contexts for {neighbor.id} not in S , continuing"
                             )
+                            self._stalled.append(neighbor)
             else:
                 for edge in edges:
                     neighbor_in_path = any(
@@ -179,9 +185,10 @@ class GcsHAstar(SearchAlgorithm):
                         ):
                             self._execute_up_rule(neighbor)
                         else:
-                            logger.debug(
+                            logger.info(
                                 f"required contexts for {neighbor.id} not in S , continuing"
                             )
+                            self._stalled.append(neighbor)
 
         # CONTEXT and has other statements in path to convert to contexts
         elif isinstance(n, ContextNode):
@@ -196,6 +203,15 @@ class GcsHAstar(SearchAlgorithm):
     def _execute_base_rule(self, n_antecedent: StatementNode):
         logger.info(f"Executing BASE rule for antecendent {n_antecedent.id}")
         # The antecedent will always be a goal node.
+
+        # # EXPERIMENTAL: Try clearing statment nodes in lower level.
+        # if self._reexplore_levels[n_antecedent.abs_level - 1] == ReexploreLevel.PARTIAL:
+        #     count = 0
+        #     for id, node in list(self._S.items()):
+        #         if isinstance(node, StatementNode) and node.abs_level == n_antecedent.abs_level - 1:
+        #             del self._S[id]
+        #             count += 1
+        #     logger.info(f"Cleared {count} statement nodes in level {n_antecedent.abs_level - 1}")
 
         # Extract path costs
         path_costs = []
@@ -258,6 +274,25 @@ class GcsHAstar(SearchAlgorithm):
 
         lower_abs_level = n_antecedent.abs_level - 1
 
+        # EXPERIMENTAL: Try executing stalled nodes in lower level
+        n_stalled = len(self._stalled)
+        if n_stalled > 0:
+            still_stalled = []
+            for neighbor in self._stalled:
+                abs_neighbor_nodes = self._abs_fns[lower_abs_level](neighbor)
+                if neighbor.abs_level == lower_abs_level and all(
+                    [
+                        abs_n.context_id in self._S for abs_n in abs_neighbor_nodes
+                    ]  # Check if all required contexts of the abstracted neighbor are in S
+                ):
+                    self._execute_up_rule(neighbor)
+                else:
+                    still_stalled.append(neighbor)
+            self._stalled = still_stalled
+            logger.info(
+                f"Executed {n_stalled - len(self._stalled)} stalled nodes in level {lower_abs_level}, {len(self._stalled)} still stalled"
+            )
+
         source_name = self._graphs[lower_abs_level].source_name
         # add the source node of the next level to the queue
         n_source = StatementNode(
@@ -285,10 +320,14 @@ class GcsHAstar(SearchAlgorithm):
         g.set_target(self._targets[n_conclusion.abs_level])
         if not sol.is_success:
             logger.debug(
-                f"edge {n_conclusion.parent.id} -> {n_conclusion.id} not actually feasible"
+                f"edge {n_conclusion.parent.vertex_name} -> {n_conclusion.vertex_name} not actually feasible"
             )
             # Conclusion invalid, do nothing, don't add to Q
             return
+        else:
+            logger.debug(
+                f"edge {n_conclusion.parent.vertex_name} -> {n_conclusion.vertex_name} is feasible"
+            )
         n_conclusion.sol = sol
         n_conclusion.weight = sol.cost
         abs_nodes = abs_fn(n_conclusion)
@@ -299,11 +338,14 @@ class GcsHAstar(SearchAlgorithm):
             # TODO Implement
             rule_weight = 0
             n_conclusion.priority += rule_weight + abs_context.weight
-            logger.debug(
-                f"priority: {n_conclusion.priority} sol_cost: {sol.cost}, abs_context_weight: {abs_context.weight}"
-            )
+            # logger.debug(
+            #     f"priority: {n_conclusion.priority} sol_cost: {sol.cost}, abs_context_weight: {abs_context.weight}"
+            # )
         if self._should_reexpand(n_conclusion):
             heap.heappush(self._Q, n_conclusion)
+            logger.debug(
+                f"Added {n_conclusion.id} to Q with priority {n_conclusion.priority}"
+            )
 
     def _should_reexpand(self, n_conclusion):
         if n_conclusion.abs_level == len(self._reexplore_levels):
