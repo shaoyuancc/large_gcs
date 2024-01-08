@@ -1,5 +1,5 @@
 import numpy as np
-from pydrake.all import L2NormCost, QuadraticCost
+from pydrake.all import L2NormCost, LinearEqualityConstraint, QuadraticCost
 
 
 def create_l2norm_edge_cost(dim: int):
@@ -31,3 +31,15 @@ def create_l2norm_squared_vertex_cost(dim: int):
     c = 0
     edge_cost = QuadraticCost(Q, b, c)
     return edge_cost
+
+
+def create_2d_x_equality_edge_constraint():
+    A = np.array([[1, 0, -1, 0]])
+    b = np.zeros(1)
+    return LinearEqualityConstraint(A, b)
+
+
+def create_2d_y_equality_edge_constraint():
+    A = np.array([[0, 1, 0, -1]])
+    b = np.zeros(1)
+    return LinearEqualityConstraint(A, b)
