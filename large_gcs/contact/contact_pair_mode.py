@@ -570,7 +570,7 @@ def create_movable_face_vert_horizontal_bounds_formulas(
 
 
 def _face_horizontal_bounds_formulas(
-    p_Refleft, p_Refright, p_Relv, rel_length=0, buffer_ratio=0.0
+    p_Refleft, p_Refright, p_Relv, rel_length=0, buffer_ratio=0.1
 ):
     """Formulas for the horizontal bounds of a face-face contact such that the relative face is within the horizontal bounds
     (viewing the reference face normal as pointing upwards) of the reference face.
