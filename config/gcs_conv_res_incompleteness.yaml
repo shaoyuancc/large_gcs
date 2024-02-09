@@ -1,0 +1,24 @@
+defaults:
+  - algorithm: gcs_astar_convex_restriction
+  - cost_estimator: shortcut_edge # factored_collision_free #shortcut_edge
+  - hydra: hydra
+
+graph_name: "cg_trichal5"
+should_use_incremental_graph: true
+should_incl_simul_mode_switches: false
+should_add_const_edge_cost: false
+
+save_visualization: true
+save_to_wandb: true
+
+algorithm:
+  reexplore_level: 'NONE'
+
+hydra:
+  mode: MULTIRUN
+  sweeper:
+    params:
+      # algorithm: gcs_astar_convex_restriction, gcs_astar
+      cost_estimator: shortcut_edge #factored_collision_free
+      # graph_name: cg_trichal5, cg_trichal6, cg_trichal7, cg_trichal8, cg_trichal9, cg_trichal10, cg_trichal11, cg_trichal12, cg_trichal13, cg_trichal14
+      graph_name: cg_maze_a10, cg_maze_a11, cg_maze_a12, cg_maze_a13, cg_maze_a14, cg_maze_a15, cg_maze_a16, cg_maze_a17, cg_maze_a18, cg_maze_a19

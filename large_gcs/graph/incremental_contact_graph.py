@@ -208,10 +208,15 @@ class IncrementalContactGraph(ContactGraph):
                     source_pos = np.append(
                         source_pos, body_name_to_source_pos[body_name]
                     )
+            found_neighbor = False
             for id in mode_ids:
                 if base_polyhedra[id].PointInSet(source_pos):
+                    found_neighbor = True
                     source_neighbor_contact_pair_modes.append(id)
                     break  # We are just looking for a single neighbor
+            assert (
+                found_neighbor
+            ), f"Could not find source contact pair neighbor for {body_pair}"
 
             # Determining incoming edges for target vertex
             if self.target_pos is not None:
@@ -255,7 +260,7 @@ class IncrementalContactGraph(ContactGraph):
                     self._adj_modes[mode_id1].append(mode_id2)
                     self._adj_modes[mode_id2].append(mode_id1)
 
-        assert len(self._body_pair_to_mode_ids) == len(
+        assert len(self._body_pair_to_mode_ids.keys()) == len(
             source_neighbor_contact_pair_modes
         ), "Should have a single contact pair mode for each "
         self._generate_neighbor(

@@ -187,11 +187,13 @@ class RigidBody:
         return pos + offset_hat * 0.15
 
     def plot_at_position(self, pos, label_vertices_faces=False, **kwargs):
-        vertices = self.geometry.vertices
-        p_CT = pos - self.geometry.center
-        vertices_shifted = vertices + p_CT
+        vertices_shifted = self.get_vertices_at_position(pos)
         plt.fill(*vertices_shifted.T, **kwargs)
         plt.text(*pos, self.name, ha="center", va="center")
         if label_vertices_faces:
             self._plot_vertices(pos)
             self._plot_face_labels(pos)
+
+    def get_vertices_at_position(self, pos):
+        p_CT = pos - self.geometry.center
+        return self.geometry.vertices + p_CT

@@ -221,7 +221,7 @@ class GcsHAstar(SearchAlgorithm):
             # Create as new graph with just the path from the source to the goal and solve that as a full problem
             temp_g = Graph()
             temp_g.add_vertex(original_g.source, original_g.source_name)
-            for (u, v) in n_antecedent.path:
+            for u, v in n_antecedent.path:
                 temp_g.add_vertex(original_g.vertices[v], v)
                 temp_g.add_edge(original_g.edges[(u, v)])
             temp_g.set_source(original_g.source_name)

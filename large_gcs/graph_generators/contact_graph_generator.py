@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from itertools import combinations
 from typing import List
 
 import matplotlib.pyplot as plt
@@ -186,3 +187,38 @@ class ContactGraphGenerator:
                 self._params.target_obj_pos + self._params.target_rob_pos,
             ):
                 body.plot_at_position(pos=pos, color=BodyColor["target"])
+
+    def is_valid(self) -> bool:
+        # This is extremely conservative because objects that share a boundary are also
+        # considered to be intersecting. And sharing a boundary is actually ok.
+        # Create convex sets out of all the bodies/regions and see if any intersect
+        all_sets = []
+        for body in self._obs:
+            all_sets.append(body.geometry)
+        for body, pos in zip(
+            self._objs + self._robs,
+            self._params.source_obj_pos + self._params.source_rob_pos,
+        ):
+            all_sets.append(
+                Polyhedron.from_vertices(body.get_vertices_at_position(pos))
+            )
+        if self._params.target_region_params is not None:
+            for params in self._params.target_region_params:
+                all_sets.append(Polyhedron.from_vertices(params.region_vertices))
+        elif (
+            self._params.target_obj_pos is not None
+            and self._params.target_rob_pos is not None
+        ):
+            for body, pos in zip(
+                self._objs + self._robs,
+                self._params.target_obj_pos + self._params.target_rob_pos,
+            ):
+                all_sets.append(
+                    Polyhedron.from_vertices(body.get_vertices_at_position(pos))
+                )
+
+        # Check if any intersect
+        for u, v in combinations(all_sets, 2):
+            if u.set.IntersectsWith(v.set):
+                return False
+        return True

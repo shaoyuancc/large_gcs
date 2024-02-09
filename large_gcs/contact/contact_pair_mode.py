@@ -85,12 +85,15 @@ class ContactPairMode(ABC):
                     )
             elif isinstance(self.contact_location_a, ContactLocationVertex):
                 if isinstance(self.contact_location_b, ContactLocationFace):
-                    exprs = [
-                        -expr
-                        for expr in create_movable_face_vert_signed_dist_surrog_exprs(
-                            self.contact_location_b, self.contact_location_a
-                        )
-                    ]
+                    exprs = create_movable_face_vert_signed_dist_surrog_exprs(
+                        self.contact_location_b, self.contact_location_a
+                    )
+                    # exprs = [
+                    #     -expr
+                    #     for expr in create_movable_face_vert_signed_dist_surrog_exprs(
+                    #         self.contact_location_b, self.contact_location_a
+                    #     )
+                    # ]
         assert len(exprs) > 0
         return exprs
 
@@ -734,19 +737,19 @@ def generate_no_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):
                     contact_location_b=vertex_b,
                 )
             )
-    # # Vertex-Face no contact
-    # for index_a, index_b in itertools.product(
-    #     range(body_a.n_vertices), range(body_b.n_faces)
-    # ):
-    #     vertex_a = ContactLocationVertex(body=body_a, index=index_a)
-    #     face_b = ContactLocationFace(body=body_b, index=index_b)
-    #     if is_possible_face_vertex_contact(face_b, vertex_a):
-    #         no_contact_pair_modes.append(
-    #             NoContactPairMode(
-    #                 body_a=body_a,
-    #                 body_b=body_b,
-    #                 contact_location_a=vertex_a,
-    #                 contact_location_b=face_b,
-    #             )
-    #         )
+    # Vertex-Face no contact
+    for index_a, index_b in itertools.product(
+        range(body_a.n_vertices), range(body_b.n_faces)
+    ):
+        vertex_a = ContactLocationVertex(body=body_a, index=index_a)
+        face_b = ContactLocationFace(body=body_b, index=index_b)
+        if is_possible_face_vertex_contact(face_b, vertex_a):
+            no_contact_pair_modes.append(
+                NoContactPairMode(
+                    body_a=body_a,
+                    body_b=body_b,
+                    contact_location_a=vertex_a,
+                    contact_location_b=face_b,
+                )
+            )
     return no_contact_pair_modes

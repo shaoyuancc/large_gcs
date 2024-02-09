@@ -65,14 +65,14 @@ def main(cfg: OmegaConf) -> None:
             graph_file,
             should_incl_simul_mode_switches=cfg.should_incl_simul_mode_switches,
             should_add_const_edge_cost=cfg.should_add_const_edge_cost,
-            should_add_gcs=(True if cfg.abstraction_model_generator else False),
+            should_add_gcs=(True if "abstraction_model_generator" in cfg else False),
         )
     else:
         graph_file = ContactGraphGeneratorParams.graph_file_path_from_name(
             cfg.graph_name
         )
         cg = ContactGraph.load_from_file(graph_file)
-    if cfg.abstraction_model_generator:
+    if "abstraction_model_generator" in cfg:
         print("Using abstraction model generator")
         abs_model_generator = instantiate(cfg.abstraction_model_generator)
         abs_model = abs_model_generator.generate(concrete_graph=cg)
@@ -89,7 +89,7 @@ def main(cfg: OmegaConf) -> None:
     sol: ShortestPathSolution = alg.run()
 
     if sol is not None and cfg.save_visualization:
-        if cfg.abstraction_model_generator:
+        if "abstraction_model_generator" in cfg:
             model_name = cfg.abstraction_model_generator["_target_"].split(".")[-1]
             output_base = f"{alg.__class__.__name__}_{model_name}_{cfg.graph_name}"
         else:

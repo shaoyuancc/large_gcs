@@ -290,6 +290,49 @@ def test_create_movable_face_vert_signed_dist_surrog_triangle():
         assert dist_surrog < 0
 
 
+def test_create_movable_vert_face_signed_dist_surrog_triangle():
+    body_a = RigidBody(
+        "obj_a",
+        Polyhedron(A=[[1.5, 1], [-1, 0], [0, -1]], b=[4, 0, 0]),
+        MobilityType.UNACTUATED,
+    )
+    body_b = RigidBody(
+        "obj_b",
+        Polyhedron(A=[[-1.5, -1], [1, 0], [0, 1]], b=[-4, 3, 5]),
+        MobilityType.ACTUATED,
+    )
+    contact_loc_a = ContactLocationFace(body_a, 0)
+    contact_loc_b = ContactLocationVertex(body_b, 0)
+
+    exprs = create_movable_face_vert_signed_dist_surrog_exprs(
+        contact_loc_a, contact_loc_b
+    )
+    vals = np.hstack((body_a.geometry.center, body_b.geometry.center))
+    exprs_vars = zip(exprs, np.hstack((body_a.vars_pos.T, body_b.vars_pos.T)))
+
+    for expr, vars in exprs_vars:
+        assert expr.is_polynomial()
+        env = dict(zip(vars, vals))
+        dist_surrog = expr.Evaluate(env)
+        assert np.isclose(dist_surrog, 0)
+
+    vals = np.hstack(
+        (body_a.geometry.center, body_b.geometry.center + np.array([1, 1]))
+    )
+    for expr, vars in exprs_vars:
+        env = dict(zip(vars, vals))
+        dist_surrog = expr.Evaluate(env)
+        assert dist_surrog > 0
+
+    vals = np.hstack(
+        (body_a.geometry.center, body_b.geometry.center + np.array([-1, -1]))
+    )
+    for expr, vars in exprs_vars:
+        env = dict(zip(vars, vals))
+        dist_surrog = expr.Evaluate(env)
+        assert dist_surrog < 0
+
+
 def test_create_static_face_movable_face_horizontal_bounds_square():
     body_a = RigidBody(
         "obj_a",
@@ -315,7 +358,7 @@ def test_create_static_face_movable_face_horizontal_bounds_square():
         vars = body_b.vars_pos.T.flatten()
         env = dict(zip(vars, vals * body_b.n_pos_points))
         for formula in formulas:
-            assert formula.item().Evaluate(env)
+            assert formula.Evaluate(env)
 
 
 def test_create_static_vertex_movable_face_horizontal_bounds_triangle():
@@ -339,7 +382,7 @@ def test_create_static_vertex_movable_face_horizontal_bounds_triangle():
     vals = [-0.63333045, -0.59998453]
     vars = body_b.vars_pos.T.flatten()
     env = dict(zip(vars, vals * body_b.n_pos_points))
-    res = [formula.item().Evaluate(env) for formula in formulas]
+    res = [formula.Evaluate(env) for formula in formulas]
     assert not all(res)
 
     # Second
@@ -352,5 +395,5 @@ def test_create_static_vertex_movable_face_horizontal_bounds_triangle():
     vals = [0.12666955, 0.90001547]
     vars = body_b.vars_pos.T.flatten()
     env = dict(zip(vars, vals * body_b.n_pos_points))
-    res = [formula.item().Evaluate(env) for formula in formulas]
+    res = [formula.Evaluate(env) for formula in formulas]
     assert not all(res)
