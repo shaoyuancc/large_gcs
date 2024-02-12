@@ -1,12 +1,14 @@
+import heapq as heap
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, fields
 from enum import Enum
 from math import inf
-from typing import Dict
+from typing import Dict, List, Optional
 
 import numpy as np
 
 import wandb
+from large_gcs.graph.graph import ShortestPathSolution
 
 
 class TieBreak(Enum):
@@ -121,6 +123,37 @@ class AlgMetrics:
         return res
 
 
+@dataclass
+class SearchNode:
+    """
+    A node in the search tree.
+    """
+
+    priority: float
+    vertex_name: str
+    path: List[(str, str)]
+    parent: Optional["SearchNode"] = None
+    sol: Optional[ShortestPathSolution] = None
+
+    # @property
+    # def id(self):
+    #     """Note that this id is not unique. What uniquely defines a
+    #     node is actually the path. Maybe should change this..."""
+    #     return f"{self.vertex_name}"
+
+    def __lt__(self, other: "SearchNode"):
+        return self.priority < other.priority
+
+    @classmethod
+    def from_parent(cls, child_vertex_name: str, parent: "SearchNode"):
+        return cls(
+            priority=None,
+            vertex_name=child_vertex_name,
+            path=parent.path + [(parent.vertex_name, child_vertex_name)],
+            parent=parent,
+        )
+
+
 class SearchAlgorithm(ABC):
     """
     Abstract base class for search algorithms.
@@ -134,6 +167,14 @@ class SearchAlgorithm(ABC):
         """
         Searches for a shortest path in the given graph.
         """
+
+    def push_node_on_Q(self, node: SearchNode):
+        # Abstraction for the priority queue push operation that handles tiebreaks
+        heap.heappush(self._Q, (node, next(self._counter)))
+
+    def pop_node_from_Q(self):
+        # Abstraction for the priority queue pop operation that handles tiebreaks
+        return heap.heappop(self._Q)[0]
 
     @property
     def alg_metrics(self):

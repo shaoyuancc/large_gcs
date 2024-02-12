@@ -18,7 +18,7 @@ class GCSHANode:
     def id(self):
         return f"{self.abs_level}_{self.__class__.__name__}_{self.vertex_name}"
 
-    def __lt__(self, other):
+    def __lt__(self, other: "GCSHANode"):
         return self.priority < other.priority
 
 

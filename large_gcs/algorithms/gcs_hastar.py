@@ -90,14 +90,16 @@ class GcsHAstar(SearchAlgorithm):
             self._alg_metrics.time_wall_clock = time.time() - self._start_time
         if sol is None:
             logger.warn(
-                f"Gcs HA* Convex Restriction failed to find a path to the target."
+                f"{self.__class__.__name__} failed to find a path to the target."
             )
             return
 
         g = self._graphs[0]
         g._post_solve(sol)
         logger.info(
-            f"Gcs HA* Convex Restriction complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
+            f"{self.__class__.__name__} complete! \ncost: {sol.cost}, time: {sol.time}"
+            f"\nvertex path: {np.array(sol.vertex_path)}"
+            f"\n{self.alg_metrics}"
         )
         edge_path = []
         for i in range(len(sol.vertex_path) - 1):

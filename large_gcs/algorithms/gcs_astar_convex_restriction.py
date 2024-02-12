@@ -34,6 +34,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         tiebreak: TieBreak = TieBreak.FIFO,
         vis_params: AlgVisParams = AlgVisParams(),
     ):
+        super().__init__()
         self._graph = graph
         self._cost_estimator = cost_estimator
         self._reexplore_level = (
@@ -43,7 +44,6 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         )
         self._vis_params = vis_params
         self._writer = None
-        self._alg_metrics = AlgMetrics()
         self._cost_estimator.set_alg_metrics(self._alg_metrics)
         self._candidate_sol = None
         self._pq = []
@@ -175,6 +175,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             if should_add_to_pq:
                 new_active_edges = active_edges.copy() + [edge.key]
                 # Note this assumes graph is contact graph, should break this dependency...
+                # But this dependancy is only necessary for visualizing intermediate solutions
                 # Counter serves as tiebreaker for nodes with the same distance, to prevent nodes or edges from being compared
                 heap.heappush(
                     self._pq,
