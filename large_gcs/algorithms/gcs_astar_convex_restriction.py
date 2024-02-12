@@ -3,7 +3,7 @@ import itertools
 import logging
 import time
 from collections import defaultdict
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -73,11 +73,17 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
         self._cost_estimator.setup_subgraph(self._visited)
 
-    def run(self, animate_intermediate: bool = False, final_plot: bool = False):
+    def run(
+        self,
+        animate_intermediate: bool = False,
+        animate_intermediate_sets: Optional[List[str]] = None,
+        final_plot: bool = False,
+    ):
         logger.info(
             f"Running {self.__class__.__name__}, reexplore_level: {self._reexplore_level}"
         )
         self._animate_intermediate = animate_intermediate
+        self._animate_intermediate_sets = animate_intermediate_sets
 
         self._start_time = time.time()
         while len(self._pq) > 0:
@@ -119,7 +125,14 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         )
         self.log_metrics_to_wandb(estimated_cost)
 
-        if self._animate_intermediate and contact_sol is not None:
+        if (
+            self._animate_intermediate
+            and contact_sol is not None
+            and (
+                self._animate_intermediate_sets is None
+                or node in self._animate_intermediate_sets
+            )
+        ):
             self._graph.contact_spp_sol = contact_sol
             anim = self._graph.animate_solution()
             display(HTML(anim.to_html5_video()))
