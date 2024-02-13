@@ -1,7 +1,8 @@
 import itertools
 import logging
 import time
-from typing import Optional, Tuple
+from dataclasses import dataclass
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,28 +17,95 @@ from large_gcs.algorithms.search_algorithm import (
     TieBreak,
 )
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
-from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
+from large_gcs.geometry.convex_set import ConvexSet
+from large_gcs.geometry.point import Point
+from large_gcs.graph.cost_constraint_factory import create_equality_edge_constraint
+from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution, Vertex
+from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class SetSample:
+    vertex_name: str
+    index: int
+    convex_set: ConvexSet
+    reached_by: Optional[SearchNode] = None
+
+    @property
+    def id(self):
+        return f"{self.vertex_name}_sample_{self.index}"
+
+
+@dataclass
+class SetSamples:
+    vertex_name: str
+    unreached_samples: list[SetSample]
+    reached_samples: list[SetSample]
+
+    @property
+    def has_unreached_samples(self):
+        return len(self.unreached_samples) > 0
+
+    @classmethod
+    def from_vertex(cls, vertex_name: str, vertex: Vertex, num_samples: int):
+        samples = vertex.convex_set.get_samples(num_samples)
+        return cls(
+            vertex_name=vertex_name,
+            unreached_samples=[
+                SetSample(vertex_name=vertex_name, index=i, convex_set=Point(x))
+                for i, x in enumerate(samples)
+            ],
+            reached_samples=[],
+        )
+
+    def add_samples_to_graph(self, graph: Graph):
+        parent_vertex = graph.vertices[self.vertex_name]
+        for sample in self.unreached_samples:
+            graph.add_vertex(
+                vertex=Vertex(convex_set=sample.convex_set), name=sample.id
+            )
+            graph.add_edge(
+                Edge(
+                    u=self.vertex_name,
+                    v=sample.id,
+                    costs=None,
+                    constraints=[
+                        create_equality_edge_constraint(
+                            dim=parent_vertex.convex_set.dim
+                        )
+                    ],
+                )
+            )
 
 
 class GcsAstarReachability(SearchAlgorithm):
     """
     Reachability based satisficing search on a graph of convex sets using Best-First Search.
+    Note:
+    - Use with factored_collision_free cost estimator not yet implemented.
+    In particular, this doesn't use a subgraph, but operates directly on the graph.
     """
 
     def __init__(
         self,
         graph: Graph,
         cost_estimator: CostEstimator,
-        tiebreak: TieBreak = TieBreak.NONE,
+        tiebreak: TieBreak = TieBreak.FIFO,
         vis_params: Optional[AlgVisParams] = None,
+        num_samples_per_vertex: int = 100,
     ):
+        if isinstance(graph, IncrementalContactGraph):
+            assert (
+                graph._should_add_gcs == True
+            ), "Required because operating directly on graph instead of subgraph"
         super().__init__()
         self._graph = graph
         self._target = graph.target_name
         self._cost_estimator = cost_estimator
-        self.vis_params = vis_params
+        self._vis_params = vis_params
+        self._num_samples_per_vertex = num_samples_per_vertex
         self._cost_estimator.set_alg_metrics(self._alg_metrics)
         if tiebreak == TieBreak.FIFO or tiebreak == TieBreak.FIFO.name:
             self._counter = itertools.count(start=0, step=1)
@@ -46,17 +114,20 @@ class GcsAstarReachability(SearchAlgorithm):
 
         self._S: dict[str, list[SearchNode]] = {}  # Expanded/Closed set
         self._Q: list[SearchNode] = []  # Priority queue
+        # Keeps track of samples for each vertex(set) in the graph for which the vertex has been visited but the sample has not been reached.
+        self._set_samples: dict[str, SetSamples] = {}
 
         start_node = SearchNode(
             priority=0, vertex_name=self._graph.source_name, path=[], sol=None
         )
         self.push_node_on_Q(start_node)
 
-        # Initialize the "expanded" subgraph on which
-        # all the convex restrictions will be solved.
-        self._subgraph = Graph(self._graph._default_costs_constraints)
-        # Accounting of the full dimensional vertices in the visited subgraph
-        self._subgraph_fd_vertices = set()
+        # Shouldn't need the subgraph, just operate directly on the graph
+        # # Initialize the "expanded" subgraph on which
+        # # all the convex restrictions will be solved.
+        # self._subgraph = Graph(self._graph._default_costs_constraints)
+        # # Accounting of the full dimensional vertices in the visited subgraph
+        # self._subgraph_fd_vertices = set()
 
         # Shouldn't need to add the target since that should be handled by _set_subgraph
         # # Add the target to the visited subgraph
@@ -68,9 +139,7 @@ class GcsAstarReachability(SearchAlgorithm):
         # self.alg_metrics.n_vertices_expanded[0] = 1
         # self._subgraph_fd_vertices.add(self._graph.target_name)
 
-        self._cost_estimator.setup_subgraph(self._subgraph)
-
-        self._set_samples
+        self._cost_estimator.setup_subgraph(self._graph)
 
     def run(self) -> ShortestPathSolution:
         """
@@ -112,27 +181,13 @@ class GcsAstarReachability(SearchAlgorithm):
         self._graph.generate_neighbors(n.vertex_name)
 
         # Configure subgraph for visiting neighbors
-        self._set_subgraph(n)
+        # Don't need this because operating directly on the graph
+        # self._set_subgraph(n)
 
         edges = self._graph.outgoing_edges(n.vertex_name)
         for edge in edges:
-            if self._reaches_new(n, edge):
+            if "sample" not in edge.v:
                 self._visit_neighbor(n, edge)
-
-    def _reaches_new(
-        self, n: SearchNode, edge: Edge
-    ) -> Tuple[bool, ShortestPathSolution]:
-
-        sol: ShortestPathSolution = self._cost_estimator.estimate_cost(
-            self._subgraph,
-            edge,
-            n.path,
-            solve_convex_restriction=True,
-        )
-        if not sol.is_success:
-            return False, sol
-
-        # Path is feasible, check if it reaches new areas within the set
 
     def _visit_neighbor(self, n: SearchNode, edge: Edge) -> None:
         neighbor = edge.v
@@ -140,9 +195,9 @@ class GcsAstarReachability(SearchAlgorithm):
             self._alg_metrics.n_vertices_revisited[0] += 1
         else:
             self._alg_metrics.n_vertices_visited[0] += 1
-        # logger.info(f"exploring edge {edge.u} -> {edge.v}")
-        sol: ShortestPathSolution = self._cost_estimator.estimate_cost(
-            self._subgraph,
+        logger.info(f"exploring edge {edge.u} -> {edge.v}")
+        sol: ShortestPathSolution = self._cost_estimator.estimate_cost_on_graph(
+            self._graph,
             edge,
             n.path,
             solve_convex_restriction=True,
@@ -154,40 +209,89 @@ class GcsAstarReachability(SearchAlgorithm):
             return
         else:
             logger.debug(f"edge {n.vertex_name} -> {edge.v} is feasible")
+
         n_next = SearchNode.from_parent(child_vertex_name=edge.v, parent=n)
+
+        if not self._reaches_new(n_next):
+            return
+
         n_next.sol = sol
         n_next.priority = sol.cost
         self.push_node_on_Q(n_next)
 
-    def _set_subgraph(self, n: SearchNode) -> None:
+    def _reaches_new(self, n_next: SearchNode) -> bool:
         """
-        Set the subgraph to contain only the vertices and edges in the
-        path of the given search node.
+        Checks samples to see if this path reaches new previously unreached samples.
+        Assumes that this path is feasible.
         """
-        vertices_to_add = set(
-            [self._graph.target_name, self._graph.source_name, n.vertex_name]
-        )
-        for _, v in n.path:
-            vertices_to_add.add(v)
 
-        # Ignore cfree subgraph sets,
-        # Remove full dimensional sets if they aren't in the path
-        # Add all vertices that aren't already inside
-        for v in self._subgraph_fd_vertices.copy():
-            if v not in vertices_to_add:  # We don't want to have it so remove it
-                self._subgraph.remove_vertex(v)
-                self._subgraph_fd_vertices.remove(v)
-            else:  # We do want to have it but it's already in so don't need to add it
-                vertices_to_add.remove(v)
+        if n_next.vertex_name not in self._set_samples:
 
-        for v in vertices_to_add:
-            self._subgraph.add_vertex(self._graph.vertices[v], v)
-            self._subgraph_fd_vertices.add(v)
+            self._set_samples[n_next.vertex_name] = SetSamples.from_vertex(
+                n_next.vertex_name,
+                self._graph.vertices[n_next.vertex_name],
+                self._num_samples_per_vertex,
+            )
+            self._set_samples[n_next.vertex_name].add_samples_to_graph(self._graph)
 
-        self._subgraph.set_source(self._graph.source_name)
-        self._subgraph.set_target(self._graph.target_name)
+        set_samples = self._set_samples[n_next.vertex_name]
+        still_unreached = []
+        reached_new = False
+        for sample in set_samples.unreached_samples:
+            # Check whether sample can be reached via the path
+            self._graph.set_target(sample.id)
+            conv_res_active_edges = n_next.path.copy() + [
+                (n_next.vertex_name, sample.id)
+            ]
+            logger.debug(f"reaches new, active edges: {conv_res_active_edges}")
+            sol = self._graph.solve_convex_restriction(conv_res_active_edges)
+            self._graph.set_target(self._target)
+            if sol.is_success:
+                sample.reached_by = n_next
+                set_samples.reached_samples.append(sample)
+                reached_new = True
+            else:
+                still_unreached.append(sample)
 
-        # Add edges that aren't already in the visited subgraph.
-        for edge_key in n.path:
-            if edge_key not in self._subgraph.edges:
-                self._subgraph.add_edge(self._graph.edges[edge_key])
+        set_samples.unreached_samples = still_unreached
+        logger.debug(f"{n_next.vertex_name} Reached new samples: {reached_new}")
+        return reached_new
+
+
+"""
+Actually I think we don't need to operate on this subgraph at all but just the whole graph.
+The vertices and edges that are not in the path are going to be cleared by the C++ code,
+so we don't need to worry about that.
+"""
+# def _set_subgraph(self, n: SearchNode) -> None:
+#     """
+#     Set the subgraph to contain only the vertices and edges in the
+#     path of the given search node.
+#     """
+#     vertices_to_add = set(
+#         [self._graph.target_name, self._graph.source_name, n.vertex_name]
+#     )
+#     for _, v in n.path:
+#         vertices_to_add.add(v)
+
+#     # Ignore cfree subgraph sets,
+#     # Remove full dimensional sets if they aren't in the path
+#     # Add all vertices that aren't already inside
+#     for v in self._subgraph_fd_vertices.copy():
+#         if v not in vertices_to_add:  # We don't want to have it so remove it
+#             self._subgraph.remove_vertex(v)
+#             self._subgraph_fd_vertices.remove(v)
+#         else:  # We do want to have it but it's already in so don't need to add it
+#             vertices_to_add.remove(v)
+
+#     for v in vertices_to_add:
+#         self._subgraph.add_vertex(self._graph.vertices[v], v)
+#         self._subgraph_fd_vertices.add(v)
+
+#     self._subgraph.set_source(self._graph.source_name)
+#     self._subgraph.set_target(self._graph.target_name)
+
+#     # Add edges that aren't already in the visited subgraph.
+#     for edge_key in n.path:
+#         if edge_key not in self._subgraph.edges:
+#             self._subgraph.add_edge(self._graph.edges[edge_key])

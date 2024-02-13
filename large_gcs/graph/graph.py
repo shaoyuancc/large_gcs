@@ -371,12 +371,13 @@ class Graph:
     def solve_convex_restriction(
         self, active_edges: List[Tuple[str, str]]
     ) -> ShortestPathSolution:
+        logger.debug(active_edges)
         gcs_edges = [self.edges[edge_key].gcs_edge for edge_key in active_edges]
         result = self._gcs.SolveConvexRestriction(
             gcs_edges,
             self._gcs_options_wo_relaxation,
         )
-
+        logger.debug(result.is_success())
         sol = self._parse_convex_restriction_result(result, active_edges)
 
         # Optional post solve hook for subclasses
