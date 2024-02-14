@@ -570,11 +570,14 @@ def create_movable_face_vert_horizontal_bounds_formulas(
 
 
 def _face_horizontal_bounds_formulas(
-    p_Refleft, p_Refright, p_Relv, rel_length=0, buffer_ratio=0.1
+    p_Refleft, p_Refright, p_Relv, rel_length=0, buffer_ratio=0.0
 ):
     """Formulas for the horizontal bounds of a face-face contact such that the relative face is within the horizontal bounds
     (viewing the reference face normal as pointing upwards) of the reference face.
-    Note that increasing the buffer_ratio will affect whether the sets intersect.
+    Note that increasing the buffer_ratio will affect whether the sets intersect. If allowing sets to be revisited multiple
+    times is not implemented, this will result in most problems becoming infeasible because you can't transition out of a contact
+    mode since you need to go back to the non-contact mode but you already went through that to get to the contact mode in the
+    first place.
     Args:
         p_Refleft (np.array): Position of the "left" vertex on the reference face (when viewing the reference face normal as pointing upwards)
         p_Refright (np.array): Position of the "right" vertex on the reference face

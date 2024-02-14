@@ -22,7 +22,7 @@ hydra:
       graph_name: cg_maze_b1, cg_maze_b1_1
 
 # Adversarial examples
-# cg_maze_b0, cg_maze_b1,
+# cg_maze_b0 (this doesn't make the algorithm fail), cg_maze_b1,
 
 # graph_name: cg_trichal5, cg_trichal6, cg_trichal7, cg_trichal8, cg_trichal9, cg_trichal10, cg_trichal11, cg_trichal12, cg_trichal13, cg_trichal14
 # graph_name: cg_maze_a10, cg_maze_a11, cg_maze_a12, cg_maze_a13, cg_maze_a14, cg_maze_a15, cg_maze_a16, cg_maze_a17, cg_maze_a18, cg_maze_a19

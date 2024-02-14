@@ -1,12 +1,15 @@
 import numpy as np
+import pytest
 
-from large_gcs.algorithms.gcs_astar import GcsAstar
+from large_gcs.algorithms.deprecated.gcs_astar import GcsAstar
 from large_gcs.geometry.point import Point
 from large_gcs.graph.cost_constraint_factory import create_l2norm_edge_cost
 from large_gcs.graph.graph import DefaultGraphCostsConstraints, Edge, Graph
 from large_gcs.graph_generators.spp_gcs import create_spp_2d_graph
 
 tol = 1e-3
+
+pytestmark = pytest.mark.skip(reason="GcsAstar is deprecated, skipping tests.")
 
 
 def test_astar_spp_2d():

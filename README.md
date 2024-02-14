@@ -50,5 +50,22 @@ where `cg_gcs_astar_conv_res` should be replaced with your config name.
 Create a bash script in `scripts` and make it executable with `chmod +x run_multiple_experiments.sh`.
 Then run it with `run_multiple_experiments.sh`
 
+## Running tests
+
+In typical development, regularly run
+`pytest -m "not slow_test"`
+which runs all the tests that take shorter than 5 seconds each.
+
+To run the slow tests alone use
+`pytest -m slow_test`
+
+Or to run all the tests simply use
+`pytest`
+
+To run a specific test(s) by referring to some part of the test's name, use
+`pytest -k "shortcut_edge_cg_simple_2_inc"`
+
+To make tests verbose and allow print statements to be shown use `-v -s` flags.
+
 ## Credits
 This repo references and contains code from: Bernhard Paus Græsdal https://github.com/bernhardpg/planning-through-contact and Tobia Marcucci https://github.com/TobiaMarcucci/shortest-paths-in-graphs-of-convex-sets.
