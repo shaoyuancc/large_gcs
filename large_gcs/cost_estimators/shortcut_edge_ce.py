@@ -40,10 +40,7 @@ class ShortcutEdgeCE(CostEstimator):
 
         # Check if this neighbor is the target to see if shortcut edge is required
         # Actually you can't do this because this will make the algorithm assume that neighbor is unreachable, in case you can't get from the neighbor to the target
-        add_shortcut_edge = (neighbor != self._graph.target_name) and (
-            neighbor,
-            self._graph.target_name,
-        ) not in graph.edges
+        add_shortcut_edge = neighbor != self._graph.target_name
         if add_shortcut_edge:
             # Add an edge from the neighbor to the target
             direct_edge_costs = None
@@ -60,7 +57,10 @@ class ShortcutEdgeCE(CostEstimator):
                         self._graph.vertices[self._graph.target_name].convex_set.dim,
                     )
             edge_to_target = Edge(
-                neighbor, self._graph.target_name, costs=direct_edge_costs
+                u=neighbor,
+                v=self._graph.target_name,
+                key_suffix="shortcut",
+                costs=direct_edge_costs,
             )
             graph.add_edge(edge_to_target)
             conv_res_active_edges = active_edges + [edge.key, edge_to_target.key]

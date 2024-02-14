@@ -2,7 +2,7 @@ import itertools
 import logging
 import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -41,8 +41,8 @@ class SetSample:
 @dataclass
 class SetSamples:
     vertex_name: str
-    unreached_samples: list[SetSample]
-    reached_samples: list[SetSample]
+    unreached_samples: List[SetSample]
+    reached_samples: List[SetSample]
 
     @property
     def has_unreached_samples(self):

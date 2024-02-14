@@ -92,10 +92,15 @@ class Edge:
     constraints: List[Constraint] = None
     # This will be overwritten when adding edge to graph
     gcs_edge: Optional[GraphOfConvexSets.Edge] = None
+    # Optional key suffix to distinguish between edges with the same source and target
+    key_suffix: Optional[str] = None
 
     @property
     def key(self):
-        return (self.u, self.v)
+        if self.key_suffix:
+            return f"{str((self.u, self.v))}_{self.key_suffix}"
+        else:
+            return str((self.u, self.v))
 
 
 @dataclass
@@ -262,7 +267,9 @@ class Graph:
 
         if should_add_to_gcs:
             e.gcs_edge = self._gcs.AddEdge(
-                self.vertices[e.u].gcs_vertex, self.vertices[e.v].gcs_vertex
+                u=self.vertices[e.u].gcs_vertex,
+                v=self.vertices[e.v].gcs_vertex,
+                name=e.key,
             )
 
             # Add costs and constraints to gcs edge
@@ -277,10 +284,10 @@ class Graph:
                     binding = Binding[Constraint](constraint, x)
                     e.gcs_edge.AddConstraint(binding)
 
-        self.edges[(e.u, e.v)] = e
+        self.edges[e.key] = e
         return e
 
-    def remove_edge(self, edge_key: Tuple[str, str], remove_from_gcs: bool = True):
+    def remove_edge(self, edge_key: str, remove_from_gcs: bool = True):
         """
         Remove an edge from the graph.
         """
