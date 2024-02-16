@@ -56,7 +56,7 @@ class ContactGraph(Graph):
         vertex_inclusion: List[str] = None,
         contact_pair_modes: List[ContactPairMode] = None,  # For loading a saved graph
         contact_set_mode_ids: List[List[str]] = None,  # For loading a saved graph
-        edge_keys: List[Tuple[str, str]] = None,  # For loading a saved graph
+        edge_keys: List[str] = None,  # For loading a saved graph
     ):
         """
         Args:

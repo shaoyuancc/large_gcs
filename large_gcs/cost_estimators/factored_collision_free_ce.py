@@ -1,7 +1,7 @@
 import ast
 import logging
 import re
-from typing import List, Tuple
+from typing import List
 
 import numpy as np
 from tqdm import tqdm
@@ -88,7 +88,7 @@ class FactoredCollisionFreeCE(CostEstimator):
         self,
         subgraph: Graph,
         edge: Edge,
-        active_edges: List[Tuple[str, str]] = None,
+        active_edges: List[str] = None,
         solve_convex_restriction: bool = False,
         use_convex_relaxation: bool = False,
     ) -> ShortestPathSolution:

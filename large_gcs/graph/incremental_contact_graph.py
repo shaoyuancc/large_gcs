@@ -4,7 +4,7 @@ from collections import defaultdict
 from copy import copy
 from itertools import combinations, product
 from multiprocessing import Pool
-from typing import List, Tuple
+from typing import List
 
 import numpy as np
 from pydrake.all import Cost
@@ -280,9 +280,7 @@ class IncrementalContactGraph(ContactGraph):
                 f"Incremental graph should_add_gcs is False. Must set to True in order to solve."
             )
 
-    def solve_convex_restriction(
-        self, active_edges: List[Tuple[str, str]]
-    ) -> ShortestPathSolution:
+    def solve_convex_restriction(self, active_edges: List[str]) -> ShortestPathSolution:
         if self._should_add_gcs:
             return super().solve_convex_restriction(active_edges)
         else:
@@ -303,7 +301,7 @@ class IncrementalContactGraph(ContactGraph):
             )
 
     def solve_factored_partial_convex_restriction(
-        self, active_edges: List[Tuple[str, str]], transition: str, targets: List[str]
+        self, active_edges: List[str], transition: str, targets: List[str]
     ) -> ShortestPathSolution:
         if self._should_add_gcs:
             return super().solve_factored_partial_convex_restriction(

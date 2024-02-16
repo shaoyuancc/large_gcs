@@ -138,7 +138,7 @@ class Graph:
 
         self._default_costs_constraints = default_costs_constraints
         self.vertices: Dict[str, Vertex] = {}
-        self.edges: Dict[Tuple[str, str], Edge] = {}
+        self.edges: Dict[str, Edge] = {}
         self._source_name = None
         self._target_name = None
 
@@ -376,10 +376,11 @@ class Graph:
         return sol
 
     def solve_convex_restriction(
-        self, active_edges: List[Tuple[str, str]]
+        self, active_edge_keys: List[str]
     ) -> ShortestPathSolution:
-        logger.debug(active_edges)
-        gcs_edges = [self.edges[edge_key].gcs_edge for edge_key in active_edges]
+        logger.debug(active_edge_keys)
+        active_edges = [self.edges[edge_key] for edge_key in active_edge_keys]
+        gcs_edges = [edge.gcs_edge for edge in active_edges]
         result = self._gcs.SolveConvexRestriction(
             gcs_edges,
             self._gcs_options_wo_relaxation,
@@ -415,7 +416,7 @@ class Graph:
 
     def solve_factored_partial_convex_restriction(
         self,
-        active_edges: List[Tuple[str, str]],
+        active_edges: List[str],
         transition: str,
         targets: List[str],
     ) -> ShortestPathSolution:
@@ -450,9 +451,8 @@ class Graph:
             edge_path = []
             for k, flow in enumerate(flows):
                 if flow >= 0.99:
-                    edge_path.append(self.edge_keys[k])
+                    edge_path.append(self.edges[self.edge_keys[k]])
             assert len(self._gcs.Edges()) == self.n_edges
-            # print(f"edge path: {edge_path}")
             # Edges are in order they were added to the graph and not in order of the path
             (
                 vertex_path,
@@ -466,7 +466,7 @@ class Graph:
         )
 
     def _parse_convex_restriction_result(
-        self, result: MathematicalProgramResult, active_edges: List[Tuple[str, str]]
+        self, result: MathematicalProgramResult, active_edges: List[Edge]
     ) -> ShortestPathSolution:
         cost = result.get_optimal_cost()
         time = result.get_solver_details().optimizer_time
@@ -501,7 +501,7 @@ class Graph:
             edge_path = []
             for k, flow in enumerate(flows):
                 if flow >= 0.99:
-                    edge_path.append(self.edge_keys[k])
+                    edge_path.append(self.edges[self.edge_keys[k]])
             assert len(self._gcs.Edges()) == self.n_edges
             # Edges are in order they were added to the graph and not in order of the path
             vertex_path = self._convert_active_edges_to_vertex_path(
@@ -517,10 +517,15 @@ class Graph:
         )
 
     def _convert_active_edges_to_factored_vertex_ambient_paths(
-        self, source_name, transition_name, target_names, edge_keys, result
+        self,
+        source_name: str,
+        transition_name: str,
+        target_names: List[str],
+        edges: List[Edge],
+        result: MathematicalProgramResult,
     ):
         # Create a dictionary where the keys are the vertices and the values are their neighbors
-        neighbors = {u: v for u, v in edge_keys}
+        neighbors = {e.u: e.v for e in edges}
         # Start with the source vertex
         vertex_path = []
         ambient_path = []
@@ -590,9 +595,11 @@ class Graph:
         return transposed_paths
 
     @staticmethod
-    def _convert_active_edges_to_vertex_path(source_name, target_name, edges):
+    def _convert_active_edges_to_vertex_path(
+        source_name, target_name, edges: List[Edge]
+    ):
         # Create a dictionary where the keys are the vertices and the values are their neighbors
-        neighbors = {u: v for u, v in edges}
+        neighbors = {e.u: e.v for e in edges}
         # Start with the source vertex
         path = [source_name]
 
@@ -625,8 +632,9 @@ class Graph:
             "arrowstyle": "->, head_width=3, head_length=8",
         }
         options.update(kwargs)
-        tail = self.vertices[edge_key[0]].convex_set.center
-        head = self.vertices[edge_key[1]].convex_set.center
+        edge = self.edges[edge_key]
+        tail = self.vertices[edge.u].convex_set.center
+        head = self.vertices[edge.v].convex_set.center
         arrow = patches.FancyArrowPatch(tail, head, **options)
         plt.gca().add_patch(arrow)
 

@@ -35,7 +35,6 @@ class ShortcutEdgeCE(CostEstimator):
         solve_convex_restriction: bool = False,
         use_convex_relaxation: bool = False,
     ) -> ShortestPathSolution:
-
         neighbor = edge.v
 
         # Check if this neighbor is the target to see if shortcut edge is required
@@ -92,7 +91,8 @@ class ShortcutEdgeCE(CostEstimator):
     ) -> ShortestPathSolution:
         """
         active_edges does not include the edge argument.
-        Right now this function is unideally coupled because it returns a shortest path solution instead of just the cost."""
+        Right now this function is unideally coupled because it returns a shortest path solution instead of just the cost.
+        """
 
         neighbor = edge.v
 

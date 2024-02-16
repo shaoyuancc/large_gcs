@@ -226,7 +226,6 @@ class GcsAstarReachability(SearchAlgorithm):
         """
 
         if n_next.vertex_name not in self._set_samples:
-
             self._set_samples[n_next.vertex_name] = SetSamples.from_vertex(
                 n_next.vertex_name,
                 self._graph.vertices[n_next.vertex_name],

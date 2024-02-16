@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, fields
 from enum import Enum
 from math import inf
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -131,7 +131,7 @@ class SearchNode:
 
     priority: float
     vertex_name: str
-    path: List[Tuple[str, str]]
+    path: List[str]
     parent: Optional["SearchNode"] = None
     sol: Optional[ShortestPathSolution] = None
 

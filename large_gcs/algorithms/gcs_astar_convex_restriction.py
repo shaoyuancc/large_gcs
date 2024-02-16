@@ -3,7 +3,7 @@ import itertools
 import logging
 import time
 from collections import defaultdict
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -147,12 +147,16 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         else:
             for edge in edges:
                 neighbor_in_path = any(
-                    (u == edge.v or v == edge.v) for (u, v) in active_edges
+                    (
+                        self._graph.edges[e].u == edge.v
+                        or self._graph.edges[e].v == edge.v
+                    )
+                    for e in active_edges
                 )
                 if not neighbor_in_path:
                     self._explore_edge(edge, active_edges)
 
-    def _explore_edge(self, edge: Edge, active_edges: List[Tuple[str, str]]):
+    def _explore_edge(self, edge: Edge, active_edges: List[str]):
         neighbor = edge.v
         if neighbor in self._visited_vertices:
             self._alg_metrics.n_vertices_revisited[0] += 1
@@ -219,8 +223,8 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         vertices_to_add = set(
             [self._graph.target_name, self._graph.source_name, vertex_name]
         )
-        for _, v in edge_keys:
-            vertices_to_add.add(v)
+        for e_key in edge_keys:
+            vertices_to_add.add(self._graph.edges[e_key].v)
 
         # Ignore cfree subgraph sets,
         # Remove full dimensional sets if they aren't in the path
@@ -264,11 +268,8 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             else:
                 vertex.convex_set.plot()
         for edge_key in self._graph.edge_keys:
-            if (
-                current_edge
-                and edge_key[0] == current_edge.u
-                and edge_key[1] == current_edge.v
-            ):
+            edge = self._graph.edges[edge_key]
+            if current_edge and edge.u == current_edge.u and edge.v == current_edge.v:
                 self._graph.plot_edge(
                     edge_key, color=self._vis_params.relaxing_edge_color, zorder=3
                 )
