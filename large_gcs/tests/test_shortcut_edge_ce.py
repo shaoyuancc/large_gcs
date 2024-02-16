@@ -17,7 +17,7 @@ from large_gcs.graph_generators.contact_graph_generator import (
 tol = 1e-3
 
 
-def test_shortcut_edge_cg_simple_2():
+def test_shortcut_edge_conv_res_cg_simple_2():
     graph_file = ContactGraphGeneratorParams.graph_file_path_from_name("cg_simple_2")
     cg = ContactGraph.load_from_file(graph_file)
     cost_estimator = ShortcutEdgeCE(
@@ -139,7 +139,7 @@ def test_shortcut_edge_cg_simple_2():
     assert np.array_equal(sol.vertex_path, vertex_path)
 
 
-def test_shortcut_edge_cg_simple_2_inc():
+def test_shortcut_edge_conv_res_cg_simple_2_inc():
     graph_file = ContactGraphGeneratorParams.graph_file_path_from_name("cg_simple_2")
     cg = IncrementalContactGraph.load_from_file(
         graph_file,
@@ -266,7 +266,7 @@ def test_shortcut_edge_cg_simple_2_inc():
     assert np.array_equal(sol.vertex_path, vertex_path)
 
 
-def test_shortcut_edge_cg_simple_3_inc():
+def test_shortcut_edge_conv_res_cg_simple_3_inc():
     """Test the incremental graph for cg_simple_3 with shortcut edge cost estimator.
     What's different from cg_simple_2 is that this graph has a target region instead of
     a target position."""
@@ -361,7 +361,7 @@ def test_shortcut_edge_cg_simple_3_inc():
 
 
 @pytest.mark.slow_test
-def test_shortcut_edge_cg_trichal2():
+def test_shortcut_edge_conv_res_cg_trichal2():
     graph_file = ContactGraphGeneratorParams.graph_file_path_from_name("cg_trichal2")
     cg = ContactGraph.load_from_file(graph_file)
     cost_estimator = ShortcutEdgeCE(
