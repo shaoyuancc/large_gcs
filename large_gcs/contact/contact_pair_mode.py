@@ -634,21 +634,23 @@ def generate_cfree_contact_pair_modes(body_a: RigidBody, body_b: RigidBody):
     no_contact_pair_modes = generate_no_contact_pair_modes(body_a=body_a, body_b=body_b)
 
     in_contact_pair_modes = []
-    # Vertex-face contact
-    for index_a, index_b in itertools.product(
-        range(body_a.n_vertices), range(body_b.n_faces)
-    ):
-        vertex_a = ContactLocationVertex(body=body_a, index=index_a)
-        face_b = ContactLocationFace(body=body_b, index=index_b)
-        if is_possible_face_vertex_contact(face_b, vertex_a):
-            in_contact_pair_modes.append(
-                InContactPairMode(
-                    body_a=body_a,
-                    body_b=body_b,
-                    contact_location_a=vertex_a,
-                    contact_location_b=face_b,
-                )
-            )
+    # This was for when there were only non-contact modes with reference to the faces of body_a
+    # but now that we have both sides, we do not need these modes.
+    # # Vertex-face contact
+    # for index_a, index_b in itertools.product(
+    #     range(body_a.n_vertices), range(body_b.n_faces)
+    # ):
+    #     vertex_a = ContactLocationVertex(body=body_a, index=index_a)
+    #     face_b = ContactLocationFace(body=body_b, index=index_b)
+    #     if is_possible_face_vertex_contact(face_b, vertex_a):
+    #         in_contact_pair_modes.append(
+    #             InContactPairMode(
+    #                 body_a=body_a,
+    #                 body_b=body_b,
+    #                 contact_location_a=vertex_a,
+    #                 contact_location_b=face_b,
+    #             )
+    #         )
 
     return in_contact_pair_modes + no_contact_pair_modes
 

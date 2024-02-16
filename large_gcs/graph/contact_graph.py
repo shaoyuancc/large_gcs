@@ -454,6 +454,12 @@ class ContactGraph(Graph):
     ### PLOTTING AND ANIMATING ###
 
     def plot(self):
+        plt.figure()
+        plt.axis("equal")
+        if self.workspace is not None:
+            # Set workspace limits as plot limits
+            plt.xlim(self.workspace[0])
+            plt.ylim(self.workspace[1])
         for body in self.obstacles:
             body.plot()
         if self.source_pos is not None:

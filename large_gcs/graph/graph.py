@@ -133,7 +133,7 @@ class Graph:
 
         self._default_costs_constraints = default_costs_constraints
         self.vertices: Dict[str, Vertex] = {}
-        self.edges: Dict[Tuple(str, str), Edge] = {}
+        self.edges: Dict[Tuple[str, str], Edge] = {}
         self._source_name = None
         self._target_name = None
 
@@ -354,7 +354,6 @@ class Graph:
         """
         assert self._source_name is not None
         assert self._target_name is not None
-
         result = self._gcs.SolveShortestPath(
             self.vertices[self._source_name].gcs_vertex,
             self.vertices[self._target_name].gcs_vertex,
@@ -367,7 +366,6 @@ class Graph:
 
         # Optional post solve hook for subclasses
         self._post_solve(sol)
-
         return sol
 
     def solve_convex_restriction(
