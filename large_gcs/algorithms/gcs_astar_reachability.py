@@ -50,6 +50,12 @@ class SetSamples:
 
     @classmethod
     def from_vertex(cls, vertex_name: str, vertex: Vertex, num_samples: int):
+        if isinstance(vertex.convex_set, Point):
+            raise NotImplementedError(
+                "Intermediate sets which are points not yet supported"
+            )
+            # Do not sample from them, just use the point.
+            # Still need to manage whether it has been reached or not
         samples = vertex.convex_set.get_samples(num_samples)
         return cls(
             vertex_name=vertex_name,
@@ -175,7 +181,10 @@ class GcsAstarReachability(SearchAlgorithm):
         if n.vertex_name == self._graph.target_name:
             return n.sol
 
-        # TODO: update alg metrics
+        if n.vertex_name in self._S:
+            self._alg_metrics.n_vertices_reexpanded[0] += 1
+        else:
+            self._alg_metrics.n_vertices_expanded[0] += 1
 
         # Generate neighbors that you are about to explore/visit
         self._graph.generate_neighbors(n.vertex_name)
@@ -212,7 +221,7 @@ class GcsAstarReachability(SearchAlgorithm):
 
         n_next = SearchNode.from_parent(child_vertex_name=edge.v, parent=n)
 
-        if not self._reaches_new(n_next):
+        if neighbor != self._target and not self._reaches_new(n_next):
             return
 
         n_next.sol = sol
@@ -224,8 +233,8 @@ class GcsAstarReachability(SearchAlgorithm):
         Checks samples to see if this path reaches new previously unreached samples.
         Assumes that this path is feasible.
         """
-
         if n_next.vertex_name not in self._set_samples:
+            logger.debug(f"Adding samples for {n_next.vertex_name}")
             self._set_samples[n_next.vertex_name] = SetSamples.from_vertex(
                 n_next.vertex_name,
                 self._graph.vertices[n_next.vertex_name],
@@ -239,9 +248,8 @@ class GcsAstarReachability(SearchAlgorithm):
         for sample in set_samples.unreached_samples:
             # Check whether sample can be reached via the path
             self._graph.set_target(sample.id)
-            conv_res_active_edges = n_next.path.copy() + [
-                (n_next.vertex_name, sample.id)
-            ]
+            new_edge = Edge(u=n_next.vertex_name, v=sample.id)
+            conv_res_active_edges = n_next.path.copy() + [new_edge.key]
             logger.debug(f"reaches new, active edges: {conv_res_active_edges}")
             sol = self._graph.solve_convex_restriction(conv_res_active_edges)
             self._graph.set_target(self._target)
@@ -251,6 +259,7 @@ class GcsAstarReachability(SearchAlgorithm):
                 reached_new = True
             else:
                 still_unreached.append(sample)
+            self._alg_metrics.update_after_gcs_solve(sol.time)
 
         set_samples.unreached_samples = still_unreached
         logger.debug(f"{n_next.vertex_name} Reached new samples: {reached_new}")

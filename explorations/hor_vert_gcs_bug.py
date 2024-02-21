@@ -34,7 +34,7 @@ def create_simplest_hor_vert_graph() -> Graph:
     default_costs_constraints = DefaultGraphCostsConstraints(edge_costs=[edge_cost])
     # Add convex sets to graph
     G = Graph(default_costs_constraints)
-    # G=Graph()
+    # G = Graph()
     G.add_vertices_from_sets(sets, names=vertex_names)
     G.set_source("s")
     G.set_target("t")
@@ -48,7 +48,13 @@ def create_simplest_hor_vert_graph() -> Graph:
     for u, vs in edges.items():
         for v in vs:
             print(f"Adding edge {u} -> {v}")
-            G.add_edge(Edge(u, v))
+            # G.add_edge(Edge(u, v))
+            if u == "s" and v == "p0":
+                G.add_edge(
+                    Edge(u, v, constraints=[create_2d_x_equality_edge_constraint()])
+                )
+            else:
+                G.add_edge(Edge(u, v))
 
     return G
 

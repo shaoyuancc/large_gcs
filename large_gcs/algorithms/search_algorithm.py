@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 import numpy as np
 
 import wandb
-from large_gcs.graph.graph import ShortestPathSolution
+from large_gcs.graph.graph import Edge, ShortestPathSolution
 
 
 class TieBreak(Enum):
@@ -146,10 +146,11 @@ class SearchNode:
 
     @classmethod
     def from_parent(cls, child_vertex_name: str, parent: "SearchNode"):
+        new_edge = Edge(u=parent.vertex_name, v=child_vertex_name)
         return cls(
             priority=None,
             vertex_name=child_vertex_name,
-            path=parent.path + [(parent.vertex_name, child_vertex_name)],
+            path=parent.path.copy() + [new_edge.key],
             parent=parent,
         )
 

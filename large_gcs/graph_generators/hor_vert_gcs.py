@@ -55,7 +55,59 @@ def create_simplest_hor_vert_graph() -> Graph:
     def add_edges(edges, constraints):
         for u, vs in edges.items():
             for v in vs:
-                print(f"Adding edge {u} -> {v}")
+                # print(f"Adding edge {u} -> {v}")
+                G.add_edge(Edge(u, v, constraints=constraints))
+
+    vert_constraint = [create_2d_x_equality_edge_constraint()]
+    hor_constraint = [create_2d_y_equality_edge_constraint()]
+    add_edges(vert_edges, vert_constraint)
+    add_edges(hor_edges, hor_constraint)
+    return G
+
+
+def create_polyhedral_hor_vert_graph() -> Graph:
+    dim = 2
+    # Convex sets
+    box_vert = np.array([[0, 0], [1, 0], [1, 2], [0, 2]], dtype=np.float64)
+    sets = (
+        # source
+        Polyhedron.from_vertices([[-0.5, 0], [1, 0], [1, 0.5], [-0.5, 0.5]]),
+        # target
+        Polyhedron.from_vertices([[4.5, 0], [5.5, 0], [5.5, 0.5], [4.5, 0.5]]),
+        # intermediate sets
+        Polyhedron.from_vertices(box_vert + np.array([-0.2, 1])),
+        Polyhedron.from_vertices(box_vert + np.array([-0.5, 3.5])),
+        Polyhedron.from_vertices([[2, 0.5], [2.5, -0.5], [5, 5], [4.5, 6]]),
+    )
+
+    # Vertex names
+    vertex_names = ["s", "t"]
+    vertex_names += [f"p{i}" for i in range(len(sets) - 2)]
+
+    # Edge costs
+    # edge_cost = create_l2norm_squared_edge_cost(dim)
+    edge_cost = create_l2norm_edge_cost(dim)
+    default_costs_constraints = DefaultGraphCostsConstraints(edge_costs=[edge_cost])
+    # Add convex sets to graph
+    G = Graph(default_costs_constraints)
+    G.add_vertices_from_sets(sets, names=vertex_names)
+    G.set_source("s")
+    G.set_target("t")
+
+    # Edges
+    vert_edges = {
+        "s": ("p0", "p1"),
+        "p2": ("t",),
+    }
+    hor_edges = {
+        "p0": ("p2",),
+        "p1": ("p2",),
+    }
+
+    def add_edges(edges, constraints):
+        for u, vs in edges.items():
+            for v in vs:
+                # print(f"Adding edge {u} -> {v}")
                 G.add_edge(Edge(u, v, constraints=constraints))
 
     vert_constraint = [create_2d_x_equality_edge_constraint()]
