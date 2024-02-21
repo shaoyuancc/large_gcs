@@ -1,6 +1,7 @@
 import logging
 from typing import List
 
+from large_gcs.contact.contact_set import ContactPointSet, ContactSet
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
@@ -44,7 +45,9 @@ class ShortcutEdgeCE(CostEstimator):
             # Add an edge from the neighbor to the target
             direct_edge_costs = None
             if self._shortcut_edge_cost_factory:
-                if isinstance(graph, ContactGraph):
+                if isinstance(
+                    graph.vertices[neighbor].convex_set, ContactSet
+                ) or isinstance(graph.vertices[neighbor], ContactPointSet):
                     # Only ContactSet and ContactPointSet have the vars attribute
                     # convex_sets in general do not.
                     direct_edge_costs = self._shortcut_edge_cost_factory(
@@ -103,7 +106,9 @@ class ShortcutEdgeCE(CostEstimator):
             # Add an edge from the neighbor to the target
             direct_edge_costs = None
             if self._shortcut_edge_cost_factory:
-                if isinstance(subgraph, ContactGraph):
+                if isinstance(
+                    subgraph.vertices[neighbor].convex_set, ContactSet
+                ) or isinstance(subgraph.vertices[neighbor], ContactPointSet):
                     # Only ContactSet and ContactPointSet have the vars attribute
                     # convex_sets in general do not.
                     direct_edge_costs = self._shortcut_edge_cost_factory(
