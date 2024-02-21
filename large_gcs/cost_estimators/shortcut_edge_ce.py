@@ -103,12 +103,17 @@ class ShortcutEdgeCE(CostEstimator):
             # Add an edge from the neighbor to the target
             direct_edge_costs = None
             if self._shortcut_edge_cost_factory:
-                # Note for now this only works with ContactSet and ContactPointSet because
-                # they have the vars attribute, and convex_sets in general do not.
-                direct_edge_costs = self._shortcut_edge_cost_factory(
-                    self._graph.vertices[neighbor].convex_set.vars,
-                    self._graph.vertices[self._graph.target_name].convex_set.vars,
-                )
+                if isinstance(subgraph, ContactGraph):
+                    # Only ContactSet and ContactPointSet have the vars attribute
+                    # convex_sets in general do not.
+                    direct_edge_costs = self._shortcut_edge_cost_factory(
+                        self._graph.vertices[neighbor].convex_set.vars,
+                        self._graph.vertices[self._graph.target_name].convex_set.vars,
+                    )
+                else:
+                    direct_edge_costs = self._shortcut_edge_cost_factory(
+                        self._graph.vertices[self._graph.target_name].convex_set.dim,
+                    )
             edge_to_target = Edge(
                 neighbor, self._graph.target_name, costs=direct_edge_costs
             )

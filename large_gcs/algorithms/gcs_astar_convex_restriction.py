@@ -18,6 +18,7 @@ from large_gcs.algorithms.search_algorithm import (
     TieBreak,
 )
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
+from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
 
 logger = logging.getLogger(__name__)
@@ -181,6 +182,13 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 # Note this assumes graph is contact graph, should break this dependency...
                 # But this dependancy is only necessary for visualizing intermediate solutions
                 # Counter serves as tiebreaker for nodes with the same distance, to prevent nodes or edges from being compared
+                contact_sol = (
+                    self._graph.create_contact_spp_sol(
+                        sol.vertex_path, sol.ambient_path, ref_graph=self._visited
+                    )
+                    if isinstance(self._graph, ContactGraph)
+                    else None
+                )
                 heap.heappush(
                     self._pq,
                     (
@@ -188,9 +196,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                         next(self._counter),
                         neighbor,
                         new_active_edges,
-                        self._graph.create_contact_spp_sol(
-                            sol.vertex_path, sol.ambient_path, ref_graph=self._visited
-                        ),
+                        contact_sol,
                     ),
                 )
 

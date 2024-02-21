@@ -44,6 +44,8 @@ class ShortestPathSolution:
             if isinstance(value, float):
                 # Format the float to 3 significant figures
                 value = "{:.3g}".format(value)
+            elif field.name == "ambient_path":
+                value = self.ambient_path_str
             result.append(f"{field.name}: {value}")
         return ", ".join(result)
 
@@ -55,6 +57,14 @@ class ShortestPathSolution:
                 continue
             result[field.name] = value
         return result
+
+    @property
+    def ambient_path_str(self):
+        ambient_path = "["
+        for a in self.ambient_path:
+            ambient_path += f"{np.array2string(a, separator=', ')},"
+        ambient_path += "]"
+        return ambient_path
 
 
 @dataclass
