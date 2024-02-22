@@ -488,7 +488,9 @@ class ContactGraph(Graph):
         plt.axis("equal")
         vertex = self.vertices[set_name]
         samples = vertex.convex_set.get_samples(n_samples)
-        # logger.info(samples)
+        contact_sol = self.create_contact_spp_sol([set_name], samples)
+        self._plot_path(contact_sol)
+
         raise NotImplementedError
         # Need to modify decompose_ambient_path
         obj_pos_trajectories, rob_pos_trajectories = self.decompose_ambient_path(
@@ -515,10 +517,7 @@ class ContactGraph(Graph):
     def plot_edges(self):
         raise NotImplementedError("Not sure how to visualize high dimensional sets")
 
-    def plot_path(self):
-        assert self.contact_spp_sol is not None, "Must solve before plotting"
-        assert self.base_dim == 2, "Can only plot 2D paths"
-        sol = self.contact_spp_sol
+    def _plot_path(self, sol: ContactShortestPathSolution):
         plt.figure()
         for obs in self.obstacles:
             obs.plot()
@@ -539,6 +538,11 @@ class ContactGraph(Graph):
         # Show the plot
         plt.grid()
         plt.show()
+
+    def plot_path(self):
+        assert self.contact_spp_sol is not None, "Must solve before plotting"
+        assert self.base_dim == 2, "Can only plot 2D paths"
+        self._plot_path(self.contact_spp_sol)
 
     def animate_solution(self):
         import textwrap

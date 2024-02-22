@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 import matplotlib.pyplot as plt
+import numpy as np
 from pydrake.all import RandomGenerator
 
 
@@ -28,18 +29,19 @@ class ConvexSet(ABC):
         if mark_center:
             plt.scatter(*self.center, color="k", zorder=2)
 
-    def get_samples(self, n_samples=100):
+    def get_samples(self, n_samples=100) -> np.ndarray:
         samples = []
         generator = RandomGenerator()
+        initial_guess = self.set.MaybeGetFeasiblePoint()
         try:
-            samples.append(self.set.UniformSample(generator))
+            samples.append(self.set.UniformSample(generator, initial_guess))
             for i in range(n_samples - 1):
                 samples.append(
                     self.set.UniformSample(generator, previous_sample=samples[-1])
                 )
         except:
             print("Warning: failed to sample convex set")
-        return samples
+        return np.array(samples)
 
     @property
     @abstractmethod

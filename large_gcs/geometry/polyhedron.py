@@ -3,6 +3,7 @@ from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy
 from pydrake.all import (
     DecomposeAffineExpressions,
     Formula,
@@ -26,13 +27,22 @@ class Polyhedron(ConvexSet):
         """
         Default constructor for the polyhedron {x| A x ≤ b}.
         """
+        self._vertices = None
+        self._center = None
+
         A = np.array(A)
         b = np.array(b)
 
-        if Polyhedron._has_equality_constraints(A, b) or A.shape[1] == 1:
+        if Polyhedron._check_contains_equality_constraints(A, b):
+            self._has_equality_constraints = True
             self._h_polyhedron = HPolyhedron(A, b)
-            self._vertices = None
-            self._center = None
+            self._create_null_space_polyhedron()
+            return
+        else:
+            self._has_equality_constraints = False
+
+        if A.shape[1] == 1:
+            self._h_polyhedron = HPolyhedron(A, b)
             return
 
         vertices = VPolytope(HPolyhedron(A, b)).vertices().T
@@ -153,7 +163,7 @@ class Polyhedron(ConvexSet):
         return A[new_order], b[new_order]
 
     @staticmethod
-    def _has_equality_constraints(A, b):
+    def _check_contains_equality_constraints(A, b):
         """Equality constraints are enforced by having one row in A and b be: ax ≤ b and another row be: -ax ≤ -b.
         So checking if any pairs of rows add up to 0 tells us whether there are any equality constraints.
         """
@@ -166,7 +176,7 @@ class Polyhedron(ConvexSet):
         """Equality constraints are enforced by having one row in A and b be: ax ≤ b and another row be: -ax ≤ -b.
         So checking if any pairs of rows add up to 0 tells us whether there are any equality constraints.
         """
-        return self._has_equality_constraints(self.set.A(), self.set.b())
+        return self._check_contains_equality_constraints(self.set.A(), self.set.b())
 
     def get_separated_inequality_equality_constraints(self):
         """Separate and return A, b, C, d where A x ≤ b are inequalities and C x = d are equalities."""
@@ -204,6 +214,27 @@ class Polyhedron(ConvexSet):
         )
 
         return np.array(A_ineq), np.array(b_ineq), C, d
+
+    def _create_null_space_polyhedron(self):
+        # Separate original A and B into inequality and equality constraints
+        A, b, C, d = self.get_separated_inequality_equality_constraints()
+        # Compute the basis of the null space of C
+        self._V = scipy.linalg.null_space(C)
+        # Compute the pseudo-inverse of C
+        C_pinv = np.linalg.pinv(C)
+
+        # Use the pseudo-inverse to find x_0
+        self._x_0 = np.dot(C_pinv, d)
+
+        self._null_space_polyhedron = Polyhedron(A=A @ self._V, b=b - A @ self._x_0)
+
+    def get_samples(self, n_samples=100):
+        if self._has_equality_constraints:
+            q_samples = self._null_space_polyhedron.get_samples(n_samples)
+            p_samples = q_samples @ self._V.T + self._x_0
+            return p_samples
+        else:
+            return super().get_samples(n_samples)
 
     @property
     def dim(self):
