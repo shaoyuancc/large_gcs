@@ -39,7 +39,9 @@ class ConvexSet(ABC):
             samples.append(self.set.UniformSample(generator))
             for i in range(n_samples - 1):
                 samples.append(
-                    self.set.UniformSample(generator, previous_sample=samples[-1])
+                    self.set.UniformSample(
+                        generator, previous_sample=samples[-1], mixing_steps=500
+                    )
                 )
         except:
             print("Warning: failed to sample convex set")

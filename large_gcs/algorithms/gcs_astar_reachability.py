@@ -221,7 +221,12 @@ class GcsAstarReachability(SearchAlgorithm):
 
         n_next = SearchNode.from_parent(child_vertex_name=edge.v, parent=n)
 
-        if neighbor != self._target and not self._reaches_new(n_next):
+        # If coming from source or going to target, do not check if path reaches new samples
+        if (
+            neighbor != self._target
+            and n.vertex_name != self._graph.source_name
+            and not self._reaches_new(n_next)
+        ):
             return
 
         n_next.sol = sol
@@ -262,7 +267,7 @@ class GcsAstarReachability(SearchAlgorithm):
             self._alg_metrics.update_after_gcs_solve(sol.time)
 
         set_samples.unreached_samples = still_unreached
-        logger.debug(f"{n_next.vertex_name} Reached new samples: {reached_new}")
+        logger.info(f"Reached new samples: {reached_new}")
         return reached_new
 
 
