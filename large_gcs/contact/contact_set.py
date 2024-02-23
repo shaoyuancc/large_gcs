@@ -9,7 +9,10 @@ from large_gcs.contact.contact_pair_mode import ContactPairMode, InContactPairMo
 from large_gcs.contact.contact_set_decision_variables import ContactSetDecisionVariables
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.convex_set import ConvexSet
-from large_gcs.geometry.geometry_utils import HPolyhedronFromConstraints
+from large_gcs.geometry.geometry_utils import (
+    HPolyhedronAbFromConstraints,
+    HPolyhedronFromConstraints,
+)
 from large_gcs.geometry.polyhedron import Polyhedron
 
 
@@ -80,11 +83,12 @@ class ContactSet(ConvexSet):
             self.constraint_formulas.extend(additional_constraints)
         if additional_base_constraints is not None:
             self.base_constraint_formulas.extend(additional_base_constraints)
-        self._polyhedron = HPolyhedronFromConstraints(
+        A, b = HPolyhedronAbFromConstraints(
             self.constraint_formulas,
             self.vars.all,
             remove_constraints_not_in_vars=remove_constraints_not_in_vars,
         )
+        self._polyhedron = Polyhedron(A, b, should_compute_vertices=False)
         self._base_polyhedron = HPolyhedronFromConstraints(
             self.base_constraint_formulas,
             self.vars.base_all,
@@ -146,6 +150,9 @@ class ContactSet(ConvexSet):
     #         plt.fill(*vertices[:, i:i+2].T, alpha=0.5, label=f"body{i/2}")
     #     plt.legend()
 
+    def get_samples(self, n_samples=100):
+        return self._polyhedron.get_samples(n_samples)
+
     @property
     def id(self):
         return tuple([mode.id for mode in self.contact_pair_modes])
@@ -156,10 +163,12 @@ class ContactSet(ConvexSet):
 
     @property
     def set(self):
-        return self._polyhedron
+        # Note that self._polyhedron is a Polyhedron not Drake HPolyhedron
+        return self._polyhedron.set
 
     @property
     def base_set(self):
+        # Note that self._base_polyhedron is a Drake HPolyhedron
         return self._base_polyhedron
 
     @property

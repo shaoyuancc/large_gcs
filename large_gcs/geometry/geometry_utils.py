@@ -35,7 +35,7 @@ def scalar_proj_u_onto_v(u, v):
     return np.dot(u, v) / np.linalg.norm(v)
 
 
-def HPolyhedronFromConstraints(
+def HPolyhedronAbFromConstraints(
     constraints: List[Formula],
     variables: np.ndarray,
     make_bounded: bool = True,
@@ -99,6 +99,31 @@ def HPolyhedronFromConstraints(
 
     # Polyhedrons are of the form: Ax <= b
     b = -b_neg
+
+    return A, b
+
+
+def HPolyhedronFromConstraints(
+    constraints: List[Formula],
+    variables: np.ndarray,
+    make_bounded: bool = True,
+    remove_constraints_not_in_vars: bool = False,
+    BOUND: float = 1000.0,
+):
+    """
+    Construct a polyhedron from a list of constraint formulas.
+    Args:
+        constraints: array of constraint formulas.
+        variables: array of variables.
+    """
+
+    A, b = HPolyhedronAbFromConstraints(
+        constraints,
+        variables,
+        make_bounded,
+        remove_constraints_not_in_vars,
+        BOUND,
+    )
     polyhedron = HPolyhedron(A, b)
 
     return polyhedron

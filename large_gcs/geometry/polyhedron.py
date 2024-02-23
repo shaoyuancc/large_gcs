@@ -1,4 +1,5 @@
 import itertools
+import logging
 from typing import List
 
 import matplotlib.pyplot as plt
@@ -17,13 +18,15 @@ from scipy.spatial import ConvexHull
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.geometry_utils import is_on_hyperplane
 
+logger = logging.getLogger(__name__)
+
 
 class Polyhedron(ConvexSet):
     """
     Wrapper for the Drake HPolyhedron class that uses the half-space representation: {x| A x ≤ b}
     """
 
-    def __init__(self, A, b):
+    def __init__(self, A, b, should_compute_vertices=True):
         """
         Default constructor for the polyhedron {x| A x ≤ b}.
         """
@@ -45,19 +48,22 @@ class Polyhedron(ConvexSet):
             self._h_polyhedron = HPolyhedron(A, b)
             return
 
-        vertices = VPolytope(HPolyhedron(A, b)).vertices().T
-        hull = ConvexHull(vertices)  # orders vertices counterclockwise
-        self._vertices = vertices[hull.vertices]
-        A, b = Polyhedron._reorder_A_b_by_vertices(A, b, self._vertices)
+        if should_compute_vertices:
+            vertices = VPolytope(HPolyhedron(A, b)).vertices().T
+            hull = ConvexHull(vertices)  # orders vertices counterclockwise
+            self._vertices = vertices[hull.vertices]
+            A, b = Polyhedron._reorder_A_b_by_vertices(A, b, self._vertices)
+
         self._h_polyhedron = HPolyhedron(A, b)
 
         # Compute center
-        try:
-            max_ellipsoid = self._h_polyhedron.MaximumVolumeInscribedEllipsoid()
-            self._center = np.array(max_ellipsoid.center())
-        except:
-            print("Could not compute center")
-            self._center = None
+        if should_compute_vertices:
+            try:
+                max_ellipsoid = self._h_polyhedron.MaximumVolumeInscribedEllipsoid()
+                self._center = np.array(max_ellipsoid.center())
+            except:
+                logger.warning("Could not compute center")
+                self._center = None
 
     @classmethod
     def from_vertices(cls, vertices):
@@ -218,20 +224,26 @@ class Polyhedron(ConvexSet):
     def _create_null_space_polyhedron(self):
         # Separate original A and B into inequality and equality constraints
         A, b, C, d = self.get_separated_inequality_equality_constraints()
+        # print(f"\n A.shape: {A.shape}, b.shape: {b.shape}, C.shape: {C.shape}, d.shape: {d.shape}")
         # Compute the basis of the null space of C
         self._V = scipy.linalg.null_space(C)
-        # Compute the pseudo-inverse of C
-        C_pinv = np.linalg.pinv(C)
+        # # Compute the pseudo-inverse of C
+        # C_pinv = np.linalg.pinv(C)
 
-        # Use the pseudo-inverse to find x_0
-        self._x_0 = np.dot(C_pinv, d)
+        # # Use the pseudo-inverse to find x_0
+        # self._x_0 = np.dot(C_pinv, d)
+        self._x_0, residuals, rank, s = np.linalg.lstsq(C, d, rcond=None)
 
-        self._null_space_polyhedron = Polyhedron(A=A @ self._V, b=b - A @ self._x_0)
+        self._null_space_polyhedron = Polyhedron(
+            A=A @ self._V, b=b - A @ self._x_0, should_compute_vertices=False
+        )
 
     def get_samples(self, n_samples=100):
         if self._has_equality_constraints:
             q_samples = self._null_space_polyhedron.get_samples(n_samples)
+            assert len(q_samples) == n_samples
             p_samples = q_samples @ self._V.T + self._x_0
+
             return p_samples
         else:
             return super().get_samples(n_samples)

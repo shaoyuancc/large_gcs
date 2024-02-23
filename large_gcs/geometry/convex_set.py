@@ -32,9 +32,11 @@ class ConvexSet(ABC):
     def get_samples(self, n_samples=100) -> np.ndarray:
         samples = []
         generator = RandomGenerator()
-        initial_guess = self.set.MaybeGetFeasiblePoint()
+        # Setting the initial guess made sampling in the contact set fail
+        # initial_guess = self.set.MaybeGetFeasiblePoint()
         try:
-            samples.append(self.set.UniformSample(generator, initial_guess))
+            # samples.append(self.set.UniformSample(generator, initial_guess))
+            samples.append(self.set.UniformSample(generator))
             for i in range(n_samples - 1):
                 samples.append(
                     self.set.UniformSample(generator, previous_sample=samples[-1])

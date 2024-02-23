@@ -482,31 +482,21 @@ class ContactGraph(Graph):
                 region.plot(color=BodyColor["target"], alpha=0.2)
 
     def plot_samples_in_set(self, set_name: str, n_samples: int = 100, **kwargs):
-        """Plots a single set"""
         options = {"facecolor": "mintcream", "edgecolor": "k", "zorder": 1}
         options.update(kwargs)
-        plt.axis("equal")
         vertex = self.vertices[set_name]
+        if isinstance(vertex.convex_set, ContactPointSet):
+            logger.info(
+                f"skipping sampling for {set_name} as it is a contact point set"
+            )
+            return
         samples = vertex.convex_set.get_samples(n_samples)
-        contact_sol = self.create_contact_spp_sol([set_name], samples)
+        samples_list = []
+        for sample in samples:
+            samples_list.append(sample)
+        contact_sol = self.create_contact_spp_sol([set_name] * n_samples, samples_list)
         self._plot_path(contact_sol)
-
-        raise NotImplementedError
-        # Need to modify decompose_ambient_path
-        obj_pos_trajectories, rob_pos_trajectories = self.decompose_ambient_path(
-            samples
-        )
-
-        for j in range(len(samples)):
-            # Plot object trajectories
-            for i in range(obj_pos_trajectories.shape[0]):
-                self.objects[i].plot_at_position(obj_pos_trajectories[i, j])
-                # logger.info(f"obj_pos: {obj_pos_trajectories[i, j]}")
-            for i in range(rob_pos_trajectories.shape[0]):
-                self.robots[i].plot_at_position(rob_pos_trajectories[i, j])
-                # logger.info(f"rob_pos: {rob_pos_trajectories[i, j]}")
-        for obs in self.obstacles:
-            obs.plot()
+        plt.title(f"Samples in {set_name}")
 
     def plot_sets(self):
         raise NotImplementedError("Not sure how to visualize high dimensional sets")
@@ -519,14 +509,27 @@ class ContactGraph(Graph):
 
     def _plot_path(self, sol: ContactShortestPathSolution):
         plt.figure()
+        ax = plt.axes(xlim=self.workspace[0], ylim=self.workspace[1])
+        ax.set_aspect("equal")
+
         for obs in self.obstacles:
             obs.plot()
         n_steps = sol.pos_trajs.shape[0]
         for i in range(n_steps):
-            obj_pos = sol.pos_trajs[i, : self.n_objects]
-            rob_pos = sol.pos_trajs[i, self.n_objects :]
-            plt.scatter(*obj_pos.T, marker="+", color=cm.rainbow(i / n_steps))
-            plt.scatter(*rob_pos.T, marker=".", color=cm.rainbow(i / n_steps))
+            for j in range(self.n_objects):
+                self.objects[j].plot_at_position(
+                    sol.pos_trajs[i, j],
+                    facecolor="none",
+                    label_body=False,
+                    edgecolor=cm.rainbow(i / n_steps),
+                )
+            for j in range(self.n_robots):
+                self.robots[j].plot_at_position(
+                    sol.pos_trajs[i, j + self.n_objects],
+                    label_body=False,
+                    facecolor="none",
+                    edgecolor=cm.rainbow(i / n_steps),
+                )
 
         # Add a color bar
         sm = plt.cm.ScalarMappable(
@@ -534,10 +537,7 @@ class ContactGraph(Graph):
         )
 
         plt.colorbar(sm)
-        plt.axis("equal")
-        # Show the plot
         plt.grid()
-        plt.show()
 
     def plot_path(self):
         assert self.contact_spp_sol is not None, "Must solve before plotting"
