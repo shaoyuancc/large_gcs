@@ -181,6 +181,7 @@ class GcsAstarReachability(SearchAlgorithm):
         if n.vertex_name == self._graph.target_name:
             return n.sol
 
+        # TODO: I think this check is wrong because we already add the vertex to S when we first add it to Q
         if n.vertex_name in self._S:
             self._alg_metrics.n_vertices_reexpanded[0] += 1
         else:
@@ -195,7 +196,18 @@ class GcsAstarReachability(SearchAlgorithm):
 
         edges = self._graph.outgoing_edges(n.vertex_name)
         for edge in edges:
-            if "sample" not in edge.v:
+            if (  # Neighbor is not a sampled point
+                "sample" not in edge.v
+                and
+                # Neighbor is not in the path
+                not any(
+                    (
+                        self._graph.edges[e].u == edge.v
+                        or self._graph.edges[e].v == edge.v
+                    )
+                    for e in n.path
+                )
+            ):
                 self._visit_neighbor(n, edge)
 
     def _visit_neighbor(self, n: SearchNode, edge: Edge) -> None:
@@ -228,6 +240,8 @@ class GcsAstarReachability(SearchAlgorithm):
             and not self._reaches_new(n_next)
         ):
             return
+
+        # TODO: add path to S
 
         n_next.sol = sol
         n_next.priority = sol.cost

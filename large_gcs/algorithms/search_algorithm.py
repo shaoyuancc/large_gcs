@@ -131,6 +131,7 @@ class SearchNode:
 
     priority: float
     vertex_name: str
+    # Edge path
     path: List[str]
     parent: Optional["SearchNode"] = None
     sol: Optional[ShortestPathSolution] = None
