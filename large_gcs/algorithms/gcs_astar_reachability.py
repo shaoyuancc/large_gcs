@@ -1,13 +1,15 @@
 import itertools
 import logging
 import time
+from collections import defaultdict
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 from IPython.display import HTML, display
 from matplotlib.animation import FFMpegWriter
+from pydrake.all import CommonSolverOption, MathematicalProgram, Solve, SolverOptions
 
 from large_gcs.algorithms.search_algorithm import (
     AlgMetrics,
@@ -27,63 +29,94 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class SetSample:
-    vertex_name: str
-    index: int
-    convex_set: ConvexSet
-    reached_by: Optional[SearchNode] = None
-
-    @property
-    def id(self):
-        return f"{self.vertex_name}_sample_{self.index}"
-
-
-@dataclass
 class SetSamples:
     vertex_name: str
-    unreached_samples: List[SetSample]
-    reached_samples: List[SetSample]
-
-    @property
-    def has_unreached_samples(self):
-        return len(self.unreached_samples) > 0
+    samples: np.ndarray
 
     @classmethod
     def from_vertex(cls, vertex_name: str, vertex: Vertex, num_samples: int):
         if isinstance(vertex.convex_set, Point):
-            raise NotImplementedError(
-                "Intermediate sets which are points not yet supported"
-            )
             # Do not sample from them, just use the point.
-            # Still need to manage whether it has been reached or not
-        samples = vertex.convex_set.get_samples(num_samples)
+            samples = np.array([vertex.convex_set.center])
+        else:
+            # np.random.seed(0)
+            samples = vertex.convex_set.get_samples(num_samples)
+            # Round the samples to the nearest 1e-6
+            # samples = np.round(samples, 6)
         return cls(
             vertex_name=vertex_name,
-            unreached_samples=[
-                SetSample(vertex_name=vertex_name, index=i, convex_set=Point(x))
-                for i, x in enumerate(samples)
-            ],
-            reached_samples=[],
+            samples=samples,
         )
 
-    def add_samples_to_graph(self, graph: Graph):
-        parent_vertex = graph.vertices[self.vertex_name]
-        for sample in self.unreached_samples:
-            graph.add_vertex(
-                vertex=Vertex(convex_set=sample.convex_set), name=sample.id
-            )
-            graph.add_edge(
-                Edge(
-                    u=self.vertex_name,
-                    v=sample.id,
-                    costs=None,
-                    constraints=[
-                        create_equality_edge_constraint(
-                            dim=parent_vertex.convex_set.dim
-                        )
-                    ],
+    def project(self, g: Graph, n: SearchNode) -> np.ndarray:
+        """
+        Project the samples into the subspace of the last vertex in the path,
+        such that the projected samples are reachable via the path.
+        """
+        assert n.vertex_name == self.vertex_name
+        active_edges = n.edge_path
+        vertex_sampled = self.vertex_name
+        samples = self.samples
+
+        vertex_names = n.vertex_path
+        # gcs vertices
+        vertices = [g.vertices[name].gcs_vertex for name in vertex_names]
+        edges = [g.edges[edge].gcs_edge for edge in active_edges]
+
+        prog = MathematicalProgram()
+        results = np.full_like(samples, np.nan)
+        for idx, sample in enumerate(samples):
+            vertex_vars = [
+                prog.NewContinuousVariables(
+                    v.ambient_dimension(), name=f"{v_name}_vars"
                 )
+                for v, v_name in zip(vertices, vertex_names)
+            ]
+            sample_vars = vertex_vars[vertex_names.index(vertex_sampled)]
+            for v, v_name, x in zip(vertices, vertex_names, vertex_vars):
+                if v_name == vertex_sampled:
+                    v.set().AddPointInSetConstraints(prog, x)
+                    # Add the distance to the sample as a cost
+                    prog.AddCost((x - sample).dot(x - sample))
+                    # Vertex Constraints
+                    for binding in v.GetConstraints():
+                        constraint = binding.evaluator()
+                        prog.AddConstraint(constraint, x)
+                else:
+                    v.set().AddPointInSetConstraints(prog, x)
+
+                    # Vertex Constraints
+                    for binding in v.GetConstraints():
+                        constraint = binding.evaluator()
+                        prog.AddConstraint(constraint, x)
+
+            for e, e_name in zip(edges, active_edges):
+                # Edge Constraints
+                for binding in e.GetConstraints():
+                    constraint = binding.evaluator()
+                    variables = binding.variables()
+                    u_name, v_name = g.edges[e_name].u, g.edges[e_name].v
+                    u_idx, v_idx = vertex_names.index(u_name), vertex_names.index(
+                        v_name
+                    )
+                    variables[: len(vertex_vars[u_idx])] = vertex_vars[u_idx]
+                    variables[-len(vertex_vars[v_idx]) :] = vertex_vars[v_idx]
+                    prog.AddConstraint(constraint, variables)
+
+            solver_options = SolverOptions()
+            solver_options.SetOption(
+                CommonSolverOption.kPrintFileName, str("mosek_log.txt")
             )
+            result = Solve(prog, solver_options=solver_options)
+            if not result.is_success():
+                logger.warn(
+                    f"Failed to project sample {idx} for vertex {vertex_sampled}, original sample: {sample}"
+                )
+                # logger.warn(f"Failed to project samples node {n.vertex_name}, vertex_path={n.vertex_path}, edge_path={n.edge_path}")
+                # raise RuntimeError("Failed to solve")
+            else:
+                results[idx] = result.GetSolution(sample_vars)
+        return results
 
 
 class GcsAstarReachability(SearchAlgorithm):
@@ -118,13 +151,21 @@ class GcsAstarReachability(SearchAlgorithm):
         elif tiebreak == TieBreak.LIFO or tiebreak == TieBreak.LIFO.name:
             self._counter = itertools.count(start=0, step=-1)
 
-        self._S: dict[str, list[SearchNode]] = {}  # Expanded/Closed set
-        self._Q: list[SearchNode] = []  # Priority queue
+        # Visited dictionary
+        self._S: dict[str, list[SearchNode]] = defaultdict(list)
+        # Priority queue
+        self._Q: list[SearchNode] = []
+        # Expanded set (just for logging/metrics)
+        self._expanded: set[str] = set()
         # Keeps track of samples for each vertex(set) in the graph for which the vertex has been visited but the sample has not been reached.
         self._set_samples: dict[str, SetSamples] = {}
 
         start_node = SearchNode(
-            priority=0, vertex_name=self._graph.source_name, path=[], sol=None
+            priority=0,
+            vertex_name=self._graph.source_name,
+            edge_path=[],
+            vertex_path=[self._graph.source_name],
+            sol=None,
         )
         self.push_node_on_Q(start_node)
 
@@ -182,32 +223,28 @@ class GcsAstarReachability(SearchAlgorithm):
             return n.sol
 
         # TODO: I think this check is wrong because we already add the vertex to S when we first add it to Q
-        if n.vertex_name in self._S:
+        if n.vertex_name in self._expanded:
             self._alg_metrics.n_vertices_reexpanded[0] += 1
         else:
             self._alg_metrics.n_vertices_expanded[0] += 1
+            self._expanded.add(n.vertex_name)
 
         # Generate neighbors that you are about to explore/visit
         self._graph.generate_neighbors(n.vertex_name)
 
-        # Configure subgraph for visiting neighbors
-        # Don't need this because operating directly on the graph
-        # self._set_subgraph(n)
-
         edges = self._graph.outgoing_edges(n.vertex_name)
+
+        logger.info(
+            f"\n{self.alg_metrics}\nnow exploring node {n.vertex_name}'s {len(edges)} neighbors ({n.priority})"
+        )
+        self.log_metrics_to_wandb(n.priority)
+
         for edge in edges:
-            if (  # Neighbor is not a sampled point
-                "sample" not in edge.v
-                and
-                # Neighbor is not in the path
-                not any(
-                    (
-                        self._graph.edges[e].u == edge.v
-                        or self._graph.edges[e].v == edge.v
-                    )
-                    for e in n.path
-                )
-            ):
+            neighbor_in_path = any(
+                (self._graph.edges[e].u == edge.v or self._graph.edges[e].v == edge.v)
+                for e in n.edge_path
+            )
+            if not neighbor_in_path:
                 self._visit_neighbor(n, edge)
 
     def _visit_neighbor(self, n: SearchNode, edge: Edge) -> None:
@@ -216,11 +253,11 @@ class GcsAstarReachability(SearchAlgorithm):
             self._alg_metrics.n_vertices_revisited[0] += 1
         else:
             self._alg_metrics.n_vertices_visited[0] += 1
-        logger.info(f"exploring edge {edge.u} -> {edge.v}")
+        logger.debug(f"exploring edge {edge.key} via path {n.vertex_path}")
         sol: ShortestPathSolution = self._cost_estimator.estimate_cost_on_graph(
             self._graph,
             edge,
-            n.path,
+            n.edge_path,
             solve_convex_restriction=True,
         )
 
@@ -232,19 +269,22 @@ class GcsAstarReachability(SearchAlgorithm):
             logger.debug(f"edge {n.vertex_name} -> {edge.v} is feasible")
 
         n_next = SearchNode.from_parent(child_vertex_name=edge.v, parent=n)
+        n_next.sol = sol
+        n_next.priority = sol.cost
 
         # If coming from source or going to target, do not check if path reaches new samples
         if (
             neighbor != self._target
-            and n.vertex_name != self._graph.source_name
+            # and n.vertex_name != self._graph.source_name
             and not self._reaches_new(n_next)
         ):
+            # Path does not reach new areas, do not add to Q or S
+            logger.info(
+                f"Not added to Q: Path to {n_next.vertex_name} does not reach new samples"
+            )
             return
-
-        # TODO: add path to S
-
-        n_next.sol = sol
-        n_next.priority = sol.cost
+        logger.info(f"Added to Q: Path to {n_next.vertex_name} reaches new samples")
+        self._S[neighbor] += [n_next]
         self.push_node_on_Q(n_next)
 
     def _reaches_new(self, n_next: SearchNode) -> bool:
@@ -252,6 +292,10 @@ class GcsAstarReachability(SearchAlgorithm):
         Checks samples to see if this path reaches new previously unreached samples.
         Assumes that this path is feasible.
         """
+        # If the vertex has not been visited before and the path is feasible, it definitely reaches new
+        if n_next.vertex_name not in self._S:
+            return True
+
         if n_next.vertex_name not in self._set_samples:
             logger.debug(f"Adding samples for {n_next.vertex_name}")
             self._set_samples[n_next.vertex_name] = SetSamples.from_vertex(
@@ -259,29 +303,55 @@ class GcsAstarReachability(SearchAlgorithm):
                 self._graph.vertices[n_next.vertex_name],
                 self._num_samples_per_vertex,
             )
-            self._set_samples[n_next.vertex_name].add_samples_to_graph(self._graph)
 
-        set_samples = self._set_samples[n_next.vertex_name]
-        still_unreached = []
+        projected_samples = self._set_samples[n_next.vertex_name].project(
+            self._graph, n_next
+        )
+
         reached_new = False
-        for sample in set_samples.unreached_samples:
-            # Check whether sample can be reached via the path
-            self._graph.set_target(sample.id)
-            new_edge = Edge(u=n_next.vertex_name, v=sample.id)
-            conv_res_active_edges = n_next.path.copy() + [new_edge.key]
-            logger.debug(f"reaches new, active edges: {conv_res_active_edges}")
-            sol = self._graph.solve_convex_restriction(conv_res_active_edges)
+        for idx, sample in enumerate(projected_samples):
+            # Create a new vertex for the sample and add it to the graph
+            sample_vertex_name = f"{n_next.vertex_name}_sample_{idx}"
+            self._graph.add_vertex(
+                vertex=Vertex(convex_set=Point(sample)), name=sample_vertex_name
+            )
+            for alt_n in self._S[n_next.vertex_name]:
+                # Add edge between the sample and the second last vertex in the path
+                e = self._graph.edges[alt_n.edge_path[-1]]
+                e_u = n_next.vertex_path[-2]
+                edge_to_sample = Edge(
+                    u=e_u,
+                    v=sample_vertex_name,
+                    costs=e.costs,
+                    constraints=e.constraints,
+                )
+                self._graph.add_edge(edge_to_sample)
+                # Check whether sample can be reached via the path
+                self._graph.set_target(sample_vertex_name)
+                active_edges = n_next.edge_path.copy()
+                active_edges[-1] = edge_to_sample.key
+                sol = self._graph.solve_convex_restriction(
+                    active_edges, skip_post_solve=True
+                )
+                self._alg_metrics.update_after_gcs_solve(sol.time)
+                if sol.is_success:
+                    # Clean up current sample
+                    self._graph.remove_vertex(sample_vertex_name)
+                    # Move on to the next sample, don't need to check other paths
+                    logger.debug(f"Sample {idx} reached by path {alt_n.vertex_path}")
+                    break
+                else:
+                    # Clean up edge, but leave the sample vertex
+                    self._graph.remove_edge(edge_to_sample.key)
+            # If no paths can reach the sample, do not need to check more samples
+            reached_new = True
+            # Clean up
+            if sample_vertex_name in self._graph.vertices:
+                self._graph.remove_vertex(sample_vertex_name)
             self._graph.set_target(self._target)
-            if sol.is_success:
-                sample.reached_by = n_next
-                set_samples.reached_samples.append(sample)
-                reached_new = True
-            else:
-                still_unreached.append(sample)
-            self._alg_metrics.update_after_gcs_solve(sol.time)
+            logger.debug(f"Sample {idx} not reached by any previous path.")
+            break
 
-        set_samples.unreached_samples = still_unreached
-        logger.info(f"Reached new samples: {reached_new}")
         return reached_new
 
 

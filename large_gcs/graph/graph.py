@@ -9,11 +9,13 @@ import numpy as np
 from graphviz import Digraph
 from pydrake.all import (
     Binding,
+    CommonSolverOption,
     Constraint,
     Cost,
     GraphOfConvexSets,
     GraphOfConvexSetsOptions,
     MathematicalProgramResult,
+    SolverOptions,
 )
 from tqdm import tqdm
 
@@ -386,7 +388,7 @@ class Graph:
         return sol
 
     def solve_convex_restriction(
-        self, active_edge_keys: List[str]
+        self, active_edge_keys: List[str], skip_post_solve: bool = False
     ) -> ShortestPathSolution:
         logger.debug(f"active edge keys: {active_edge_keys}")
         # logger.debug(f"edges: {self.edge_keys}")
@@ -399,8 +401,9 @@ class Graph:
         logger.debug(f"is_success: {result.is_success()}")
         sol = self._parse_convex_restriction_result(result, active_edges)
 
-        # Optional post solve hook for subclasses
-        self._post_solve(sol)
+        if not skip_post_solve:
+            # Optional post solve hook for subclasses
+            self._post_solve(sol)
 
         return sol
 

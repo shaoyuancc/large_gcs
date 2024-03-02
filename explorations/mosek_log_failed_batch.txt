@@ -1,0 +1,69 @@
+Problem
+  Name                   :                 
+  Objective sense        : minimize        
+  Type                   : QO (quadratic optimization problem)
+  Constraints            : 1170            
+  Affine conic cons.     : 0               
+  Disjunctive cons.      : 0               
+  Cones                  : 0               
+  Scalar variables       : 250             
+  Matrix variables       : 0               
+  Integer variables      : 0               
+
+Optimizer started.
+Quadratic to conic reformulation started.
+Quadratic to conic reformulation terminated. Time: 0.00    
+Presolve started.
+Linear dependency checker started.
+Linear dependency checker terminated.
+Eliminator started.
+Freed constraints in eliminator : 15
+Eliminator terminated.
+Eliminator - tries                  : 1                 time                   : 0.00            
+Lin. dep.  - tries                  : 1                 time                   : 0.00            
+Lin. dep.  - primal attempts        : 1                 successes              : 1               
+Lin. dep.  - dual attempts          : 0                 successes              : 0               
+Lin. dep.  - primal deps.           : 0                 dual deps.             : 0               
+Presolve terminated. Time: 0.00    
+Optimizer  - threads                : 4               
+Optimizer  - solved problem         : the dual        
+Optimizer  - Constraints            : 25              
+Optimizer  - Cones                  : 1               
+Optimizer  - Scalar variables       : 105               conic                  : 35              
+Optimizer  - Semi-definite variables: 0                 scalarized             : 0               
+Factor     - setup time             : 0.00            
+Factor     - dense det. time        : 0.00              GP order time          : 0.00            
+Factor     - nonzeros before factor : 45                after factor           : 45              
+Factor     - dense dim.             : 0                 flops                  : 3.85e+02        
+ITE PFEAS    DFEAS    GFEAS    PRSTATUS   POBJ              DOBJ              MU       TIME  
+0   1.0e+03  1.3e+03  2.4e+00  0.00e+00   9.954439257e+06   9.954435015e+06   1.0e+00  0.00  
+1   3.5e+02  4.6e+02  1.4e+00  -9.97e-01  9.926477661e+06   9.926479048e+06   3.5e-01  0.00  
+2   1.1e+02  1.5e+02  7.9e-01  -9.95e-01  9.871355712e+06   9.871375641e+06   1.1e-01  0.00  
+3   3.3e+01  4.4e+01  4.3e-01  -9.90e-01  9.766753901e+06   9.766834555e+06   3.3e-02  0.00  
+4   1.0e+01  1.3e+01  2.4e-01  -9.82e-01  9.573916137e+06   9.574190690e+06   1.0e-02  0.00  
+5   3.1e+00  4.1e+00  1.3e-01  -9.67e-01  9.225852125e+06   9.226722859e+06   3.1e-03  0.00  
+6   9.5e-01  1.3e+00  6.7e-02  -9.38e-01  8.614614514e+06   8.617216499e+06   9.5e-04  0.00  
+7   2.9e-01  3.9e-01  3.4e-02  -8.86e-01  7.594474548e+06   7.601599931e+06   2.9e-04  0.00  
+8   9.1e-02  1.2e-01  1.6e-02  -7.88e-01  6.041889018e+06   6.058552166e+06   9.0e-05  0.00  
+9   2.8e-02  3.7e-02  6.7e-03  -6.09e-01  4.023575461e+06   4.053156690e+06   2.8e-05  0.00  
+10  8.5e-03  1.1e-02  2.1e-03  -3.02e-01  2.014124626e+06   2.047081004e+06   8.4e-06  0.00  
+11  2.4e-03  3.2e-03  4.6e-04  1.58e-01   7.280671027e+05   7.462682004e+05   2.4e-06  0.00  
+12  7.8e-04  1.0e-03  8.9e-05  6.39e-01   2.045199209e+05   2.112217138e+05   7.8e-07  0.00  
+13  2.4e-04  3.1e-04  1.6e-05  8.39e-01   8.801211838e+04   9.023120141e+04   2.4e-07  0.00  
+14  5.5e-05  7.3e-05  1.8e-06  9.15e-01   1.403381514e+04   1.461483646e+04   5.5e-08  0.00  
+15  9.0e-06  1.2e-05  1.3e-07  9.66e-01   2.559332365e+03   2.660405743e+03   8.9e-09  0.00  
+16  1.9e-06  2.5e-06  1.9e-08  9.99e-01   5.639291307e+02   5.857110917e+02   1.9e-09  0.00  
+17  5.6e-07  7.5e-07  4.0e-09  1.00e+00   1.844592594e+02   1.909941389e+02   5.6e-10  0.00  
+18  5.4e-07  7.1e-07  9.0e-10  9.97e-01   1.787249915e+02   1.849739571e+02   5.4e-10  0.00  
+19  5.1e-07  6.8e-07  7.3e-10  9.90e-01   1.731450808e+02   1.791181652e+02   5.1e-10  0.00  
+20  3.3e-07  4.4e-07  2.4e-10  9.97e-01   1.297617962e+02   1.335959434e+02   3.3e-10  0.00  
+21  3.3e-07  4.4e-07  2.4e-10  9.97e-01   1.297617962e+02   1.335959434e+02   3.3e-10  0.00  
+22  3.3e-07  4.4e-07  2.4e-10  9.97e-01   1.297617962e+02   1.335959434e+02   3.3e-10  0.00  
+Optimizer terminated. Time: 0.00    
+
+
+Interior-point solution summary
+  Problem status  : UNKNOWN
+  Solution status : UNKNOWN
+  Primal.  obj: 6.1043908672e+01    nrm: 1e+03    Viol.  con: 2e-02    var: 0e+00  
+  Dual.    obj: -3.1127361101e+02   nrm: 6e+01    Viol.  con: 0e+00    var: 1e-01  

@@ -132,7 +132,9 @@ class SearchNode:
     priority: float
     vertex_name: str
     # Edge path
-    path: List[str]
+    edge_path: List[str]
+    # Vertex path
+    vertex_path: List[str]
     parent: Optional["SearchNode"] = None
     sol: Optional[ShortestPathSolution] = None
 
@@ -151,7 +153,8 @@ class SearchNode:
         return cls(
             priority=None,
             vertex_name=child_vertex_name,
-            path=parent.path.copy() + [new_edge.key],
+            edge_path=parent.edge_path.copy() + [new_edge.key],
+            vertex_path=parent.vertex_path.copy() + [child_vertex_name],
             parent=parent,
         )
 
