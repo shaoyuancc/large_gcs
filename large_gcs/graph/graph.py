@@ -64,7 +64,9 @@ class ShortestPathSolution:
     def ambient_path_str(self):
         ambient_path = "["
         for a in self.ambient_path:
-            ambient_path += f"{np.array2string(a, separator=', ')},"
+            ambient_path += (
+                f"{np.array2string(a, separator=', ', max_line_width=np.inf)},"
+            )
         ambient_path += "]"
         return ambient_path
 

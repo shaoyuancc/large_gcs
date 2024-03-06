@@ -16,6 +16,10 @@ from large_gcs.graph_generators.contact_graph_generator import (
 
 tol = 1e-3
 
+pytestmark = pytest.mark.skip(
+    reason="Not using local build of Drake so no SolveFactoredPartialConvexRestriction, skipping tests."
+)
+
 
 def test_convert_to_cfree_vertex_names_mult_objs():
     vertex_name = "('NC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-rob0_v1', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f2-rob0_f0', 'NC|obj1_f2-rob0_f0')"
