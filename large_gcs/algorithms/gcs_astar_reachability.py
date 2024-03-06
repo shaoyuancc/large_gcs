@@ -20,6 +20,7 @@ from large_gcs.algorithms.search_algorithm import (
 )
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.geometry.convex_set import ConvexSet
+from large_gcs.geometry.geometry_utils import unique_rows_with_tolerance_ignore_nan
 from large_gcs.geometry.point import Point
 from large_gcs.graph.cost_constraint_factory import create_equality_edge_constraint
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution, Vertex
@@ -48,20 +49,20 @@ class SetSamples:
             samples=samples,
         )
 
-    def project(self, g: Graph, n: SearchNode) -> np.ndarray:
+    def project(self, graph: Graph, node: SearchNode) -> np.ndarray:
         """
         Project the samples into the subspace of the last vertex in the path,
         such that the projected samples are reachable via the path.
         """
-        assert n.vertex_name == self.vertex_name
-        active_edges = n.edge_path
+        assert node.vertex_name == self.vertex_name
+        active_edges = node.edge_path
         vertex_sampled = self.vertex_name
         samples = self.samples
 
-        vertex_names = n.vertex_path
+        vertex_names = node.vertex_path
         # gcs vertices
-        vertices = [g.vertices[name].gcs_vertex for name in vertex_names]
-        edges = [g.edges[edge].gcs_edge for edge in active_edges]
+        vertices = [graph.vertices[name].gcs_vertex for name in vertex_names]
+        edges = [graph.edges[edge].gcs_edge for edge in active_edges]
 
         prog = MathematicalProgram()
         results = np.full_like(samples, np.nan)
@@ -95,7 +96,7 @@ class SetSamples:
                 for binding in e.GetConstraints():
                     constraint = binding.evaluator()
                     variables = binding.variables()
-                    u_name, v_name = g.edges[e_name].u, g.edges[e_name].v
+                    u_name, v_name = graph.edges[e_name].u, graph.edges[e_name].v
                     u_idx, v_idx = vertex_names.index(u_name), vertex_names.index(
                         v_name
                     )
@@ -104,19 +105,23 @@ class SetSamples:
                     prog.AddConstraint(constraint, variables)
 
             solver_options = SolverOptions()
-            solver_options.SetOption(
-                CommonSolverOption.kPrintFileName, str("mosek_log.txt")
-            )
+            # solver_options.SetOption(
+            #     CommonSolverOption.kPrintFileName, str("mosek_log.txt")
+            # )
+            # solver_options.SetOption(
+            #     CommonSolverOption.kPrintToConsole, 1
+            # )
+
             result = Solve(prog, solver_options=solver_options)
             if not result.is_success():
                 logger.warn(
                     f"Failed to project sample {idx} for vertex {vertex_sampled}, original sample: {sample}"
                 )
                 # logger.warn(f"Failed to project samples node {n.vertex_name}, vertex_path={n.vertex_path}, edge_path={n.edge_path}")
-                # raise RuntimeError("Failed to solve")
+
             else:
                 results[idx] = result.GetSolution(sample_vars)
-        return results
+        return unique_rows_with_tolerance_ignore_nan(results, tol=1e-3)
 
 
 class GcsAstarReachability(SearchAlgorithm):
@@ -222,7 +227,6 @@ class GcsAstarReachability(SearchAlgorithm):
         if n.vertex_name == self._graph.target_name:
             return n.sol
 
-        # TODO: I think this check is wrong because we already add the vertex to S when we first add it to Q
         if n.vertex_name in self._expanded:
             self._alg_metrics.n_vertices_reexpanded[0] += 1
         else:
@@ -230,6 +234,7 @@ class GcsAstarReachability(SearchAlgorithm):
             self._expanded.add(n.vertex_name)
 
         # Generate neighbors that you are about to explore/visit
+        # TODO This might be a problem that we are calling this multiple times on the same vertex
         self._graph.generate_neighbors(n.vertex_name)
 
         edges = self._graph.outgoing_edges(n.vertex_name)
@@ -307,7 +312,6 @@ class GcsAstarReachability(SearchAlgorithm):
         projected_samples = self._set_samples[n_next.vertex_name].project(
             self._graph, n_next
         )
-
         reached_new = False
         for idx, sample in enumerate(projected_samples):
             # Create a new vertex for the sample and add it to the graph
@@ -318,9 +322,8 @@ class GcsAstarReachability(SearchAlgorithm):
             for alt_n in self._S[n_next.vertex_name]:
                 # Add edge between the sample and the second last vertex in the path
                 e = self._graph.edges[alt_n.edge_path[-1]]
-                e_u = n_next.vertex_path[-2]
                 edge_to_sample = Edge(
-                    u=e_u,
+                    u=e.u,
                     v=sample_vertex_name,
                     costs=e.costs,
                     constraints=e.constraints,
@@ -328,8 +331,9 @@ class GcsAstarReachability(SearchAlgorithm):
                 self._graph.add_edge(edge_to_sample)
                 # Check whether sample can be reached via the path
                 self._graph.set_target(sample_vertex_name)
-                active_edges = n_next.edge_path.copy()
+                active_edges = alt_n.edge_path.copy()
                 active_edges[-1] = edge_to_sample.key
+
                 sol = self._graph.solve_convex_restriction(
                     active_edges, skip_post_solve=True
                 )

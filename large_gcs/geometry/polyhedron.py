@@ -78,8 +78,12 @@ class Polyhedron(ConvexSet):
 
         v_polytope = VPolytope(vertices.T)
         h_polyhedron = HPolyhedron(v_polytope)
-
-        return cls(h_polyhedron.A(), h_polyhedron.b())
+        polyhedron = cls(h_polyhedron.A(), h_polyhedron.b())
+        if polyhedron._vertices is None:
+            polyhedron._vertices = vertices
+            # Set center to be the mean of the vertices
+            polyhedron._center = np.mean(vertices, axis=0)
+        return polyhedron
 
     @classmethod
     def from_constraints(cls, constraints: List[Formula], variables: List[Variable]):
@@ -127,9 +131,6 @@ class Polyhedron(ConvexSet):
         return polyhedron
 
     def _plot(self, **kwargs):
-        # if self.vertices.shape[0] < 3:
-        #     raise NotImplementedError
-
         plt.fill(*self.vertices.T, **kwargs)
 
     def plot_vertex(self, index, **kwargs):

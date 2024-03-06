@@ -481,7 +481,9 @@ class ContactGraph(Graph):
             for region in self.target_regions:
                 region.plot(color=BodyColor["target"], alpha=0.2)
 
-    def plot_samples_in_set(self, set_name: str, n_samples: int = 100, **kwargs):
+    def generate_and_plot_samples_in_set(
+        self, set_name: str, n_samples: int = 100, **kwargs
+    ):
         options = {"facecolor": "mintcream", "edgecolor": "k", "zorder": 1}
         options.update(kwargs)
         vertex = self.vertices[set_name]
@@ -491,6 +493,10 @@ class ContactGraph(Graph):
             )
             return
         samples = vertex.convex_set.get_samples(n_samples)
+        self.plot_samples_in_set(set_name, samples, **options)
+
+    def plot_samples_in_set(self, set_name: str, samples: np.ndarray, **kwargs):
+        n_samples = samples.shape[0]
         samples_list = []
         for sample in samples:
             samples_list.append(sample)
@@ -717,7 +723,8 @@ class ContactGraph(Graph):
                     for v in self.vertices.values()
                     if isinstance(v.convex_set, ContactSet)
                 ],
-                "edge_keys": self.edge_keys,
+                # To ensure backward compatibility with old graphs where edge_keys were Tuples of u_name, v_name
+                "edge_keys": [(e.u, e.v) for e in self.edges.values()],
             },
         )
 

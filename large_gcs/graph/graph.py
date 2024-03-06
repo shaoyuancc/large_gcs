@@ -390,15 +390,14 @@ class Graph:
     def solve_convex_restriction(
         self, active_edge_keys: List[str], skip_post_solve: bool = False
     ) -> ShortestPathSolution:
-        logger.debug(f"active edge keys: {active_edge_keys}")
-        # logger.debug(f"edges: {self.edge_keys}")
+        # logger.debug(f"active edge keys: {active_edge_keys}")
         active_edges = [self.edges[edge_key] for edge_key in active_edge_keys]
         gcs_edges = [edge.gcs_edge for edge in active_edges]
         result = self._gcs.SolveConvexRestriction(
             gcs_edges,
             self._gcs_options_wo_relaxation,
         )
-        logger.debug(f"is_success: {result.is_success()}")
+        # logger.debug(f"is_success: {result.is_success()}")
         sol = self._parse_convex_restriction_result(result, active_edges)
 
         if not skip_post_solve:

@@ -35,6 +35,26 @@ def scalar_proj_u_onto_v(u, v):
     return np.dot(u, v) / np.linalg.norm(v)
 
 
+def unique_rows_with_tolerance_ignore_nan(arr, tol=1e-5):
+    # Filter out rows with any NaN values
+    arr_no_nan = arr[~np.isnan(arr).any(axis=1)]
+
+    # Initialize an array to keep track of unique rows
+    unique_rows = np.array(
+        arr_no_nan[0:1]
+    )  # Start with the first row from the filtered array
+
+    for i in range(1, arr_no_nan.shape[0]):
+        # Compute the norm/distance between the current row and all unique rows found so far
+        diffs = np.linalg.norm(unique_rows - arr_no_nan[i], axis=1)
+
+        # If the minimum distance is greater than the tolerance, it's a unique row
+        if np.all(diffs > tol):
+            unique_rows = np.vstack((unique_rows, arr_no_nan[i]))
+
+    return unique_rows
+
+
 def HPolyhedronAbFromConstraints(
     constraints: List[Formula],
     variables: np.ndarray,

@@ -1,8 +1,11 @@
+import logging
 from abc import ABC, abstractmethod
 
 import matplotlib.pyplot as plt
 import numpy as np
 from pydrake.all import RandomGenerator
+
+logger = logging.getLogger(__name__)
 
 
 class ConvexSet(ABC):
@@ -34,17 +37,20 @@ class ConvexSet(ABC):
         generator = RandomGenerator()
         # Setting the initial guess made sampling in the contact set fail
         # initial_guess = self.set.MaybeGetFeasiblePoint()
+        # logger.debug(f"Initial guess for sampling: {initial_guess}")
         try:
             # samples.append(self.set.UniformSample(generator, initial_guess))
             samples.append(self.set.UniformSample(generator))
+            logger.debug(f"Sampled 1 points from convex set")
             for i in range(n_samples - 1):
                 samples.append(
                     self.set.UniformSample(
-                        generator, previous_sample=samples[-1], mixing_steps=500
+                        generator, previous_sample=samples[-1], mixing_steps=100  # 500
                     )
                 )
+                logger.debug(f"Sampled {i+2} points from convex set")
         except:
-            print("Warning: failed to sample convex set")
+            logger.warn("Warning: failed to sample convex set")
         return np.array(samples)
 
     @property
