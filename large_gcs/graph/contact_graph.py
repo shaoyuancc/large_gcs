@@ -387,14 +387,18 @@ class ContactGraph(Graph):
             set_force_constraints.extend(
                 eq(body.vars_force_res, body_force_sums[body_name]).tolist()
             )
-
-        contact_set = ContactSet.from_objs_robs(
-            [self._contact_pair_modes[mode_id] for mode_id in mode_ids],
-            self.objects,
-            self.robots,
-            additional_constraints=set_force_constraints + self._workspace_constraints,
-            additional_base_constraints=self._base_workspace_constraints,
-        )
+        try:
+            contact_set = ContactSet.from_objs_robs(
+                [self._contact_pair_modes[mode_id] for mode_id in mode_ids],
+                self.objects,
+                self.robots,
+                additional_constraints=set_force_constraints
+                + self._workspace_constraints,
+                additional_base_constraints=self._base_workspace_constraints,
+            )
+        except:
+            logger.error(f"Error creating contact set for mode_ids {mode_ids}")
+            raise
 
         return contact_set
 

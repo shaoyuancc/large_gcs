@@ -232,10 +232,8 @@ class GcsAstarReachability(SearchAlgorithm):
         else:
             self._alg_metrics.n_vertices_expanded[0] += 1
             self._expanded.add(n.vertex_name)
-
-        # Generate neighbors that you are about to explore/visit
-        # TODO This might be a problem that we are calling this multiple times on the same vertex
-        self._graph.generate_neighbors(n.vertex_name)
+            # Generate neighbors that you are about to explore/visit
+            self._graph.generate_neighbors(n.vertex_name)
 
         edges = self._graph.outgoing_edges(n.vertex_name)
 

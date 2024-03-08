@@ -17,6 +17,7 @@ from scipy.spatial import ConvexHull
 
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.geometry_utils import is_on_hyperplane
+from large_gcs.utils.utils import copy_pastable_str_from_np_array
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +37,20 @@ class Polyhedron(ConvexSet):
         A = np.array(A)
         b = np.array(b)
 
+        # Detect and remove rows with very small A and b, practically zero \leq zero
+        for i, (a1, b1) in enumerate(zip(A, b)):
+            if np.allclose(a1, 0) and np.isclose(b1, 0):
+                logger.debug(
+                    f"Removing row {i} from A and b, because they are practically zero."
+                )
+                A = np.delete(A, i, axis=0)
+                b = np.delete(b, i)
+
         if Polyhedron._check_contains_equality_constraints(A, b):
             self._has_equality_constraints = True
             self._h_polyhedron = HPolyhedron(A, b)
-            self._create_null_space_polyhedron()
+            if not self._h_polyhedron.IsEmpty():
+                self._create_null_space_polyhedron()
             return
         else:
             self._has_equality_constraints = False
@@ -170,12 +181,16 @@ class Polyhedron(ConvexSet):
         return A[new_order], b[new_order]
 
     @staticmethod
-    def _check_contains_equality_constraints(A, b):
+    def _check_contains_equality_constraints(A, b, rtol=1e-5, atol=1e-8):
         """Equality constraints are enforced by having one row in A and b be: ax ≤ b and another row be: -ax ≤ -b.
         So checking if any pairs of rows add up to 0 tells us whether there are any equality constraints.
         """
-        for (a1, b1), (a2, b2) in itertools.product(zip(A, b), zip(A, b)):
-            if np.isclose(a1 + a2, [0] * len(a1)).all() and np.isclose(b1 + b2, 0):
+        for (i, (a1, b1)), (j, (a2, b2)) in itertools.combinations(
+            enumerate(zip(A, b)), 2
+        ):
+            if np.allclose(a1 + a2, 0, rtol=rtol, atol=atol) and np.isclose(
+                b1 + b2, 0, rtol=rtol, atol=atol
+            ):
                 return True
         return False
 
@@ -185,47 +200,61 @@ class Polyhedron(ConvexSet):
         """
         return self._check_contains_equality_constraints(self.set.A(), self.set.b())
 
-    def get_separated_inequality_equality_constraints(self):
+    @staticmethod
+    def get_separated_inequality_equality_constraints(
+        A_original, b_original, rtol=1e-5, atol=1e-8
+    ):
         """Separate and return A, b, C, d where A x ≤ b are inequalities and C x = d are equalities."""
-        A_original = self.set.A()
-        b_original = self.set.b()
 
+        equality_indices = set()
         equality_rows = []
-        inequality_rows = []
 
-        # Mark rows involved in equalities to avoid re-adding them as inequalities
-        marked_for_equality = set()
+        for (i1, (a1, b1)), (i2, (a2, b2)) in itertools.combinations(
+            enumerate(zip(A_original, b_original)), 2
+        ):
+            if np.allclose(a1 + a2, 0, rtol=rtol, atol=atol) and np.isclose(
+                b1 + b2, 0, rtol=rtol, atol=atol
+            ):
+                # logger.debug(f"Equality constraints found: {i1}, {i2}")
+                # logger.debug(f"a1: {a1}, b1: {b1}")
+                # logger.debug(f"a2: {a2}, b2: {b2}")
+                equality_indices.update([i1, i2])
+                equality_rows.append(i1)
+        # logger.debug(f"equality_indices: {equality_indices}")
+        # logger.debug(f"equality_rows: {equality_rows}")
+        C = np.array([A_original[i] for i in equality_rows])
+        d = np.array([b_original[i] for i in equality_rows])
 
-        for (i1, (a1, b1)) in enumerate(zip(A_original, b_original)):
-            for (i2, (a2, b2)) in enumerate(zip(A_original, b_original)):
-                if (
-                    i1 < i2
-                    and np.isclose(a1 + a2, [0] * len(a1)).all()
-                    and np.isclose(b1 + b2, 0)
-                ):
-                    equality_rows.append((i1, i2))
-                    marked_for_equality.update([i1, i2])
-
-        C = np.array([A_original[i] for i, _ in equality_rows])
-        d = np.array([b_original[i] for i, _ in equality_rows])
-
-        # Collect rows not marked for equality as inequalities
-        for i, (a, b) in enumerate(zip(A_original, b_original)):
-            if i not in marked_for_equality:
-                inequality_rows.append((a, b))
-
+        inequality_rows = [
+            (a, b)
+            for i, (a, b) in enumerate(zip(A_original, b_original))
+            if i not in equality_indices
+        ]
         A_ineq, b_ineq = (
             zip(*inequality_rows)
             if inequality_rows
             else (np.empty((0, A_original.shape[1])), np.array([]))
         )
-
         return np.array(A_ineq), np.array(b_ineq), C, d
 
     def _create_null_space_polyhedron(self):
+        # logger.debug(f"A_original = {print_copy_pastable_np_array(self.set.A())}")
+        # logger.debug(f"b_original = {print_copy_pastable_np_array(self.set.b())}")
+
         # Separate original A and B into inequality and equality constraints
-        A, b, C, d = self.get_separated_inequality_equality_constraints()
-        # print(f"\n A.shape: {A.shape}, b.shape: {b.shape}, C.shape: {C.shape}, d.shape: {d.shape}")
+        A, b, C, d = self.get_separated_inequality_equality_constraints(
+            self.set.A(), self.set.b()
+        )
+
+        logger.debug(
+            f"\n A.shape: {A.shape}, b.shape: {b.shape}, C.shape: {C.shape}, d.shape: {d.shape}"
+        )
+        logger.debug(
+            f"ranks: A: {np.linalg.matrix_rank(A)}, C: {np.linalg.matrix_rank(C)}"
+        )
+        logger.debug(f"C = {copy_pastable_str_from_np_array(C)}")
+        logger.debug(f"d = {copy_pastable_str_from_np_array(d)}")
+
         # Compute the basis of the null space of C
         self._V = scipy.linalg.null_space(C)
         # # Compute the pseudo-inverse of C
