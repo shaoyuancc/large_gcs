@@ -258,7 +258,7 @@ def test_removes_near_zero_rows_from_A_and_b():
     P.get_samples(5)
 
 
-def test_chebyshev_center_in_set():
+def test_chebyshev_center_in_set_1():
     graph_file = ContactGraphGeneratorParams.inc_graph_file_path_from_name("cg_maze_b1")
     cg = IncrementalContactGraph.load_from_file(
         graph_file,
@@ -277,7 +277,55 @@ def test_chebyshev_center_in_set():
     )
 
     convex_set = contact_set
-    convex_set.set.IsBounded(), convex_set.set.IsEmpty(), convex_set._polyhedron._null_space_polyhedron.set.IsBounded(), convex_set._polyhedron._null_space_polyhedron.set.IsEmpty()
+    print(f"convex_set.set.IsBounded() = {convex_set.set.IsBounded()}")
+    print(f"convex_set.set.IsEmpty() = {convex_set.set.IsEmpty()}")
+    print(
+        f"_null_space_polyhedron.set.IsBounded() = {convex_set._polyhedron._null_space_polyhedron.set.IsBounded()}"
+    )
+    print(
+        f"_null_space_polyhedron.set.IsEmpty() = {convex_set._polyhedron._null_space_polyhedron.set.IsEmpty()}"
+    )
+    prev_sample = convex_set._polyhedron._null_space_polyhedron.set.ChebyshevCenter()
+    set = convex_set._polyhedron._null_space_polyhedron.set
+    A = set.A()
+    b = set.b().reshape(-1, 1)
+    prev_sample = prev_sample.reshape(-1, 1)
+    violation = A @ prev_sample - b
+    # Find any rows greater or equal to 0
+    violating_rows = violation[np.where(violation >= 0)]
+    violating_rows
+
+    # prev_sample = set.MaybeGetFeasiblePoint()
+    assert set.PointInSet(prev_sample, tol=0)
+
+
+def test_chebyshev_center_in_set_2():
+    graph_file = ContactGraphGeneratorParams.inc_graph_file_path_from_name("cg_maze_b1")
+    cg = IncrementalContactGraph.load_from_file(
+        graph_file,
+        should_incl_simul_mode_switches=False,
+        should_add_const_edge_cost=True,
+        should_add_gcs=True,
+    )
+
+    contact_pair_mode_ids = (
+        "IC|obs0_v0-obj0_f1",
+        "NC|obs0_f0-rob0_v1",
+        "NC|obj0_f1-rob0_f1",
+    )
+    contact_set = cg._create_contact_set_from_contact_pair_mode_ids(
+        contact_pair_mode_ids
+    )
+
+    convex_set = contact_set
+    print(f"convex_set.set.IsBounded() = {convex_set.set.IsBounded()}")
+    print(f"convex_set.set.IsEmpty() = {convex_set.set.IsEmpty()}")
+    print(
+        f"_null_space_polyhedron.set.IsBounded() = {convex_set._polyhedron._null_space_polyhedron.set.IsBounded()}"
+    )
+    print(
+        f"_null_space_polyhedron.set.IsEmpty() = {convex_set._polyhedron._null_space_polyhedron.set.IsEmpty()}"
+    )
     prev_sample = convex_set._polyhedron._null_space_polyhedron.set.ChebyshevCenter()
     set = convex_set._polyhedron._null_space_polyhedron.set
     A = set.A()
