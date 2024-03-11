@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 
 from large_gcs.geometry.polyhedron import Polyhedron
@@ -5,9 +7,13 @@ from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 from large_gcs.graph_generators.contact_graph_generator import (
     ContactGraphGeneratorParams,
 )
+from large_gcs.utils.utils import copy_pastable_str_from_np_array
+
+logging.getLogger("large_gcs").setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
-def test_should_not_create_nullspace_polyhedron_if_infeasible():
+def test_should_not_create_nullspace_polyhedron_if_infeasible_1():
     # This polyhedron is infeasible (empty)
     # fmt: off
     A = np.array([[ 0., 0.,-1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
@@ -337,4 +343,49 @@ def test_chebyshev_center_in_set_2():
     violating_rows
 
     # prev_sample = set.MaybeGetFeasiblePoint()
+    assert set.PointInSet(prev_sample, tol=0)
+
+
+def test_chebyshev_center_in_set_3():
+    graph_file = ContactGraphGeneratorParams.inc_graph_file_path_from_name("cg_maze_b1")
+    cg = IncrementalContactGraph.load_from_file(
+        graph_file,
+        should_incl_simul_mode_switches=False,
+        should_add_const_edge_cost=True,
+        should_add_gcs=True,
+    )
+    logger.debug("\n")
+
+    contact_pair_mode_ids = (
+        "IC|obs0_f2-obj0_v1",
+        "NC|obs0_v0-rob0_f0",
+        "IC|obj0_f1-rob0_f1",
+    )
+    contact_set = cg._create_contact_set_from_contact_pair_mode_ids(
+        contact_pair_mode_ids
+    )
+
+    convex_set = contact_set
+    print(f"convex_set.set.IsBounded() = {convex_set.set.IsBounded()}")
+    print(f"convex_set.set.IsEmpty() = {convex_set.set.IsEmpty()}")
+    print(
+        f"_null_space_polyhedron.set.IsBounded() = {convex_set._polyhedron._null_space_polyhedron.set.IsBounded()}"
+    )
+    print(
+        f"_null_space_polyhedron.set.IsEmpty() = {convex_set._polyhedron._null_space_polyhedron.set.IsEmpty()}"
+    )
+    print(f"convex_set.set.A() = {copy_pastable_str_from_np_array(convex_set.set.A())}")
+    print(f"convex_set.set.b() = {copy_pastable_str_from_np_array(convex_set.set.b())}")
+    prev_sample = convex_set._polyhedron._null_space_polyhedron.set.ChebyshevCenter()
+    set = convex_set._polyhedron._null_space_polyhedron.set
+    A = set.A()
+    b = set.b().reshape(-1, 1)
+    prev_sample = prev_sample.reshape(-1, 1)
+    violation = A @ prev_sample - b
+    # Find any rows greater or equal to 0
+    violating_rows = violation[np.where(violation >= 0)]
+    violating_rows
+
+    # prev_sample = set.MaybeGetFeasiblePoint()
+    convex_set._polyhedron._null_space_polyhedron.get_samples(10)
     assert set.PointInSet(prev_sample, tol=0)

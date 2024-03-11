@@ -66,6 +66,7 @@ class SetSamples:
 
         prog = MathematicalProgram()
         results = np.full_like(samples, np.nan)
+        n_failed = 0
         for idx, sample in enumerate(samples):
             vertex_vars = [
                 prog.NewContinuousVariables(
@@ -114,6 +115,7 @@ class SetSamples:
 
             result = Solve(prog, solver_options=solver_options)
             if not result.is_success():
+                n_failed += 1
                 logger.warn(
                     f"Failed to project sample {idx} for vertex {vertex_sampled}, original sample: {sample}"
                 )
@@ -121,7 +123,10 @@ class SetSamples:
 
             else:
                 results[idx] = result.GetSolution(sample_vars)
-        return unique_rows_with_tolerance_ignore_nan(results, tol=1e-3)
+        if n_failed == len(samples):
+            logger.error(f"Failed to project any samples for vertex {vertex_sampled}")
+        filtered_results = unique_rows_with_tolerance_ignore_nan(results, tol=1e-3)
+        return filtered_results
 
 
 class GcsAstarReachability(SearchAlgorithm):
@@ -162,7 +167,8 @@ class GcsAstarReachability(SearchAlgorithm):
         self._Q: list[SearchNode] = []
         # Expanded set (just for logging/metrics)
         self._expanded: set[str] = set()
-        # Keeps track of samples for each vertex(set) in the graph for which the vertex has been visited but the sample has not been reached.
+        # Keeps track of samples for each vertex(set) in the graph.
+        # These samples are not used directly but first projected into the feasible subspace of a particular path.
         self._set_samples: dict[str, SetSamples] = {}
 
         start_node = SearchNode(
@@ -173,23 +179,6 @@ class GcsAstarReachability(SearchAlgorithm):
             sol=None,
         )
         self.push_node_on_Q(start_node)
-
-        # Shouldn't need the subgraph, just operate directly on the graph
-        # # Initialize the "expanded" subgraph on which
-        # # all the convex restrictions will be solved.
-        # self._subgraph = Graph(self._graph._default_costs_constraints)
-        # # Accounting of the full dimensional vertices in the visited subgraph
-        # self._subgraph_fd_vertices = set()
-
-        # Shouldn't need to add the target since that should be handled by _set_subgraph
-        # # Add the target to the visited subgraph
-        # self._subgraph.add_vertex(
-        #     self._graph.vertices[self._graph.target_name], self._graph.target_name
-        # )
-        # self._subgraph.set_target(self._graph.target_name)
-        # # Start with the target node in the visited subgraph
-        # self.alg_metrics.n_vertices_expanded[0] = 1
-        # self._subgraph_fd_vertices.add(self._graph.target_name)
 
         self._cost_estimator.setup_subgraph(self._graph)
 
@@ -317,6 +306,7 @@ class GcsAstarReachability(SearchAlgorithm):
             self._graph.add_vertex(
                 vertex=Vertex(convex_set=Point(sample)), name=sample_vertex_name
             )
+            go_to_next_sample = False
             for alt_n in self._S[n_next.vertex_name]:
                 # Add edge between the sample and the second last vertex in the path
                 e = self._graph.edges[alt_n.edge_path[-1]]
@@ -341,19 +331,22 @@ class GcsAstarReachability(SearchAlgorithm):
                     self._graph.remove_vertex(sample_vertex_name)
                     # Move on to the next sample, don't need to check other paths
                     logger.debug(f"Sample {idx} reached by path {alt_n.vertex_path}")
+                    go_to_next_sample = True
                     break
                 else:
                     # Clean up edge, but leave the sample vertex
                     self._graph.remove_edge(edge_to_sample.key)
+            if go_to_next_sample:
+                continue
             # If no paths can reach the sample, do not need to check more samples
             reached_new = True
             # Clean up
             if sample_vertex_name in self._graph.vertices:
                 self._graph.remove_vertex(sample_vertex_name)
-            self._graph.set_target(self._target)
+
             logger.debug(f"Sample {idx} not reached by any previous path.")
             break
-
+        self._graph.set_target(self._target)
         return reached_new
 
 

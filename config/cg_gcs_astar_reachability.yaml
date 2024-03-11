@@ -1,0 +1,20 @@
+defaults:
+  - algorithm: gcs_astar_reachability
+  - cost_estimator: shortcut_edge
+  - hydra: hydra
+
+graph_name: "cg_maze_b1"
+should_use_incremental_graph: true
+should_incl_simul_mode_switches: false
+should_add_const_edge_cost: false
+
+hydra:
+  job_logging:
+    loggers:
+      large_gcs:
+        level: DEBUG
+      large_gcs.cost_estimators:
+        level: INFO
+
+save_visualization: true
+save_to_wandb: true

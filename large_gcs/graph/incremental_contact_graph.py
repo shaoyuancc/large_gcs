@@ -451,7 +451,7 @@ class IncrementalContactGraph(ContactGraph):
                     mode.body_a.name in self._bodies_w_target_region
                     or mode.body_b.name in self._bodies_w_target_region
                 ):
-                    logger.debug(f"considering {id}")
+                    # logger.debug(f"considering {id}")
                     possible_edge_to_target.append(
                         id in self._modes_w_possible_edge_to_target
                     )

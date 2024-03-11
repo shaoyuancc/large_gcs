@@ -252,8 +252,8 @@ class Polyhedron(ConvexSet):
         logger.debug(
             f"ranks: A: {np.linalg.matrix_rank(A)}, C: {np.linalg.matrix_rank(C)}"
         )
-        logger.debug(f"C = {copy_pastable_str_from_np_array(C)}")
-        logger.debug(f"d = {copy_pastable_str_from_np_array(d)}")
+        # logger.debug(f"C = {copy_pastable_str_from_np_array(C)}")
+        # logger.debug(f"d = {copy_pastable_str_from_np_array(d)}")
 
         # Compute the basis of the null space of C
         self._V = scipy.linalg.null_space(C)
@@ -263,9 +263,11 @@ class Polyhedron(ConvexSet):
         # # Use the pseudo-inverse to find x_0
         # self._x_0 = np.dot(C_pinv, d)
         self._x_0, residuals, rank, s = np.linalg.lstsq(C, d, rcond=None)
+        A_prime = A @ self._V
+        b_prime = b - A @ self._x_0
 
         self._null_space_polyhedron = Polyhedron(
-            A=A @ self._V, b=b - A @ self._x_0, should_compute_vertices=False
+            A=A_prime, b=b_prime, should_compute_vertices=False
         )
 
     def get_samples(self, n_samples=100):

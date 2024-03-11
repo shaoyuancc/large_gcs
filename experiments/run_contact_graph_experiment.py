@@ -65,7 +65,15 @@ def main(cfg: OmegaConf) -> None:
             graph_file,
             should_incl_simul_mode_switches=cfg.should_incl_simul_mode_switches,
             should_add_const_edge_cost=cfg.should_add_const_edge_cost,
-            should_add_gcs=(True if "abstraction_model_generator" in cfg else False),
+            should_add_gcs=(
+                True
+                if (
+                    "abstraction_model_generator" in cfg
+                    or cfg.algorithm._target_
+                    == "large_gcs.algorithms.gcs_astar_reachability.GcsAstarReachability"
+                )
+                else False
+            ),
         )
     else:
         graph_file = ContactGraphGeneratorParams.graph_file_path_from_name(
