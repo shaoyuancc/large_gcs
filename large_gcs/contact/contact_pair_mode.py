@@ -267,9 +267,8 @@ class InContactPairMode(ContactPairMode):
         self.vars_force_mag_AB = Variable(
             f"{self.id}_force_mag_AB", type=Variable.Type.CONTINUOUS
         )
-        self.vars_force_mag_BA = Variable(
-            f"{self.id}_force_mag_BA", type=Variable.Type.CONTINUOUS
-        )
+        # By Newton's Third Law, magnitude of forces A on B and B on A are equal
+        self.vars_force_mag_BA = self.vars_force_mag_AB
 
     def _create_constraint_formulas(self):
         constraints = []
@@ -297,14 +296,6 @@ class InContactPairMode(ContactPairMode):
         formulas = []
         # If bodies A and B are in contact, A must be exerting some positive force on B, and vice versa
         formulas.append(ge(self.vars_force_mag_AB, 0).item())
-        formulas.append(ge(self.vars_force_mag_BA, 0).item())
-
-        # If one of the bodies is static, whatever force is being exerted on it, it exerts back with the same magnitude
-        if (
-            self.body_a.mobility_type == MobilityType.STATIC
-            or self.body_b.mobility_type == MobilityType.STATIC
-        ):
-            formulas.append(eq(self.vars_force_mag_AB, self.vars_force_mag_BA).item())
         return formulas
 
     def _create_horizontal_bounds_formulas(self):
