@@ -3,7 +3,7 @@ defaults:
   - cost_estimator: shortcut_edge
   - hydra: hydra
 
-graph_name: "cg_maze_a2" # "cg_trichal2"
+graph_name: "cg_trichal2"
 should_use_incremental_graph: true
 should_incl_simul_mode_switches: false
 should_add_const_edge_cost: false
@@ -18,3 +18,10 @@ algorithm:
 
 save_visualization: true
 save_to_wandb: false
+
+hydra:
+  mode: MULTIRUN
+  sweeper:
+    params:
+      cost_estimator: shortcut_edge
+      graph_name: cg_simple_2, cg_simple_3, cg_trichal2

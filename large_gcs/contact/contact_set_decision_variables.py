@@ -15,7 +15,6 @@ class ContactSetDecisionVariables:
     force_res: np.ndarray
     force_act: np.ndarray
     force_mag_AB: np.ndarray
-    force_mag_BA: np.ndarray
     all: np.ndarray
     base_all: np.ndarray
 
@@ -28,7 +27,6 @@ class ContactSetDecisionVariables:
             force_res=empty,
             force_act=empty,
             force_mag_AB=empty,
-            force_mag_BA=empty,
             all=pos.flatten(),
             base_all=pos[:, 0].flatten(),
         )
@@ -50,9 +48,6 @@ class ContactSetDecisionVariables:
         force_mag_AB = np.array(
             [mode.vars_force_mag_AB for mode in in_contact_pair_modes]
         )
-        force_mag_BA = np.array(
-            [mode.vars_force_mag_BA for mode in in_contact_pair_modes]
-        )
 
         # All the decision variables for a single vertex
         all = np.concatenate(
@@ -61,13 +56,12 @@ class ContactSetDecisionVariables:
                 force_res.flatten(),
                 force_act.flatten(),
                 force_mag_AB.flatten(),
-                force_mag_BA.flatten(),
             )
         )
         # Extract the first point in n_pos_points_per_set
         base_all = np.array([body.vars_base_pos for body in objects + robots]).flatten()
 
-        return cls(pos, force_res, force_act, force_mag_AB, force_mag_BA, all, base_all)
+        return cls(pos, force_res, force_act, force_mag_AB, all, base_all)
 
     def pos_from_all(self, vars_all):
         """Extracts the vars_pos from vars_all and reshapes it to match the template"""
@@ -84,4 +78,4 @@ class ContactSetDecisionVariables:
         pos = np.array([body.vars_base_pos for body in objects + robots])
         pos = pos[:, :, np.newaxis]
         empty = np.array([])
-        return cls(pos, empty, empty, empty, empty, pos.flatten(), pos.flatten())
+        return cls(pos, empty, empty, empty, pos.flatten(), pos.flatten())
