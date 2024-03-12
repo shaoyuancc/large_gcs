@@ -47,32 +47,34 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         self._writer = None
         self._cost_estimator.set_alg_metrics(self._alg_metrics)
         self._candidate_sol = None
-        self._pq = []
+        # Priority Q
+        self._Q = []
         self._feasible_edges = set()
+        # Visited dictionary
         self._node_dists = defaultdict(lambda: float("inf"))
-        self._visited = Graph(self._graph._default_costs_constraints)
+        self._subgraph = Graph(self._graph._default_costs_constraints)
         # Accounting of the full dimensional vertices in the visited subgraph
-        self._visited_fd_vertices = set()
+        self._subgraph_fd_vertices = set()
         # Accounting of all the vertices that have ever been visited for revisit management
-        self._visited_vertices = set()
+        self._expanded = set()
         if tiebreak == TieBreak.FIFO or tiebreak == TieBreak.FIFO.name:
             self._counter = itertools.count(start=0, step=1)
         elif tiebreak == TieBreak.LIFO or tiebreak == TieBreak.LIFO.name:
             self._counter = itertools.count(start=0, step=-1)
         # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
         heap.heappush(
-            self._pq, (0, next(self._counter), self._graph.source_name, [], None)
+            self._Q, (0, next(self._counter), self._graph.source_name, [], None)
         )
         # Add the target to the visited subgraph
-        self._visited.add_vertex(
+        self._subgraph.add_vertex(
             self._graph.vertices[self._graph.target_name], self._graph.target_name
         )
-        self._visited.set_target(self._graph.target_name)
+        self._subgraph.set_target(self._graph.target_name)
         # Start with the target node in the visited subgraph
         self.alg_metrics.n_vertices_expanded[0] = 1
-        self._visited_fd_vertices.add(self._graph.target_name)
+        self._subgraph_fd_vertices.add(self._graph.target_name)
 
-        self._cost_estimator.setup_subgraph(self._visited)
+        self._cost_estimator.setup_subgraph(self._subgraph)
 
     def run(
         self,
@@ -87,9 +89,9 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         self._animate_intermediate_sets = animate_intermediate_sets
 
         self._start_time = time.time()
-        while len(self._pq) > 0:
+        while len(self._Q) > 0:
             # Check for termination condition
-            curr = self._pq[0][2]
+            curr = self._Q[0][2]
             if curr == self._graph.target_name:
                 sol = self._candidate_sol
                 self._graph._post_solve(sol)
@@ -106,18 +108,15 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         return None
 
     def _run_iteration(self):
-        estimated_cost, _count, node, active_edges, contact_sol = heap.heappop(self._pq)
-        if (
-            self._reexplore_level == ReexploreLevel.NONE
-            and node in self._visited_vertices
-        ):
+        estimated_cost, _count, node, active_edges, contact_sol = heap.heappop(self._Q)
+        if self._reexplore_level == ReexploreLevel.NONE and node in self._expanded:
             return
-        if node in self._visited_vertices:
+        if node in self._expanded:
             self._alg_metrics.n_vertices_reexpanded[0] += 1
         else:
             self._alg_metrics.n_vertices_expanded[0] += 1
 
-        self._set_visited_vertices_and_edges(node, active_edges)
+        self._set_subgraph_vertices_and_edges(node, active_edges)
 
         edges = self._graph.outgoing_edges(node)
 
@@ -140,10 +139,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
         if self._reexplore_level == ReexploreLevel.NONE:
             for edge in edges:
-                if (
-                    edge.v not in self._visited_vertices
-                    or edge.v == self._graph.target_name
-                ):
+                if edge.v not in self._expanded or edge.v == self._graph.target_name:
                     self._explore_edge(edge, active_edges)
         else:
             for edge in edges:
@@ -159,13 +155,13 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
 
     def _explore_edge(self, edge: Edge, active_edges: List[str]):
         neighbor = edge.v
-        if neighbor in self._visited_vertices:
+        if neighbor in self._expanded:
             self._alg_metrics.n_vertices_revisited[0] += 1
         else:
             self._alg_metrics.n_vertices_visited[0] += 1
         # logger.info(f"exploring edge {edge.u} -> {edge.v}")
         sol = self._cost_estimator.estimate_cost(
-            self._visited,
+            self._subgraph,
             edge,
             active_edges,
             solve_convex_restriction=True,
@@ -184,13 +180,13 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 # Counter serves as tiebreaker for nodes with the same distance, to prevent nodes or edges from being compared
                 contact_sol = (
                     self._graph.create_contact_spp_sol(
-                        sol.vertex_path, sol.ambient_path, ref_graph=self._visited
+                        sol.vertex_path, sol.ambient_path, ref_graph=self._subgraph
                     )
                     if isinstance(self._graph, ContactGraph)
                     else None
                 )
                 heap.heappush(
-                    self._pq,
+                    self._Q,
                     (
                         new_dist,
                         next(self._counter),
@@ -220,12 +216,13 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         elif self._reexplore_level == ReexploreLevel.PARTIAL:
             return new_dist < self._node_dists[neighbor]
         elif self._reexplore_level == ReexploreLevel.NONE:
-            return neighbor not in self._visited_vertices
+            return neighbor not in self._expanded
 
-    def _set_visited_vertices_and_edges(self, vertex_name, edge_keys):
+    def _set_subgraph_vertices_and_edges(self, vertex_name, edge_keys):
         """Also adds source and target regardless of whether they are in edges"""
-        self._graph.generate_neighbors(vertex_name)
-        self._visited_vertices.add(vertex_name)
+        if not vertex_name in self._expanded:
+            self._graph.generate_neighbors(vertex_name)
+            self._expanded.add(vertex_name)
         vertices_to_add = set(
             [self._graph.target_name, self._graph.source_name, vertex_name]
         )
@@ -235,24 +232,24 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
         # Ignore cfree subgraph sets,
         # Remove full dimensional sets if they aren't in the path
         # Add all vertices that aren't already inside
-        for v in self._visited_fd_vertices.copy():
+        for v in self._subgraph_fd_vertices.copy():
             if v not in vertices_to_add:  # We don't want to have it so remove it
-                self._visited.remove_vertex(v)
-                self._visited_fd_vertices.remove(v)
+                self._subgraph.remove_vertex(v)
+                self._subgraph_fd_vertices.remove(v)
             else:  # We do want to have it but it's already in so don't need to add it
                 vertices_to_add.remove(v)
 
         for v in vertices_to_add:
-            self._visited.add_vertex(self._graph.vertices[v], v)
-            self._visited_fd_vertices.add(v)
+            self._subgraph.add_vertex(self._graph.vertices[v], v)
+            self._subgraph_fd_vertices.add(v)
 
-        self._visited.set_source(self._graph.source_name)
-        self._visited.set_target(self._graph.target_name)
+        self._subgraph.set_source(self._graph.source_name)
+        self._subgraph.set_target(self._graph.target_name)
 
         # Add edges that aren't already in the visited subgraph.
         for edge_key in edge_keys:
-            if edge_key not in self._visited.edges:
-                self._visited.add_edge(self._graph.edges[edge_key])
+            if edge_key not in self._subgraph.edges:
+                self._subgraph.add_edge(self._graph.edges[edge_key])
 
         # logger.debug(f"visited subgraph edges: {self._visited.edge_keys}")
 
@@ -267,9 +264,9 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 vertex.convex_set.plot(facecolor=self._vis_params.relaxing_from_color)
             elif current_edge and vertex_name == current_edge.v:
                 vertex.convex_set.plot(facecolor=self._vis_params.relaxing_to_color)
-            elif vertex_name in self._visited.vertex_names:
+            elif vertex_name in self._subgraph.vertex_names:
                 vertex.convex_set.plot(facecolor=self._vis_params.visited_vertex_color)
-            elif vertex_name in [item[1] for item in self._pq]:
+            elif vertex_name in [item[1] for item in self._Q]:
                 vertex.convex_set.plot(facecolor=self._vis_params.frontier_color)
             else:
                 vertex.convex_set.plot()
@@ -279,7 +276,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
                 self._graph.plot_edge(
                     edge_key, color=self._vis_params.relaxing_edge_color, zorder=3
                 )
-            elif edge_key in self._visited.edge_keys:
+            elif edge_key in self._subgraph.edge_keys:
                 self._graph.plot_edge(
                     edge_key, color=self._vis_params.visited_edge_color
                 )

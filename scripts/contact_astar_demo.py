@@ -39,7 +39,7 @@ cg._post_solve(sol)
 output_dir = os.path.join(os.environ["PROJECT_ROOT"], "output", "contact")
 vid_file = os.path.join(output_dir, f"{method_modifier}_{base_filename}.mp4")
 graphviz_file = os.path.join(output_dir, f"{method_modifier}_{base_filename}")
-gviz = gcs_astar._visited.graphviz()
+gviz = gcs_astar._subgraph.graphviz()
 gviz.format = "pdf"
 gviz.render(graphviz_file, view=False)
 
