@@ -25,7 +25,7 @@ class ReexploreLevel(Enum):
 @dataclass
 class AlgVisParams:
     """
-    Parameters for visualizing the algorithself.
+    Parameters for visualizing the algorithm.
     """
 
     vid_output_path: str = "alg_vis_output.mp4"
@@ -47,7 +47,7 @@ class AlgVisParams:
 @dataclass
 class AlgMetrics:
     """
-    Metrics for the algorithself.
+    Metrics for the algorithm.
     """
 
     n_vertices_expanded: Dict[int, int] = field(default_factory=lambda: {0: 0})

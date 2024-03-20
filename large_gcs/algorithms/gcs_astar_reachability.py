@@ -1,5 +1,6 @@
 import itertools
 import logging
+import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass
@@ -7,10 +8,12 @@ from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objs as go
 from IPython.display import HTML, display
 from matplotlib.animation import FFMpegWriter
 from pydrake.all import CommonSolverOption, MathematicalProgram, Solve, SolverOptions
 
+import wandb
 from large_gcs.algorithms.search_algorithm import (
     AlgMetrics,
     AlgVisParams,
@@ -144,6 +147,7 @@ class GcsAstarReachability(SearchAlgorithm):
         tiebreak: TieBreak = TieBreak.FIFO,
         vis_params: Optional[AlgVisParams] = None,
         num_samples_per_vertex: int = 100,
+        log_dir: Optional[str] = None,
     ):
         if isinstance(graph, IncrementalContactGraph):
             assert (
@@ -160,9 +164,11 @@ class GcsAstarReachability(SearchAlgorithm):
             self._counter = itertools.count(start=0, step=1)
         elif tiebreak == TieBreak.LIFO or tiebreak == TieBreak.LIFO.name:
             self._counter = itertools.count(start=0, step=-1)
+        self._log_dir = log_dir
 
         # Visited dictionary
         self._S: dict[str, list[SearchNode]] = defaultdict(list)
+        self._S_ignored_counts: dict[str, int] = defaultdict(int)
         # Priority queue
         self._Q: list[SearchNode] = []
         # Expanded set (just for logging/metrics)
@@ -274,6 +280,7 @@ class GcsAstarReachability(SearchAlgorithm):
             logger.info(
                 f"Not added to Q: Path to {n_next.vertex_name} does not reach new samples"
             )
+            self._S_ignored_counts[n_next.vertex_name] += 1
             return
         logger.info(f"Added to Q: Path to {n_next.vertex_name} reaches new samples")
         self._S[neighbor] += [n_next]
@@ -348,6 +355,51 @@ class GcsAstarReachability(SearchAlgorithm):
             break
         self._graph.set_target(self._target)
         return reached_new
+
+    def log_metrics_to_wandb(self, total_estimated_cost: float):
+        if not self._S and wandb.run is not None:
+            wandb.log(
+                {
+                    "total_estimated_cost": total_estimated_cost,
+                    "alg_metrics": self.alg_metrics.to_dict(),
+                }
+            )
+            return
+        if self._log_dir is not None:
+            # Preparing tracked and ignored counts
+            tracked_counts = [len(self._S[v]) for v in self._S]
+            ignored_counts = [self._S_ignored_counts[v] for v in self._S]
+
+            # Create a figure to plot the histograms
+            fig = go.Figure()
+
+            # Adding Tracked histogram
+            fig.add_trace(go.Histogram(x=tracked_counts, name="Tracked", opacity=0.75))
+
+            # Adding Ignored histogram
+            fig.add_trace(go.Histogram(x=ignored_counts, name="Ignored", opacity=0.75))
+
+            # Update layout for a stacked or overlaid histogram
+            fig.update_layout(
+                title_text="Tracked and Ignored Paths per Vertex Histogram",  # Title
+                xaxis_title_text="Number of Paths to Vertex",  # x-axis label
+                yaxis_title_text="Frequency",  # y-axis label
+                barmode="stack",
+            )
+            fig.update_traces(marker_line_width=1.5)
+
+            # Save the figure to a file as png
+            fig.write_image(os.path.join(self._log_dir, "paths_per_vertex_hist.png"))
+
+            if wandb.run is not None:
+                # Log the Plotly figure and other metrics to wandb
+                wandb.log(
+                    {
+                        "total_estimated_cost": total_estimated_cost,
+                        "alg_metrics": self.alg_metrics.to_dict(),
+                        "paths_per_vertex_hist": wandb.Plotly(fig),
+                    }
+                )
 
 
 """
