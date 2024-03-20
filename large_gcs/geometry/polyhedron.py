@@ -273,7 +273,7 @@ class Polyhedron(ConvexSet):
     def get_samples(self, n_samples=100):
         if self._has_equality_constraints:
             q_samples = self._null_space_polyhedron.get_samples(n_samples)
-            assert len(q_samples) == n_samples
+            assert len(q_samples) > 0
             p_samples = q_samples @ self._V.T + self._x_0
 
             return p_samples

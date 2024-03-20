@@ -23,5 +23,4 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      cost_estimator: shortcut_edge
       graph_name: cg_simple_2, cg_simple_3, cg_trichal2

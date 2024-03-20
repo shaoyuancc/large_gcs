@@ -459,11 +459,6 @@ class ContactGraph(Graph):
 
     def plot(self):
         plt.figure()
-        plt.axis("equal")
-        if self.workspace is not None:
-            # Set workspace limits as plot limits
-            plt.xlim(self.workspace[0])
-            plt.ylim(self.workspace[1])
         for body in self.obstacles:
             body.plot()
         if self.source_pos is not None:
@@ -484,6 +479,12 @@ class ContactGraph(Graph):
         elif self.target_region_params is not None:
             for region in self.target_regions:
                 region.plot(color=BodyColor["target"], alpha=0.2)
+
+        if self.workspace is not None:
+            # Set workspace limits as plot limits
+            plt.xlim(self.workspace[0])
+            plt.ylim(self.workspace[1])
+        plt.gca().set_aspect("equal")
 
     def generate_and_plot_samples_in_set(
         self, set_name: str, n_samples: int = 100, **kwargs

@@ -38,19 +38,24 @@ class ConvexSet(ABC):
         # Setting the initial guess made sampling in the contact set fail
         # initial_guess = self.set.MaybeGetFeasiblePoint()
         # logger.debug(f"Initial guess for sampling: {initial_guess}")
-        # try:
-        # samples.append(self.set.UniformSample(generator, initial_guess))
-        samples.append(self.set.UniformSample(generator))
-        logger.debug(f"Sampled 1 points from convex set")
-        for i in range(n_samples - 1):
-            samples.append(
-                self.set.UniformSample(
-                    generator, previous_sample=samples[-1], mixing_steps=100  # 500
+        try:
+            # samples.append(self.set.UniformSample(generator, initial_guess))
+            samples.append(self.set.UniformSample(generator))
+            logger.debug(f"Sampled 1 points from convex set")
+            for i in range(n_samples - 1):
+                samples.append(
+                    self.set.UniformSample(
+                        generator, previous_sample=samples[-1], mixing_steps=100  # 500
+                    )
                 )
-            )
-            logger.debug(f"Sampled {i+2} points from convex set")
-        # except:
-        #     logger.warn("Warning: failed to sample convex set")
+                logger.debug(f"Sampled {i+2} points from convex set")
+        except:
+            chebyshev_center = self.set.ChebyshevCenter()
+            if not self.set.PointInSet(chebyshev_center, tol=0):
+                logger.warn("Set has no interior, returning chebyshev center as sample")
+                return np.array([chebyshev_center])
+            else:
+                logger.warn("Warning: failed to sample convex set")
         return np.array(samples)
 
     @property
