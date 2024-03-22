@@ -10,7 +10,8 @@ from omegaconf import OmegaConf, open_dict
 
 import wandb
 from large_gcs.algorithms.gcs_hastar import GcsHAstar
-from large_gcs.algorithms.search_algorithm import SearchAlgorithm
+from large_gcs.algorithms.gcs_hastar_reachability import GcsHAstarReachability
+from large_gcs.algorithms.search_algorithm import AlgVisParams, SearchAlgorithm
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.graph import ShortestPathSolution
@@ -84,9 +85,19 @@ def main(cfg: OmegaConf) -> None:
         print("Using abstraction model generator")
         abs_model_generator = instantiate(cfg.abstraction_model_generator)
         abs_model = abs_model_generator.generate(concrete_graph=cg)
-        alg = GcsHAstar(
-            abs_model=abs_model, reexplore_levels=cfg.algorithm.reexplore_levels
-        )
+        if cfg.algorithm._target_ == "large_gcs.algorithms.gcs_hastar.GcsHAstar":
+            alg = GcsHAstar(
+                abs_model=abs_model, reexplore_levels=cfg.algorithm.reexplore_levels
+            )
+        elif (
+            cfg.algorithm._target_
+            == "large_gcs.algorithms.gcs_hastar_reachability.GcsHAstarReachability"
+        ):
+            alg = GcsHAstarReachability(
+                abs_model=abs_model,
+                num_samples_per_vertex=cfg.algorithm.num_samples_per_vertex,
+                vis_params=AlgVisParams(log_dir=full_log_dir),
+            )
     else:
         print("No abstraction model generator")
         cost_estimator: CostEstimator = instantiate(cfg.cost_estimator, graph=cg)

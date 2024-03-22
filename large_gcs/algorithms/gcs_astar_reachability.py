@@ -52,7 +52,9 @@ class SetSamples:
             samples=samples,
         )
 
-    def project(self, graph: Graph, node: SearchNode) -> np.ndarray:
+    # def project_single(self, graph: Graph, node: SearchNode, sample: np.ndarray) -> np.ndarray:
+
+    def project_all(self, graph: Graph, node: SearchNode) -> np.ndarray:
         """
         Project the samples into the subspace of the last vertex in the path,
         such that the projected samples are reachable via the path.
@@ -67,10 +69,10 @@ class SetSamples:
         vertices = [graph.vertices[name].gcs_vertex for name in vertex_names]
         edges = [graph.edges[edge].gcs_edge for edge in active_edges]
 
-        prog = MathematicalProgram()
         results = np.full_like(samples, np.nan)
         n_failed = 0
         for idx, sample in enumerate(samples):
+            prog = MathematicalProgram()
             vertex_vars = [
                 prog.NewContinuousVariables(
                     v.ambient_dimension(), name=f"{v_name}_vars"
@@ -251,7 +253,7 @@ class GcsAstarReachability(SearchAlgorithm):
             self._alg_metrics.n_vertices_revisited[0] += 1
         else:
             self._alg_metrics.n_vertices_visited[0] += 1
-        logger.debug(f"exploring edge {edge.key} via path {n.vertex_path}")
+        # logger.debug(f"exploring edge {edge.key} via path {n.vertex_path}")
         sol: ShortestPathSolution = self._cost_estimator.estimate_cost_on_graph(
             self._graph,
             edge,
@@ -303,7 +305,7 @@ class GcsAstarReachability(SearchAlgorithm):
                 self._num_samples_per_vertex,
             )
 
-        projected_samples = self._set_samples[n_next.vertex_name].project(
+        projected_samples = self._set_samples[n_next.vertex_name].project_all(
             self._graph, n_next
         )
         reached_new = False

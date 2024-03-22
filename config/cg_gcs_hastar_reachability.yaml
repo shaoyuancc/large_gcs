@@ -1,5 +1,5 @@
 defaults:
-  - algorithm: gcs_hastar
+  - algorithm: gcs_hastar_reachability
   - abstraction_model_generator: contact_two
   # - abstraction_model_generator: contact_three
   - hydra: hydra
@@ -8,22 +8,17 @@ graph_name: "cg_trichal4"
 should_use_incremental_graph: true
 should_incl_simul_mode_switches: false
 should_add_const_edge_cost: true
-
-algorithm:
-  # reexplore_levels: ["NONE", "NONE", "FULL"]
-  reexplore_levels: ["NONE", "FULL"]
+  
+save_visualization: true
+save_to_wandb: true
 
 hydra:
   job_logging:
     loggers:
       large_gcs:
         level: DEBUG
-
-save_visualization: true
-save_to_wandb: true
-
-# hydra:
-#   mode: MULTIRUN
-#   sweeper:
-#     params:
+  mode: MULTIRUN
+  sweeper:
+    params:
+      abstraction_model_generator: contact_three, contact_two
 #       graph_name: cg_trichal2, cg_trichal4, cg_maze_a2, cg_radialsort_a1

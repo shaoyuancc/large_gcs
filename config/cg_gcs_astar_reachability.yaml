@@ -11,16 +11,16 @@ should_add_const_edge_cost: false
 save_visualization: true
 save_to_wandb: true
 
-hydra:
-  job_logging:
-    loggers:
-      large_gcs:
-        level: INFO
-      large_gcs.cost_estimators:
-        level: INFO
-  mode: MULTIRUN
-  sweeper:
-    params:
-      graph_name: cg_maze_b1, cg_maze_b3, cg_maze_a35
+# hydra:
+#   job_logging:
+#     loggers:
+#       large_gcs:
+#         level: INFO
+#       large_gcs.cost_estimators:
+#         level: INFO
+#   mode: MULTIRUN
+#   sweeper:
+#     params:
+#       graph_name: cg_maze_b1, cg_maze_b3, cg_maze_a35
 
 # cg_maze_a35, cg_maze_a39, cg_simple_2, cg_simple_3, cg_trichal2

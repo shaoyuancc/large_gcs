@@ -1,0 +1,3 @@
+_target_: large_gcs.algorithms.gcs_hastar_reachability.GcsHAstarReachability
+
+num_samples_per_vertex: 10
