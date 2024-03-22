@@ -371,7 +371,7 @@ class GcsHAstarReachability(SearchAlgorithm):
                 vertex=Vertex(convex_set=Point(sample)), name=sample_vertex_name
             )
             go_to_next_sample = False
-            for alt_n in self._S[n.vertex_name]:
+            for alt_n in self._S[n.id]:
                 # Add edge between the sample and the second last vertex in the path
                 e = g.edges[alt_n.edge_path[-1]]
                 edge_to_sample = Edge(
@@ -422,8 +422,8 @@ class GcsHAstarReachability(SearchAlgorithm):
             return
         if self._vis_params.log_dir is not None:
             # Preparing tracked and ignored counts
-            tracked_counts = [len(self._S[v]) for v in self._S]
-            ignored_counts = [self._S_ignored_counts[v] for v in self._S]
+            tracked_counts = [len(self._S[id]) for id in self._S]
+            ignored_counts = [self._S_ignored_counts[id] for id in self._S]
 
             # Create a figure to plot the histograms
             fig = go.Figure()

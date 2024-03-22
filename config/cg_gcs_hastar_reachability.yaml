@@ -20,5 +20,5 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      abstraction_model_generator: contact_three, contact_two
+      abstraction_model_generator: contact_two, contact_three
 #       graph_name: cg_trichal2, cg_trichal4, cg_maze_a2, cg_radialsort_a1
