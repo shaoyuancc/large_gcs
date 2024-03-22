@@ -52,12 +52,8 @@ class ContactTwo(AbstractionModelGenerator):
                 if "rob" in name:
                     break
                 abstract_nodes.append(
-                    StatementNode(
-                        priority=None,
-                        abs_level=new_abs_level,
-                        vertex_name=name,
-                        weight=None,
-                        path=[],
+                    StatementNode.create_start_node(
+                        vertex_name=name, abs_level=new_abs_level
                     )
                 )
             return abstract_nodes
@@ -68,12 +64,8 @@ class ContactTwo(AbstractionModelGenerator):
             new_abs_level = n.abs_level + 1
             new_vertex_name = "START"
             return [
-                StatementNode(
-                    priority=None,
-                    abs_level=new_abs_level,
-                    vertex_name=new_vertex_name,
-                    weight=0,
-                    path=[],
+                StatementNode.create_start_node(
+                    vertex_name=new_vertex_name, abs_level=new_abs_level
                 )
             ]
 

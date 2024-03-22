@@ -40,9 +40,9 @@ class Polyhedron(ConvexSet):
         # Detect and remove rows with very small A and b, practically zero \leq zero
         for i, (a1, b1) in enumerate(zip(A, b)):
             if np.allclose(a1, 0) and np.isclose(b1, 0):
-                logger.debug(
-                    f"Removing row {i} from A and b, because they are practically zero."
-                )
+                # logger.debug(
+                #     f"Removing row {i} from A and b, because they are practically zero."
+                # )
                 A = np.delete(A, i, axis=0)
                 b = np.delete(b, i)
 
@@ -246,12 +246,12 @@ class Polyhedron(ConvexSet):
             self.set.A(), self.set.b()
         )
 
-        logger.debug(
-            f"\n A.shape: {A.shape}, b.shape: {b.shape}, C.shape: {C.shape}, d.shape: {d.shape}"
-        )
-        logger.debug(
-            f"ranks: A: {np.linalg.matrix_rank(A)}, C: {np.linalg.matrix_rank(C)}"
-        )
+        # logger.debug(
+        #     f"\n A.shape: {A.shape}, b.shape: {b.shape}, C.shape: {C.shape}, d.shape: {d.shape}"
+        # )
+        # logger.debug(
+        #     f"ranks: A: {np.linalg.matrix_rank(A)}, C: {np.linalg.matrix_rank(C)}"
+        # )
         # logger.debug(f"C = {copy_pastable_str_from_np_array(C)}")
         # logger.debug(f"d = {copy_pastable_str_from_np_array(d)}")
 

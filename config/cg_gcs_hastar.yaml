@@ -1,7 +1,7 @@
 defaults:
   - algorithm: gcs_hastar
   - abstraction_model_generator: contact_two
-  # - abstraction_model_generator: contact_three #contact_two
+  # - abstraction_model_generator: contact_three
   - hydra: hydra
 
 graph_name: "cg_trichal4"
@@ -11,7 +11,7 @@ should_add_const_edge_cost: true
 
 algorithm:
   # reexplore_levels: ["NONE", "NONE", "FULL"]
-  reexplore_levels: ["NONE", "FULL"]
+  reexplore_levels: ["NONE", "NONE"]
 
 hydra:
   job_logging:
@@ -20,7 +20,7 @@ hydra:
         level: DEBUG
 
 save_visualization: true
-save_to_wandb: false
+save_to_wandb: true
 
 # hydra:
 #   mode: MULTIRUN

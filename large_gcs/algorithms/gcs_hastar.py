@@ -65,8 +65,8 @@ class GcsHAstar(SearchAlgorithm):
         max_abs_level = len(self._graphs)
         self._alg_metrics = GcsHAstarMetrics()
         self._alg_metrics.initialize(n_levels=max_abs_level + 1)
-        start_node = StatementNode(
-            priority=0, abs_level=max_abs_level, vertex_name="START", path=[], weight=0
+        start_node = StatementNode.create_start_node(
+            vertex_name="START", abs_level=max_abs_level, priority=0
         )
         heap.heappush(self._Q, start_node)
 
@@ -171,7 +171,8 @@ class GcsHAstar(SearchAlgorithm):
             else:
                 for edge in edges:
                     neighbor_in_path = any(
-                        (u == edge.v or v == edge.v) for (u, v) in n.path
+                        (g.edges[e].u == edge.v or g.edges[e].v == edge.v)
+                        for e in n.edge_path
                     )
                     if not neighbor_in_path:
                         neighbor = StatementNode.from_parent(
@@ -194,7 +195,7 @@ class GcsHAstar(SearchAlgorithm):
 
         # CONTEXT and has other statements in path to convert to contexts
         elif isinstance(n, ContextNode):
-            if len(n.path) > 0:
+            if len(n.edge_path) > 0:
                 # Get DOWN rules
                 # Go back one step along the path that was taken to calculate its context
                 self._execute_down_rule(n_antecedent=n)
@@ -217,23 +218,24 @@ class GcsHAstar(SearchAlgorithm):
 
         # Extract path costs
         path_costs = []
-        if len(n_antecedent.path) > 0:
+        if len(n_antecedent.edge_path) > 0:
             original_g: ContactGraph = self._graphs[n_antecedent.abs_level]
             # WORKAROUND individual costs not being available in solve convex restriction result.
             # Create as new graph with just the path from the source to the goal and solve that as a full problem
             temp_g = Graph()
             temp_g.add_vertex(original_g.source, original_g.source_name)
-            for u, v in n_antecedent.path:
+            for v in n_antecedent.vertex_path[1:]:
                 temp_g.add_vertex(original_g.vertices[v], v)
-                temp_g.add_edge(original_g.edges[(u, v)])
+            for e_key in n_antecedent.edge_path:
+                temp_g.add_edge(original_g.edges[e_key])
             temp_g.set_source(original_g.source_name)
             temp_g.set_target(original_g.target_name)
             sol = temp_g.solve_shortest_path()
             n_antecedent.sol = sol
             g = temp_g
 
-            for e in n_antecedent.path:
-                vertex_cost = g.vertices[e[1]].gcs_vertex.GetSolutionCost(
+            for e, v in zip(n_antecedent.edge_path, n_antecedent.vertex_path[1:]):
+                vertex_cost = g.vertices[v].gcs_vertex.GetSolutionCost(
                     n_antecedent.sol.result
                 )
                 edge_cost = g.edges[e].gcs_edge.GetSolutionCost(n_antecedent.sol.result)
@@ -246,7 +248,8 @@ class GcsHAstar(SearchAlgorithm):
             weight=0,
             abs_level=n_antecedent.abs_level,
             vertex_name=n_antecedent.vertex_name,
-            path=n_antecedent.path,
+            edge_path=n_antecedent.edge_path,
+            vertex_path=n_antecedent.vertex_path,
             path_costs=path_costs,
             sol=n_antecedent.sol,
         )
@@ -259,10 +262,11 @@ class GcsHAstar(SearchAlgorithm):
         child = ContextNode(
             priority=n_antecedent.sol.cost,
             abs_level=n_antecedent.abs_level,
-            vertex_name=n_antecedent.path[-1][0],
+            vertex_name=n_antecedent.vertex_path[-2],
             # Weight of the prior context is parent's weight + vertex cost and edge cost (stored in path_costs)
             weight=n_antecedent.weight + n_antecedent.path_costs[-1],
-            path=n_antecedent.path[:-1],
+            edge_path=n_antecedent.edge_path[:-1],
+            vertex_path=n_antecedent.vertex_path[:-1],
             path_costs=n_antecedent.path_costs[:-1],
             sol=n_antecedent.sol,
             parent=n_antecedent,
@@ -297,13 +301,13 @@ class GcsHAstar(SearchAlgorithm):
 
         source_name = self._graphs[lower_abs_level].source_name
         # add the source node of the next level to the queue
-        n_source = StatementNode(
-            priority=n_antecedent.priority,  # We want this to get popped off immediately after the context above is popped off
-            abs_level=lower_abs_level,
+        n_source = StatementNode.create_start_node(
             vertex_name=source_name,
-            path=[],
-            weight=0,
+            abs_level=lower_abs_level,
+            # We want this to get popped off immediately after the context above is popped off
+            priority=n_antecedent.priority,
         )
+
         self._update_vertex_visit_revisit(n_source)
         heap.heappush(self._Q, n_source)
 
@@ -317,7 +321,7 @@ class GcsHAstar(SearchAlgorithm):
 
         # Solve convex restriction on the path from the source to the conclusion to get the weight
         g.set_target(n_conclusion.vertex_name)
-        sol = g.solve_convex_restriction(n_conclusion.path)
+        sol = g.solve_convex_restriction(n_conclusion.edge_path)
         self._alg_metrics.update_after_gcs_solve(sol.time)
         g.set_target(self._targets[n_conclusion.abs_level])
         if not sol.is_success:
