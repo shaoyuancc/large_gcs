@@ -129,7 +129,7 @@ class GcsHAstarReachability(SearchAlgorithm):
                     logger.info(
                         f"Not reexpanding: Path to {n.vertex_name} does not reach new samples"
                     )
-                    self._S_ignored_counts[n.vertex_name] += 1
+                    self._S_ignored_counts[n.id] += 1
                     return
                 else:
                     logger.info(
