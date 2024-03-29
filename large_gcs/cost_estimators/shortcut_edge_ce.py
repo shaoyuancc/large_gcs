@@ -148,4 +148,4 @@ class ShortcutEdgeCE(CostEstimator):
 
     @property
     def finger_print(self) -> str:
-        return f"ShortcutEdgeCE-{self._shortcut_edge_cost_factory}"
+        return f"ShortcutEdgeCE-{self._shortcut_edge_cost_factory.__name__}"

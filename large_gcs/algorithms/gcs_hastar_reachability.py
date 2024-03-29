@@ -423,25 +423,14 @@ class GcsHAstarReachability(SearchAlgorithm):
         if self._vis_params.log_dir is not None:
             # Preparing tracked and ignored counts
             tracked_counts = [len(self._S[id]) for id in self._S]
-            ignored_counts = [self._S_ignored_counts[id] for id in self._S]
+            ignored_counts = [
+                self._S_ignored_counts[id] for id in self._S_ignored_counts
+            ]
 
             # Create a figure to plot the histograms
-            fig = go.Figure()
-
-            # Adding Tracked histogram
-            fig.add_trace(go.Histogram(x=tracked_counts, name="Tracked", opacity=0.75))
-
-            # Adding Ignored histogram
-            fig.add_trace(go.Histogram(x=ignored_counts, name="Ignored", opacity=0.75))
-
-            # Update layout for a stacked or overlaid histogram
-            fig.update_layout(
-                title_text="Tracked and Ignored Paths per Vertex Histogram",  # Title
-                xaxis_title_text="Number of Paths to Vertex",  # x-axis label
-                yaxis_title_text="Frequency",  # y-axis label
-                barmode="stack",
+            fig = self._alg_metrics.create_paths_per_vertex_hist(
+                tracked_counts, ignored_counts
             )
-            fig.update_traces(marker_line_width=1.5)
 
             # Save the figure to a file as png
             fig.write_image(

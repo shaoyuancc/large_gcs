@@ -4,7 +4,7 @@ import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,6 +20,7 @@ from large_gcs.algorithms.search_algorithm import (
     SearchAlgorithm,
     SearchNode,
     TieBreak,
+    profile_method,
 )
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.geometry.convex_set import ConvexSet
@@ -52,7 +53,62 @@ class SetSamples:
             samples=samples,
         )
 
-    # def project_single(self, graph: Graph, node: SearchNode, sample: np.ndarray) -> np.ndarray:
+    def project_single(
+        self, graph: Graph, node: SearchNode, sample: np.ndarray
+    ) -> np.ndarray:
+        vertex_names = node.vertex_path
+        active_edges = node.edge_path
+        vertex_sampled = self.vertex_name
+        # gcs vertices
+        vertices = [graph.vertices[name].gcs_vertex for name in vertex_names]
+        edges = [graph.edges[edge].gcs_edge for edge in active_edges]
+
+        prog = MathematicalProgram()
+        vertex_vars = [
+            prog.NewContinuousVariables(v.ambient_dimension(), name=f"{v_name}_vars")
+            for v, v_name in zip(vertices, vertex_names)
+        ]
+        sample_vars = vertex_vars[vertex_names.index(vertex_sampled)]
+        for v, v_name, x in zip(vertices, vertex_names, vertex_vars):
+            if v_name == vertex_sampled:
+                v.set().AddPointInSetConstraints(prog, x)
+                # Add the distance to the sample as a cost
+                prog.AddCost((x - sample).dot(x - sample))
+                # Vertex Constraints
+                for binding in v.GetConstraints():
+                    constraint = binding.evaluator()
+                    prog.AddConstraint(constraint, x)
+            else:
+                v.set().AddPointInSetConstraints(prog, x)
+
+                # Vertex Constraints
+                for binding in v.GetConstraints():
+                    constraint = binding.evaluator()
+                    prog.AddConstraint(constraint, x)
+
+        for e, e_name in zip(edges, active_edges):
+            # Edge Constraints
+            for binding in e.GetConstraints():
+                constraint = binding.evaluator()
+                variables = binding.variables()
+                u_name, v_name = graph.edges[e_name].u, graph.edges[e_name].v
+                u_idx, v_idx = vertex_names.index(u_name), vertex_names.index(v_name)
+                variables[: len(vertex_vars[u_idx])] = vertex_vars[u_idx]
+                variables[-len(vertex_vars[v_idx]) :] = vertex_vars[v_idx]
+                prog.AddConstraint(constraint, variables)
+
+        solver_options = SolverOptions()
+        # solver_options.SetOption(
+        #     CommonSolverOption.kPrintFileName, str("mosek_log.txt")
+        # )
+        # solver_options.SetOption(
+        #     CommonSolverOption.kPrintToConsole, 1
+        # )
+
+        result = Solve(prog, solver_options=solver_options)
+        if not result.is_success():
+            return None
+        return result.GetSolution(sample_vars)
 
     def project_all(self, graph: Graph, node: SearchNode) -> np.ndarray:
         """
@@ -125,7 +181,6 @@ class SetSamples:
                     f"Failed to project sample {idx} for vertex {vertex_sampled}, original sample: {sample}"
                 )
                 # logger.warn(f"Failed to project samples node {n.vertex_name}, vertex_path={n.vertex_path}, edge_path={n.edge_path}")
-
             else:
                 results[idx] = result.GetSolution(sample_vars)
         if n_failed == len(samples):
@@ -168,13 +223,28 @@ class GcsAstarReachability(SearchAlgorithm):
             self._counter = itertools.count(start=0, step=-1)
         self._log_dir = log_dir
 
+        # For logging/metrics
+        # Expanded set
+        self._expanded: set[str] = set()
+        call_structure = {
+            "_run_iteration": [
+                "_visit_neighbor",
+                "_generate_neighbors",
+                "_save_metrics",
+            ],
+            "_visit_neighbor": ["_reaches_new"],
+            "_reaches_new": ["_project"],
+        }
+        self._alg_metrics.set_method_call_structure(call_structure)
+        self._last_plots_save_time = time.time()
+        self._step = 0
+
         # Visited dictionary
         self._S: dict[str, list[SearchNode]] = defaultdict(list)
         self._S_ignored_counts: dict[str, int] = defaultdict(int)
         # Priority queue
         self._Q: list[SearchNode] = []
-        # Expanded set (just for logging/metrics)
-        self._expanded: set[str] = set()
+
         # Keeps track of samples for each vertex(set) in the graph.
         # These samples are not used directly but first projected into the feasible subspace of a particular path.
         self._set_samples: dict[str, SetSamples] = {}
@@ -210,10 +280,10 @@ class GcsAstarReachability(SearchAlgorithm):
         logger.info(
             f"{self.__class__.__name__} complete! \ncost: {sol.cost}, time: {sol.time}"
             f"\nvertex path: {np.array(sol.vertex_path)}"
-            f"\n{self.alg_metrics}"
         )
         return sol
 
+    @profile_method
     def _run_iteration(self) -> Optional[ShortestPathSolution]:
         """
         Runs one iteration of the search algorithm.
@@ -222,6 +292,7 @@ class GcsAstarReachability(SearchAlgorithm):
 
         # Check termination condition
         if n.vertex_name == self._graph.target_name:
+            self._save_metrics(n, [], override_save=True)
             return n.sol
 
         if n.vertex_name in self._expanded:
@@ -230,14 +301,12 @@ class GcsAstarReachability(SearchAlgorithm):
             self._alg_metrics.n_vertices_expanded[0] += 1
             self._expanded.add(n.vertex_name)
             # Generate neighbors that you are about to explore/visit
-            self._graph.generate_neighbors(n.vertex_name)
+            self._generate_neighbors(n.vertex_name)
+            # self._graph.generate_neighbors(n.vertex_name)
 
         edges = self._graph.outgoing_edges(n.vertex_name)
 
-        logger.info(
-            f"\n{self.alg_metrics}\nnow exploring node {n.vertex_name}'s {len(edges)} neighbors ({n.priority})"
-        )
-        self.log_metrics_to_wandb(n.priority)
+        self._save_metrics(n, edges)
 
         for edge in edges:
             neighbor_in_path = any(
@@ -247,6 +316,15 @@ class GcsAstarReachability(SearchAlgorithm):
             if not neighbor_in_path:
                 self._visit_neighbor(n, edge)
 
+    @profile_method
+    def _generate_neighbors(self, vertex_name: str) -> None:
+        """
+        Generates neighbors for the given vertex.
+        Wrapped to allow for profiling.
+        """
+        self._graph.generate_neighbors(vertex_name)
+
+    @profile_method
     def _visit_neighbor(self, n: SearchNode, edge: Edge) -> None:
         neighbor = edge.v
         if neighbor in self._S:
@@ -279,15 +357,16 @@ class GcsAstarReachability(SearchAlgorithm):
             and not self._reaches_new(n_next)
         ):
             # Path does not reach new areas, do not add to Q or S
-            logger.info(
+            logger.debug(
                 f"Not added to Q: Path to {n_next.vertex_name} does not reach new samples"
             )
             self._S_ignored_counts[n_next.vertex_name] += 1
             return
-        logger.info(f"Added to Q: Path to {n_next.vertex_name} reaches new samples")
+        logger.debug(f"Added to Q: Path to {n_next.vertex_name} reaches new samples")
         self._S[neighbor] += [n_next]
         self.push_node_on_Q(n_next)
 
+    @profile_method
     def _reaches_new(self, n_next: SearchNode) -> bool:
         """
         Checks samples to see if this path reaches new previously unreached samples.
@@ -305,11 +384,21 @@ class GcsAstarReachability(SearchAlgorithm):
                 self._num_samples_per_vertex,
             )
 
-        projected_samples = self._set_samples[n_next.vertex_name].project_all(
-            self._graph, n_next
-        )
         reached_new = False
-        for idx, sample in enumerate(projected_samples):
+        projected_samples = set()
+        for idx, sample in enumerate(self._set_samples[n_next.vertex_name].samples):
+            sample = self._project(n_next, sample)
+
+            if sample is None:
+                logger.warn(
+                    f"Failed to project sample {idx} for vertex {n_next.vertex_name}"
+                )
+                continue
+            else:
+                rounded_sample = np.round(sample, 6)
+                if tuple(rounded_sample) in projected_samples:
+                    continue
+                projected_samples.add(tuple(rounded_sample))
             # Create a new vertex for the sample and add it to the graph
             sample_vertex_name = f"{n_next.vertex_name}_sample_{idx}"
             self._graph.add_vertex(
@@ -358,86 +447,66 @@ class GcsAstarReachability(SearchAlgorithm):
         self._graph.set_target(self._target)
         return reached_new
 
-    def log_metrics_to_wandb(self, total_estimated_cost: float):
-        if not self._S and wandb.run is not None:
-            wandb.log(
-                {
-                    "total_estimated_cost": total_estimated_cost,
-                    "alg_metrics": self.alg_metrics.to_dict(),
-                }
-            )
-            return
-        if self._log_dir is not None:
+    @profile_method
+    def _project(self, n_next: SearchNode, sample: np.ndarray) -> np.ndarray:
+        sample = self._set_samples[n_next.vertex_name].project_single(
+            self._graph, n_next, sample
+        )
+        return sample
+
+    @profile_method
+    def _save_metrics(self, n: SearchNode, edges: List[Edge], override_save=False):
+        logger.info(
+            f"\n{self.alg_metrics}\nnow exploring node {n.vertex_name}'s {len(edges)} neighbors ({n.priority})"
+        )
+        self._step += 1
+        current_time = time.time()
+        PERIOD = 300
+        if self._log_dir is not None and (
+            override_save or self._last_plots_save_time + PERIOD < current_time
+        ):
+            # Histogram of paths per vertex
             # Preparing tracked and ignored counts
             tracked_counts = [len(self._S[v]) for v in self._S]
-            ignored_counts = [self._S_ignored_counts[v] for v in self._S]
-
-            # Create a figure to plot the histograms
-            fig = go.Figure()
-
-            # Adding Tracked histogram
-            fig.add_trace(go.Histogram(x=tracked_counts, name="Tracked", opacity=0.75))
-
-            # Adding Ignored histogram
-            fig.add_trace(go.Histogram(x=ignored_counts, name="Ignored", opacity=0.75))
-
-            # Update layout for a stacked or overlaid histogram
-            fig.update_layout(
-                title_text="Tracked and Ignored Paths per Vertex Histogram",  # Title
-                xaxis_title_text="Number of Paths to Vertex",  # x-axis label
-                yaxis_title_text="Frequency",  # y-axis label
-                barmode="stack",
+            ignored_counts = [self._S_ignored_counts[v] for v in self._S_ignored_counts]
+            hist_fig = self.alg_metrics.generate_tracked_ignored_paths_histogram(
+                tracked_counts, ignored_counts
             )
-            fig.update_traces(marker_line_width=1.5)
-
             # Save the figure to a file as png
-            fig.write_image(os.path.join(self._log_dir, "paths_per_vertex_hist.png"))
+            hist_fig.write_image(
+                os.path.join(self._log_dir, "paths_per_vertex_hist.png")
+            )
+
+            # Pie chart of method times
+            pie_fig = self._alg_metrics.generate_method_time_piechart()
+            pie_fig.write_image(
+                os.path.join(self._log_dir, "method_times_pie_chart.png")
+            )
 
             if wandb.run is not None:
                 # Log the Plotly figure and other metrics to wandb
                 wandb.log(
                     {
-                        "total_estimated_cost": total_estimated_cost,
-                        "alg_metrics": self.alg_metrics.to_dict(),
-                        "paths_per_vertex_hist": wandb.Plotly(fig),
-                    }
+                        "paths_per_vertex_hist": wandb.Plotly(hist_fig),
+                        "method_times_pie_chart": wandb.Plotly(pie_fig),
+                    },
+                    step=self._step,
                 )
 
+            self._last_plots_save_time = current_time
+        self.log_metrics_to_wandb(n.priority)
 
-"""
-Actually I think we don't need to operate on this subgraph at all but just the whole graph.
-The vertices and edges that are not in the path are going to be cleared by the C++ code,
-so we don't need to worry about that.
-"""
-# def _set_subgraph(self, n: SearchNode) -> None:
-#     """
-#     Set the subgraph to contain only the vertices and edges in the
-#     path of the given search node.
-#     """
-#     vertices_to_add = set(
-#         [self._graph.target_name, self._graph.source_name, n.vertex_name]
-#     )
-#     for _, v in n.path:
-#         vertices_to_add.add(v)
+    def log_metrics_to_wandb(self, total_estimated_cost: float):
+        if wandb.run is not None:  # not self._S
+            wandb.log(
+                {
+                    "total_estimated_cost": total_estimated_cost,
+                    "alg_metrics": self.alg_metrics.to_dict(),
+                },
+                self._step,
+            )
 
-#     # Ignore cfree subgraph sets,
-#     # Remove full dimensional sets if they aren't in the path
-#     # Add all vertices that aren't already inside
-#     for v in self._subgraph_fd_vertices.copy():
-#         if v not in vertices_to_add:  # We don't want to have it so remove it
-#             self._subgraph.remove_vertex(v)
-#             self._subgraph_fd_vertices.remove(v)
-#         else:  # We do want to have it but it's already in so don't need to add it
-#             vertices_to_add.remove(v)
-
-#     for v in vertices_to_add:
-#         self._subgraph.add_vertex(self._graph.vertices[v], v)
-#         self._subgraph_fd_vertices.add(v)
-
-#     self._subgraph.set_source(self._graph.source_name)
-#     self._subgraph.set_target(self._graph.target_name)
-
-#     # Add edges that aren't already in the visited subgraph.
-#     for edge_key in n.path:
-#         if edge_key not in self._subgraph.edges:
-#             self._subgraph.add_edge(self._graph.edges[edge_key])
+    @property
+    def alg_metrics(self):
+        self._alg_metrics.n_S = sum(len(lst) for lst in self._S.values())
+        return super().alg_metrics

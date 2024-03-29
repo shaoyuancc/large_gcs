@@ -21,7 +21,7 @@ hydra:
       graph_name: cg_maze_b2, cg_maze_b3
 
 # Adversarial examples (Where convex restriction fails, but a solution exists)
-# cg_maze_b1, cg_maze_b2, cg_maze_b3, cg_maze_a35, cg_maze_a39
+# cg_maze_b1, cg_maze_b3, cg_maze_a35, cg_maze_a39
 
 # graph_name: cg_trichal5, cg_trichal6, cg_trichal7, cg_trichal8, cg_trichal9, cg_trichal10, cg_trichal11, cg_trichal12, cg_trichal13, cg_trichal14
 # graph_name: cg_maze_a10, cg_maze_a11, cg_maze_a12, cg_maze_a13, cg_maze_a14, cg_maze_a15, cg_maze_a16, cg_maze_a17, cg_maze_a18, cg_maze_a19, cg_maze_a20, cg_maze_a21, cg_maze_a22, cg_maze_a23, cg_maze_a24, cg_maze_a25, cg_maze_a26, cg_maze_a27, cg_maze_a28, cg_maze_a29, cg_maze_a30, cg_maze_a31, cg_maze_a32, cg_maze_a33, cg_maze_a34, cg_maze_a35, cg_maze_a36, cg_maze_a37, cg_maze_a38, cg_maze_a39

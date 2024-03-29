@@ -1,11 +1,15 @@
 import heapq as heap
+import time
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from dataclasses import dataclass, field, fields
 from enum import Enum
+from functools import wraps
 from math import inf
-from typing import Dict, List, Optional
+from typing import DefaultDict, Dict, List, Optional
 
 import numpy as np
+import plotly.graph_objects as go
 
 import wandb
 from large_gcs.graph.graph import Edge, ShortestPathSolution
@@ -63,9 +67,18 @@ class AlgMetrics:
     gcs_solve_time_iter_max: float = 0.0
     n_vertices_reexpanded: Dict[int, int] = field(default_factory=lambda: {0: 0})
     n_vertices_revisited: Dict[int, int] = field(default_factory=lambda: {0: 0})
+    n_Q: int = 0
+    n_S: int = 0
+    method_times: DefaultDict[str, float] = field(
+        default_factory=lambda: defaultdict(float)
+    )
+    method_counts: DefaultDict[str, int] = field(
+        default_factory=lambda: defaultdict(int)
+    )
 
     def __post_init__(self):
         self._gcs_solve_times = np.empty((0,))
+        self._method_call_structure = None
 
     def update_after_gcs_solve(self, solve_time: float):
         self.n_gcs_solves += 1
@@ -103,7 +116,11 @@ class AlgMetrics:
             if isinstance(value, float):
                 # Format the float to 3 significant figures
                 value = "{:.3g}".format(value)
+            elif isinstance(value, defaultdict):
+                # Convert defaultdicts to dict for printing
+                value = dict(value)
             result.append(f"{field.name}: {value}")
+
         return ", ".join(result)
 
     def to_dict(self):
@@ -122,6 +139,81 @@ class AlgMetrics:
             else:
                 res[f.name] = attr
         return res
+
+    def set_method_call_structure(self, call_structure: Dict[str, List[str]]):
+        """Set the call structure of the methods for the method time pie chart."""
+        # Note that this calculation will be wrong if a child method is called by two parents
+        called_methods = set()
+        for nested_methods in call_structure.values():
+            for nested_method in nested_methods:
+                assert (
+                    nested_method not in called_methods
+                ), f"Method {nested_method} is called by multiple parent methods."
+                called_methods.add(nested_method)
+
+        self._method_call_structure = call_structure
+
+    def generate_method_time_piechart(self):
+        """Generate a pie chart of the time spent in each method."""
+        assert (
+            self._method_call_structure is not None
+        ), "Method call structure must be set before generating the pie chart."
+
+        # Calculate exclusive times from total times that include nested calls
+        exclusive_times = {method: times for method, times in self.method_times.items()}
+        for method, nested_methods in self._method_call_structure.items():
+            if not method in exclusive_times:
+                continue
+            for nested_method in nested_methods:
+                exclusive_times[method] -= self.method_times[nested_method]
+
+        # This may be called "mid-nest" so we need to remove the negative values
+        exclusive_times = {
+            method: max(0, time) for method, time in exclusive_times.items()
+        }
+
+        # Generate the pie chart
+        labels = list(exclusive_times.keys())
+        values = list(exclusive_times.values())
+
+        # Create a pie chart
+        fig = go.Figure()
+        fig.add_trace(
+            go.Pie(
+                labels=labels,
+                values=values,
+                pull=[0.1] * len(labels),
+                textinfo="label+value+percent",
+            )
+        )
+
+        # Enhance chart visuals
+        fig.update_traces(marker=dict(line=dict(color="#000000", width=2)))
+        fig.update_layout(title_text="Exclusive Method Execution Times", title_x=0.5)
+        return fig
+
+    def generate_tracked_ignored_paths_histogram(
+        self, tracked_counts: List[int], ignored_counts: List[int]
+    ):
+        # Create a figure to plot the histograms
+        fig = go.Figure()
+
+        # Adding Tracked histogram
+        fig.add_trace(go.Histogram(x=tracked_counts, name="Tracked", opacity=0.75))
+
+        # Adding Ignored histogram
+        fig.add_trace(go.Histogram(x=ignored_counts, name="Ignored", opacity=0.75))
+
+        # Update layout for a stacked or overlaid histogram
+        fig.update_layout(
+            title_text="Tracked and Ignored Paths per Vertex Histogram",  # Title
+            xaxis_title_text="Number of Paths to Vertex",  # x-axis label
+            yaxis_title_text="Frequency",  # y-axis label
+            barmode="stack",
+        )
+        fig.update_traces(marker_line_width=1.5)
+
+        return fig
 
 
 @dataclass
@@ -184,6 +276,7 @@ class SearchAlgorithm(ABC):
 
     @property
     def alg_metrics(self):
+        self._alg_metrics.n_Q = len(self._Q)
         return self._alg_metrics.update_derived_metrics()
 
     def log_metrics_to_wandb(self, total_estimated_cost: float):
@@ -194,3 +287,20 @@ class SearchAlgorithm(ABC):
                     "alg_metrics": self.alg_metrics.to_dict(),
                 }
             )
+
+
+def profile_method(method):
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        start_time = time.time()
+        result = method(self, *args, **kwargs)  # Call the original method
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+
+        # Update the AlgMetrics with the elapsed time for the method
+        self._alg_metrics.method_times[method.__name__] += elapsed_time
+        self._alg_metrics.method_counts[method.__name__] += 1
+
+        return result
+
+    return wrapper
