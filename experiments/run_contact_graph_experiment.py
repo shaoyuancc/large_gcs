@@ -102,7 +102,10 @@ def main(cfg: OmegaConf) -> None:
         print("No abstraction model generator")
         cost_estimator: CostEstimator = instantiate(cfg.cost_estimator, graph=cg)
         alg: SearchAlgorithm = instantiate(
-            cfg.algorithm, graph=cg, cost_estimator=cost_estimator, log_dir=full_log_dir
+            cfg.algorithm,
+            graph=cg,
+            cost_estimator=cost_estimator,
+            vis_params=AlgVisParams(log_dir=full_log_dir),
         )
 
     sol: ShortestPathSolution = alg.run()

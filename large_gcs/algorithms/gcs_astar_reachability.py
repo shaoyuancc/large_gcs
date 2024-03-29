@@ -204,7 +204,6 @@ class GcsAstarReachability(SearchAlgorithm):
         tiebreak: TieBreak = TieBreak.FIFO,
         vis_params: Optional[AlgVisParams] = None,
         num_samples_per_vertex: int = 100,
-        log_dir: Optional[str] = None,
     ):
         if isinstance(graph, IncrementalContactGraph):
             assert (
@@ -221,7 +220,6 @@ class GcsAstarReachability(SearchAlgorithm):
             self._counter = itertools.count(start=0, step=1)
         elif tiebreak == TieBreak.LIFO or tiebreak == TieBreak.LIFO.name:
             self._counter = itertools.count(start=0, step=-1)
-        self._log_dir = log_dir
 
         # For logging/metrics
         # Expanded set
@@ -462,7 +460,8 @@ class GcsAstarReachability(SearchAlgorithm):
         self._step += 1
         current_time = time.time()
         PERIOD = 300
-        if self._log_dir is not None and (
+        log_dir = self._vis_params.log_dir
+        if log_dir is not None and (
             override_save or self._last_plots_save_time + PERIOD < current_time
         ):
             # Histogram of paths per vertex
@@ -473,15 +472,11 @@ class GcsAstarReachability(SearchAlgorithm):
                 tracked_counts, ignored_counts
             )
             # Save the figure to a file as png
-            hist_fig.write_image(
-                os.path.join(self._log_dir, "paths_per_vertex_hist.png")
-            )
+            hist_fig.write_image(os.path.join(log_dir, "paths_per_vertex_hist.png"))
 
             # Pie chart of method times
             pie_fig = self._alg_metrics.generate_method_time_piechart()
-            pie_fig.write_image(
-                os.path.join(self._log_dir, "method_times_pie_chart.png")
-            )
+            pie_fig.write_image(os.path.join(log_dir, "method_times_pie_chart.png"))
 
             if wandb.run is not None:
                 # Log the Plotly figure and other metrics to wandb

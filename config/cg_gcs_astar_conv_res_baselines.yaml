@@ -17,10 +17,10 @@ algorithm:
   tiebreak: 'FIFO'
 
 save_visualization: true
-save_to_wandb: false
+save_to_wandb: true
 
 hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      graph_name: cg_simple_2, cg_simple_3, cg_trichal2
+      graph_name: cg_simple_2, cg_simple_3, cg_trichal2, cg_trichal4
