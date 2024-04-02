@@ -13,13 +13,7 @@ matplotlib = "^3.7.1"
 ipykernel = "^6.23.1"
 scipy = "^1.10.1"
 graphviz = "^0.20.1"
-# Use nightly build of Drake
-drake = [
-    #{url="https://drake-packages.csail.mit.edu/drake/nightly/drake-latest-cp311-cp311-macosx_12_0_x86_64.whl", markers = "sys_platform == 'darwin' and platform_machine == 'x86_64'"},
-    {url="https://drake-packages.csail.mit.edu/drake/nightly/drake-latest-cp311-cp311-macosx_12_0_arm64.whl", markers = "sys_platform == 'darwin' and platform_machine == 'arm64'"},
-    # For Ubuntu 20.04 Focal
-    # {url="https://drake-packages.csail.mit.edu/drake/nightly/drake-latest-cp38-cp38-manylinux_2_31_x86_64.whl", markers="sys_platform == 'linux'"},
-]
+drake = [{version = "<0.1", source = "drake-repo"}]
 black = "^23.3.0"
 tqdm = "^4.65.0"
 pytest = "^7.4.0"
@@ -30,6 +24,7 @@ autoflake = "^2.2.0"
 isort = "^5.12.0"
 pdbpp = "^0.10.3"
 plotly = "^5.20.0"
+kaleido = "^0.2.1"
 
 [tool.isort]
 profile = "black"
@@ -37,3 +32,8 @@ profile = "black"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[[tool.poetry.source]]
+name = "drake-repo"
+url = "https://drake-packages.csail.mit.edu/whl/nightly/"
+secondary = true
