@@ -1,3 +1,4 @@
 _target_: large_gcs.algorithms.gcs_astar_reachability.GcsAstarReachability
 
 num_samples_per_vertex: 10
+only_consider_reachability: false

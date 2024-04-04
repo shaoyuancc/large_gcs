@@ -204,6 +204,7 @@ class GcsAstarReachability(SearchAlgorithm):
         tiebreak: TieBreak = TieBreak.FIFO,
         vis_params: Optional[AlgVisParams] = None,
         num_samples_per_vertex: int = 100,
+        only_consider_reachability: bool = False,
     ):
         if isinstance(graph, IncrementalContactGraph):
             assert (
@@ -220,6 +221,11 @@ class GcsAstarReachability(SearchAlgorithm):
             self._counter = itertools.count(start=0, step=1)
         elif tiebreak == TieBreak.LIFO or tiebreak == TieBreak.LIFO.name:
             self._counter = itertools.count(start=0, step=-1)
+
+        if only_consider_reachability:
+            self._should_add_to_pq = self._reaches_new
+        else:
+            self._should_add_to_pq = self._reaches_cheaper
 
         # For logging/metrics
         # Expanded set
@@ -352,7 +358,7 @@ class GcsAstarReachability(SearchAlgorithm):
         if (
             neighbor != self._target
             # and n.vertex_name != self._graph.source_name
-            and not self._reaches_new(n_next)
+            and not self._should_add_to_pq(n_next)
         ):
             # Path does not reach new areas, do not add to Q or S
             logger.debug(
@@ -363,6 +369,104 @@ class GcsAstarReachability(SearchAlgorithm):
         logger.debug(f"Added to Q: Path to {n_next.vertex_name} reaches new samples")
         self._S[neighbor] += [n_next]
         self.push_node_on_Q(n_next)
+
+    @profile_method
+    def _reaches_cheaper(self, n_next: SearchNode) -> bool:
+        """
+        Checks samples to see if this path reaches any samples cheaper than any previous path.
+        Note that if no other path reaches the sample, this path is considered cheaper.
+        (Any cost is cheaper than infinity)
+        """
+        # If the vertex has not been visited before and the path is feasible, it definitely reaches cheaper
+        if n_next.vertex_name not in self._S:
+            return True
+
+        if n_next.vertex_name not in self._set_samples:
+            logger.debug(f"Adding samples for {n_next.vertex_name}")
+            self._set_samples[n_next.vertex_name] = SetSamples.from_vertex(
+                n_next.vertex_name,
+                self._graph.vertices[n_next.vertex_name],
+                self._num_samples_per_vertex,
+            )
+
+        reached_cheaper = False
+        projected_samples = set()
+        for idx, sample in enumerate(self._set_samples[n_next.vertex_name].samples):
+            sample = self._project(n_next, sample)
+
+            if sample is None:
+                logger.warn(
+                    f"Failed to project sample {idx} for vertex {n_next.vertex_name}"
+                )
+                continue
+            else:
+                if tuple(sample) in projected_samples:
+                    continue
+                projected_samples.add(tuple(sample))
+            # Create a new vertex for the sample and add it to the graph
+            sample_vertex_name = f"{n_next.vertex_name}_sample_{idx}"
+
+            self._graph.add_vertex(
+                vertex=Vertex(convex_set=Point(sample)), name=sample_vertex_name
+            )
+
+            # Calculate the cost to come to the sample for the candidate path
+            e = self._graph.edges[n_next.edge_path[-1]]
+            edge_to_sample = Edge(
+                u=e.u,
+                v=sample_vertex_name,
+                costs=e.costs,
+                constraints=e.constraints,
+            )
+            self._graph.add_edge(edge_to_sample)
+            self._graph.set_target(sample_vertex_name)
+            active_edges = n_next.edge_path.copy()
+            active_edges[-1] = edge_to_sample.key
+
+            sol = self._graph.solve_convex_restriction(
+                active_edges, skip_post_solve=True
+            )
+            self._alg_metrics.update_after_gcs_solve(sol.time)
+            assert sol.is_success, "Candidate path should be feasible"
+            candidate_path_cost_to_come = sol.cost
+            # Clean up edge, but leave the sample vertex
+            self._graph.remove_edge(edge_to_sample.key)
+
+            alt_cost_to_comes = np.full(len(self._S[n_next.vertex_name]), np.inf)
+            for i, alt_n in enumerate(self._S[n_next.vertex_name]):
+                # Add edge between the sample and the second last vertex in the path
+                e = self._graph.edges[alt_n.edge_path[-1]]
+                edge_to_sample = Edge(
+                    u=e.u,
+                    v=sample_vertex_name,
+                    costs=e.costs,
+                    constraints=e.constraints,
+                )
+                self._graph.add_edge(edge_to_sample)
+                # Check whether sample can be reached via the path
+                self._graph.set_target(sample_vertex_name)
+                active_edges = alt_n.edge_path.copy()
+                active_edges[-1] = edge_to_sample.key
+
+                sol = self._graph.solve_convex_restriction(
+                    active_edges, skip_post_solve=True
+                )
+                self._alg_metrics.update_after_gcs_solve(sol.time)
+                if sol.is_success:
+                    alt_cost_to_comes[i] = sol.cost
+                # Clean up edge, but leave the sample vertex
+                self._graph.remove_edge(edge_to_sample.key)
+            # Remove current sample before moving on to next sample
+            self._graph.remove_vertex(sample_vertex_name)
+
+            # Check if candidate path is cheaper than all other paths to the sample
+            if np.all(candidate_path_cost_to_come < alt_cost_to_comes):
+                reached_cheaper = True
+                logger.debug(f"Sample {idx} reached cheaper by candidate path")
+                break
+
+        self._graph.set_target(self._target)
+        return reached_cheaper
 
     @profile_method
     def _reaches_new(self, n_next: SearchNode) -> bool:
@@ -393,10 +497,9 @@ class GcsAstarReachability(SearchAlgorithm):
                 )
                 continue
             else:
-                rounded_sample = np.round(sample, 6)
-                if tuple(rounded_sample) in projected_samples:
+                if tuple(sample) in projected_samples:
                     continue
-                projected_samples.add(tuple(rounded_sample))
+                projected_samples.add(tuple(sample))
             # Create a new vertex for the sample and add it to the graph
             sample_vertex_name = f"{n_next.vertex_name}_sample_{idx}"
             self._graph.add_vertex(
