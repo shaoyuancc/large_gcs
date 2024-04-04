@@ -16,6 +16,7 @@ from pydrake.all import (
     GraphOfConvexSetsOptions,
     MathematicalProgramResult,
     SolverOptions,
+    MosekSolver,
 )
 from tqdm import tqdm
 
@@ -390,15 +391,19 @@ class Graph:
         return sol
 
     def solve_convex_restriction(
-        self, active_edge_keys: List[str], skip_post_solve: bool = False
+        self, active_edge_keys: List[str], skip_post_solve: bool = False, solver_options: Optional[SolverOptions] = None
     ) -> ShortestPathSolution:
         # logger.debug(f"active edge keys: {active_edge_keys}")
         active_edges = [self.edges[edge_key] for edge_key in active_edge_keys]
         gcs_edges = [edge.gcs_edge for edge in active_edges]
+        if solver_options is not None:
+            self._gcs_options_wo_relaxation.solver_options = solver_options
         result = self._gcs.SolveConvexRestriction(
             gcs_edges,
             self._gcs_options_wo_relaxation,
         )
+        # logger.debug(f"solver options used: {self._gcs_options_wo_relaxation.solver_options.GetOptions(MosekSolver.id())}")
+        self._gcs_options_wo_relaxation.solver_options = SolverOptions()
         # logger.debug(f"is_success: {result.is_success()}")
         sol = self._parse_convex_restriction_result(result, active_edges)
 

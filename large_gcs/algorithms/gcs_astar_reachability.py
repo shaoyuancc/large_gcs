@@ -52,6 +52,7 @@ class SetSamples:
             vertex_name=vertex_name,
             samples=samples,
         )
+    
 
     def project_single(
         self, graph: Graph, node: SearchNode, sample: np.ndarray
@@ -236,7 +237,8 @@ class GcsAstarReachability(SearchAlgorithm):
                 "_generate_neighbors",
                 "_save_metrics",
             ],
-            "_visit_neighbor": ["_reaches_new"],
+            "_visit_neighbor": ["_reaches_new",
+                                "_reaches_cheaper"],
             "_reaches_new": ["_project"],
         }
         self._alg_metrics.set_method_call_structure(call_structure)
@@ -362,11 +364,11 @@ class GcsAstarReachability(SearchAlgorithm):
         ):
             # Path does not reach new areas, do not add to Q or S
             logger.debug(
-                f"Not added to Q: Path to {n_next.vertex_name} does not reach new samples"
+                f"Not added to Q: Path to {n_next.vertex_name} does not reach new/cheaper"
             )
             self._S_ignored_counts[n_next.vertex_name] += 1
             return
-        logger.debug(f"Added to Q: Path to {n_next.vertex_name} reaches new samples")
+        logger.debug(f"Added to Q: Path to {n_next.vertex_name} reaches new/cheaper")
         self._S[neighbor] += [n_next]
         self.push_node_on_Q(n_next)
 
@@ -392,22 +394,23 @@ class GcsAstarReachability(SearchAlgorithm):
         reached_cheaper = False
         projected_samples = set()
         for idx, sample in enumerate(self._set_samples[n_next.vertex_name].samples):
-            sample = self._project(n_next, sample)
+            proj_sample = self._project(n_next, sample)
 
-            if sample is None:
+            if proj_sample is None:
                 logger.warn(
                     f"Failed to project sample {idx} for vertex {n_next.vertex_name}"
                 )
                 continue
             else:
-                if tuple(sample) in projected_samples:
+                if tuple(proj_sample) in projected_samples:
+                    logger.debug(f"projected sample {idx} same as a previous sample")
                     continue
-                projected_samples.add(tuple(sample))
+                projected_samples.add(tuple(proj_sample))
             # Create a new vertex for the sample and add it to the graph
             sample_vertex_name = f"{n_next.vertex_name}_sample_{idx}"
 
             self._graph.add_vertex(
-                vertex=Vertex(convex_set=Point(sample)), name=sample_vertex_name
+                vertex=Vertex(convex_set=Point(proj_sample)), name=sample_vertex_name
             )
 
             # Calculate the cost to come to the sample for the candidate path
@@ -427,12 +430,23 @@ class GcsAstarReachability(SearchAlgorithm):
                 active_edges, skip_post_solve=True
             )
             self._alg_metrics.update_after_gcs_solve(sol.time)
-            assert sol.is_success, "Candidate path should be feasible"
-            candidate_path_cost_to_come = sol.cost
             # Clean up edge, but leave the sample vertex
             self._graph.remove_edge(edge_to_sample.key)
-
-            alt_cost_to_comes = np.full(len(self._S[n_next.vertex_name]), np.inf)
+            if not sol.is_success:
+                logger.error(f"Candidate path was not feasible to reach sample {idx}" +
+                    f"\nnum samples: {len(self._set_samples[n_next.vertex_name].samples)}" +
+                    f"\nsample: {proj_sample}" +
+                    f"\nproj_sample: {proj_sample}" +
+                    f"\nactive edges: {active_edges}" +
+                    f"\nvertex_path: {n_next.vertex_path}" +
+                    f"\n Skipping to next sample"
+                )
+                # assert sol.is_success, "Candidate path should be feasible"
+                self._graph.remove_vertex(sample_vertex_name)
+                continue
+            candidate_path_cost_to_come = sol.cost
+            
+            go_to_next_sample = False
             for i, alt_n in enumerate(self._S[n_next.vertex_name]):
                 # Add edge between the sample and the second last vertex in the path
                 e = self._graph.edges[alt_n.edge_path[-1]]
@@ -452,18 +466,23 @@ class GcsAstarReachability(SearchAlgorithm):
                     active_edges, skip_post_solve=True
                 )
                 self._alg_metrics.update_after_gcs_solve(sol.time)
-                if sol.is_success:
-                    alt_cost_to_comes[i] = sol.cost
-                # Clean up edge, but leave the sample vertex
-                self._graph.remove_edge(edge_to_sample.key)
-            # Remove current sample before moving on to next sample
-            self._graph.remove_vertex(sample_vertex_name)
+                if sol.is_success and sol.cost <= candidate_path_cost_to_come:
+                    self._graph.remove_vertex(sample_vertex_name)
+                    go_to_next_sample = True
+                    break
+                else:
+                    # Clean up edge, but leave the sample vertex
+                    self._graph.remove_edge(edge_to_sample.key)
+            
+            if go_to_next_sample:
+                continue
 
-            # Check if candidate path is cheaper than all other paths to the sample
-            if np.all(candidate_path_cost_to_come < alt_cost_to_comes):
-                reached_cheaper = True
-                logger.debug(f"Sample {idx} reached cheaper by candidate path")
-                break
+            # If no alt path was cheaper than candidate path, do not need to check more samples
+            reached_cheaper = True
+            if sample_vertex_name in self._graph.vertices:
+                self._graph.remove_vertex(sample_vertex_name)
+            logger.debug(f"Sample {idx} reached cheaper by candidate path")
+            break
 
         self._graph.set_target(self._target)
         return reached_cheaper
