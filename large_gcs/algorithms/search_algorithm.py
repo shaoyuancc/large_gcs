@@ -69,6 +69,7 @@ class AlgMetrics:
     n_vertices_revisited: Dict[int, int] = field(default_factory=lambda: {0: 0})
     n_Q: int = 0
     n_S: int = 0
+    n_S_pruned: int = 0
     method_times: DefaultDict[str, float] = field(
         default_factory=lambda: defaultdict(float)
     )
@@ -192,8 +193,8 @@ class AlgMetrics:
         fig.update_layout(title_text="Exclusive Method Execution Times", title_x=0.5)
         return fig
 
-    def generate_tracked_ignored_paths_histogram(
-        self, tracked_counts: List[int], ignored_counts: List[int]
+    def generate_tracked_pruned_paths_histogram(
+        self, tracked_counts: List[int], pruned_counts: List[int]
     ):
         # Create a figure to plot the histograms
         fig = go.Figure()
@@ -201,12 +202,12 @@ class AlgMetrics:
         # Adding Tracked histogram
         fig.add_trace(go.Histogram(x=tracked_counts, name="Tracked", opacity=0.75))
 
-        # Adding Ignored histogram
-        fig.add_trace(go.Histogram(x=ignored_counts, name="Ignored", opacity=0.75))
+        # Adding Pruned histogram
+        fig.add_trace(go.Histogram(x=pruned_counts, name="Pruned", opacity=0.75))
 
         # Update layout for a stacked or overlaid histogram
         fig.update_layout(
-            title_text="Tracked and Ignored Paths per Vertex Histogram",  # Title
+            title_text="Tracked and Pruned Paths per Vertex Histogram",  # Title
             xaxis_title_text="Number of Paths to Vertex",  # x-axis label
             yaxis_title_text="Frequency",  # y-axis label
             barmode="stack",

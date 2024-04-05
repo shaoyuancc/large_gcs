@@ -79,7 +79,7 @@ class SetSamples:
         self._proj_graph.set_source(graph.source_name)
 
 
-    def project_single_gcs(self, graph: Graph, node: SearchNode, sample: np.ndarray) -> np.ndarray:
+    def project_single_gcs(self, graph: Graph, node: SearchNode, sample: np.ndarray) -> Optional[np.ndarray]:
 
         cost = create_l2norm_squared_vertex_cost_from_point(sample)
         ref_vertex = graph.vertices[node.vertex_name]
@@ -106,8 +106,12 @@ class SetSamples:
         sol = self._proj_graph.solve_convex_restriction(active_edges, skip_post_solve=True)
 
         if not sol.is_success:
-            logger.error(f"Failed to project sample for vertex {node.vertex_name}, sample: {sample}")
-            assert sol.is_success, "Failed to project sample"
+            logger.error(f"Failed to project sample for vertex {node.vertex_name}"
+                         f"\nnum total samples for this vertex: {len(self.samples)}"
+                         f"sample: {sample}"
+                         f"vertex_path: {node.vertex_path}")
+            return None
+            # assert sol.is_success, "Failed to project sample"
         
         proj_sample = sol.ambient_path[-1]
 
@@ -312,7 +316,7 @@ class GcsAstarReachability(SearchAlgorithm):
 
         # Visited dictionary
         self._S: dict[str, list[SearchNode]] = defaultdict(list)
-        self._S_ignored_counts: dict[str, int] = defaultdict(int)
+        self._S_pruned_counts: dict[str, int] = defaultdict(int)
         # Priority queue
         self._Q: list[SearchNode] = []
 
@@ -431,7 +435,7 @@ class GcsAstarReachability(SearchAlgorithm):
             logger.debug(
                 f"Not added to Q: Path to {n_next.vertex_name} does not reach new/cheaper"
             )
-            self._S_ignored_counts[n_next.vertex_name] += 1
+            self._S_pruned_counts[n_next.vertex_name] += 1
             return
         logger.debug(f"Added to Q: Path to {n_next.vertex_name} reaches new/cheaper")
         self._S[neighbor] += [n_next]
@@ -499,12 +503,12 @@ class GcsAstarReachability(SearchAlgorithm):
             # Clean up edge, but leave the sample vertex
             self._graph.remove_edge(edge_to_sample.key)
             if not sol.is_success:
-                logger.error(f"Candidate path was not feasible to reach sample {idx}" +
-                    f"\nnum samples: {len(self._set_samples[n_next.vertex_name].samples)}" +
-                    f"\nsample: {proj_sample}" +
-                    f"\nproj_sample: {proj_sample}" +
-                    f"\nactive edges: {active_edges}" +
-                    f"\nvertex_path: {n_next.vertex_path}" +
+                logger.error(f"Candidate path was not feasible to reach sample {idx}"
+                    f"\nnum samples: {len(self._set_samples[n_next.vertex_name].samples)}"
+                    f"\nsample: {proj_sample}"
+                    f"\nproj_sample: {proj_sample}"
+                    f"\nactive edges: {active_edges}"
+                    f"\nvertex_path: {n_next.vertex_path}"
                     f"\n Skipping to next sample"
                 )
                 # assert sol.is_success, "Candidate path should be feasible"
@@ -635,7 +639,7 @@ class GcsAstarReachability(SearchAlgorithm):
         return reached_new
 
     @profile_method
-    def _project(self, n_next: SearchNode, sample: np.ndarray) -> np.ndarray:
+    def _project(self, n_next: SearchNode, sample: np.ndarray) -> Optional[np.ndarray]:
         sample = self._set_samples[n_next.vertex_name].project_single_gcs(
             self._graph, n_next, sample
         )
@@ -654,11 +658,11 @@ class GcsAstarReachability(SearchAlgorithm):
             override_save or self._last_plots_save_time + PERIOD < current_time
         ):
             # Histogram of paths per vertex
-            # Preparing tracked and ignored counts
+            # Preparing tracked and pruned counts
             tracked_counts = [len(self._S[v]) for v in self._S]
-            ignored_counts = [self._S_ignored_counts[v] for v in self._S_ignored_counts]
-            hist_fig = self.alg_metrics.generate_tracked_ignored_paths_histogram(
-                tracked_counts, ignored_counts
+            pruned_counts = [self._S_pruned_counts[v] for v in self._S_pruned_counts]
+            hist_fig = self.alg_metrics.generate_tracked_pruned_paths_histogram(
+                tracked_counts, pruned_counts
             )
             # Save the figure to a file as png
             hist_fig.write_image(os.path.join(log_dir, "paths_per_vertex_hist.png"))
@@ -693,4 +697,5 @@ class GcsAstarReachability(SearchAlgorithm):
     @property
     def alg_metrics(self):
         self._alg_metrics.n_S = sum(len(lst) for lst in self._S.values())
+        self._alg_metrics.n_S_pruned = sum(self._S_pruned_counts.values())
         return super().alg_metrics
