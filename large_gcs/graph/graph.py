@@ -391,7 +391,10 @@ class Graph:
         return sol
 
     def solve_convex_restriction(
-        self, active_edge_keys: List[str], skip_post_solve: bool = False, solver_options: Optional[SolverOptions] = None
+        self,
+        active_edge_keys: List[str],
+        skip_post_solve: bool = False,
+        solver_options: Optional[SolverOptions] = None,
     ) -> ShortestPathSolution:
         # logger.debug(f"active edge keys: {active_edge_keys}")
         active_edges = [self.edges[edge_key] for edge_key in active_edge_keys]

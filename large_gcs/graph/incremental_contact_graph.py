@@ -7,7 +7,7 @@ from multiprocessing import Pool
 from typing import List, Optional
 
 import numpy as np
-from pydrake.all import (Cost, SolverOptions)
+from pydrake.all import Cost, SolverOptions
 from tqdm import tqdm
 
 from large_gcs.contact.contact_regions_set import ContactRegionParams, ContactRegionsSet
@@ -281,10 +281,15 @@ class IncrementalContactGraph(ContactGraph):
             )
 
     def solve_convex_restriction(
-        self, active_edges: List[str], skip_post_solve: bool = False, solver_options: Optional[SolverOptions] =None
+        self,
+        active_edges: List[str],
+        skip_post_solve: bool = False,
+        solver_options: Optional[SolverOptions] = None,
     ) -> ShortestPathSolution:
         if self._should_add_gcs:
-            return super().solve_convex_restriction(active_edges, skip_post_solve, solver_options)
+            return super().solve_convex_restriction(
+                active_edges, skip_post_solve, solver_options
+            )
         else:
             raise ValueError(
                 f"Incremental graph should_add_gcs is False. Must set to True in order to solve."

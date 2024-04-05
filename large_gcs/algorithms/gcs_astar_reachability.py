@@ -27,7 +27,10 @@ from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.geometry_utils import unique_rows_with_tolerance_ignore_nan
 from large_gcs.geometry.point import Point
-from large_gcs.graph.cost_constraint_factory import create_equality_edge_constraint, create_l2norm_squared_vertex_cost_from_point
+from large_gcs.graph.cost_constraint_factory import (
+    create_equality_edge_constraint,
+    create_l2norm_squared_vertex_cost_from_point,
+)
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution, Vertex
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 
@@ -53,10 +56,10 @@ class SetSamples:
             vertex_name=vertex_name,
             samples=samples,
         )
-    
+
     def init_graph_for_projection(self, graph: Graph, node: SearchNode):
         self._proj_graph = Graph()
-        
+
         # Add vertices along the candidate path to the projection graph
         # Leave out the last vertex, as we need to add the cost specific to the sample to it
         for vertex_name in node.vertex_path[:-1]:
@@ -64,7 +67,7 @@ class SetSamples:
             ref_vertex = graph.vertices[vertex_name]
             vertex = Vertex(ref_vertex.convex_set, constraints=ref_vertex.constraints)
             self._proj_graph.add_vertex(vertex, vertex_name)
-        
+
         # Add edges along the candidate path to the projection graph
         # Leave out the last edge, as we didn't add the last vertex
         for edge_key in node.edge_path[:-1]:
@@ -78,9 +81,9 @@ class SetSamples:
 
         self._proj_graph.set_source(graph.source_name)
 
-
-    def project_single_gcs(self, graph: Graph, node: SearchNode, sample: np.ndarray) -> Optional[np.ndarray]:
-
+    def project_single_gcs(
+        self, graph: Graph, node: SearchNode, sample: np.ndarray
+    ) -> Optional[np.ndarray]:
         cost = create_l2norm_squared_vertex_cost_from_point(sample)
         ref_vertex = graph.vertices[node.vertex_name]
         vertex = Vertex(
@@ -103,16 +106,20 @@ class SetSamples:
 
         active_edges = node.edge_path
 
-        sol = self._proj_graph.solve_convex_restriction(active_edges, skip_post_solve=True)
+        sol = self._proj_graph.solve_convex_restriction(
+            active_edges, skip_post_solve=True
+        )
 
         if not sol.is_success:
-            logger.error(f"Failed to project sample for vertex {node.vertex_name}"
-                         f"\nnum total samples for this vertex: {len(self.samples)}"
-                         f"sample: {sample}"
-                         f"vertex_path: {node.vertex_path}")
+            logger.error(
+                f"Failed to project sample for vertex {node.vertex_name}"
+                f"\nnum total samples for this vertex: {len(self.samples)}"
+                f"sample: {sample}"
+                f"vertex_path: {node.vertex_path}"
+            )
             return None
             # assert sol.is_success, "Failed to project sample"
-        
+
         proj_sample = sol.ambient_path[-1]
 
         # Clean up the projection graph
@@ -120,8 +127,6 @@ class SetSamples:
         # Edge is automatically removed when vertex is removed
 
         return proj_sample
-
-    
 
     def project_single(
         self, graph: Graph, node: SearchNode, sample: np.ndarray
@@ -306,8 +311,7 @@ class GcsAstarReachability(SearchAlgorithm):
                 "_generate_neighbors",
                 "_save_metrics",
             ],
-            "_visit_neighbor": ["_reaches_new",
-                                "_reaches_cheaper"],
+            "_visit_neighbor": ["_reaches_new", "_reaches_cheaper"],
             "_reaches_new": ["_project"],
         }
         self._alg_metrics.set_method_call_structure(call_structure)
@@ -462,7 +466,9 @@ class GcsAstarReachability(SearchAlgorithm):
 
         reached_cheaper = False
         projected_samples = set()
-        self._set_samples[n_next.vertex_name].init_graph_for_projection(self._graph, n_next)
+        self._set_samples[n_next.vertex_name].init_graph_for_projection(
+            self._graph, n_next
+        )
         for idx, sample in enumerate(self._set_samples[n_next.vertex_name].samples):
             proj_sample = self._project(n_next, sample)
 
@@ -503,7 +509,8 @@ class GcsAstarReachability(SearchAlgorithm):
             # Clean up edge, but leave the sample vertex
             self._graph.remove_edge(edge_to_sample.key)
             if not sol.is_success:
-                logger.error(f"Candidate path was not feasible to reach sample {idx}"
+                logger.error(
+                    f"Candidate path was not feasible to reach sample {idx}"
                     f"\nnum samples: {len(self._set_samples[n_next.vertex_name].samples)}"
                     f"\nsample: {proj_sample}"
                     f"\nproj_sample: {proj_sample}"
@@ -515,7 +522,7 @@ class GcsAstarReachability(SearchAlgorithm):
                 self._graph.remove_vertex(sample_vertex_name)
                 continue
             candidate_path_cost_to_come = sol.cost
-            
+
             go_to_next_sample = False
             for i, alt_n in enumerate(self._S[n_next.vertex_name]):
                 # Add edge between the sample and the second last vertex in the path
@@ -543,7 +550,7 @@ class GcsAstarReachability(SearchAlgorithm):
                 else:
                     # Clean up edge, but leave the sample vertex
                     self._graph.remove_edge(edge_to_sample.key)
-            
+
             if go_to_next_sample:
                 continue
 
@@ -577,7 +584,9 @@ class GcsAstarReachability(SearchAlgorithm):
 
         reached_new = False
         projected_samples = set()
-        self._set_samples[n_next.vertex_name].init_graph_for_projection(self._graph, n_next)
+        self._set_samples[n_next.vertex_name].init_graph_for_projection(
+            self._graph, n_next
+        )
         for idx, sample in enumerate(self._set_samples[n_next.vertex_name].samples):
             sample = self._project(n_next, sample)
 

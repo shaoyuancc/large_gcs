@@ -32,8 +32,9 @@ def create_vars_from_template(
 
 
 def contact_shortcut_edge_cost_factory_under(
-    u_vars: ContactSetDecisionVariables, v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    add_const_cost: bool = False,
 ) -> List[Cost]:
     """Creates a list of costs for the shortcut between set u and set v"""
     u_vars_all = create_vars_from_template(u_vars.all, "u")
@@ -60,8 +61,9 @@ def contact_shortcut_edge_cost_factory_under(
 
 
 def contact_shortcut_edge_cost_factory_under_obj_weighted(
-    u_vars: ContactSetDecisionVariables, v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    add_const_cost: bool = False,
 ) -> List[Cost]:
     """Creates a list of costs for the shortcut between set u and set v"""
     u_vars_all = create_vars_from_template(u_vars.all, "u")
@@ -97,9 +99,11 @@ def contact_shortcut_edge_cost_factory_under_obj_weighted(
 
     return costs
 
+
 def contact_shortcut_edge_cost_factory_over(
-    u_vars: ContactSetDecisionVariables, v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    add_const_cost: bool = False,
 ) -> List[Cost]:
     """Creates a list of costs for the shortcut between set u and set v"""
     u_vars_all = create_vars_from_template(u_vars.all, "u")
@@ -124,9 +128,11 @@ def contact_shortcut_edge_cost_factory_over(
 
     return costs
 
+
 def contact_norm_squared_shortcut_edge_cost_factory_over(
-    u_vars: ContactSetDecisionVariables, v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    add_const_cost: bool = False,
 ) -> List[Cost]:
     """Creates a list of costs for the shortcut between set u and set v"""
     u_vars_all = create_vars_from_template(u_vars.all, "u")
@@ -153,9 +159,11 @@ def contact_norm_squared_shortcut_edge_cost_factory_over(
 
     return costs
 
+
 def contact_shortcut_edge_cost_factory_over_obj_weighted(
-    u_vars: ContactSetDecisionVariables, v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    add_const_cost: bool = False,
 ) -> List[Cost]:
     """Creates a list of costs for the shortcut between set u and set v"""
     u_vars_all = create_vars_from_template(u_vars.all, "u")
@@ -191,9 +199,11 @@ def contact_shortcut_edge_cost_factory_over_obj_weighted(
 
     return costs
 
+
 def contact_norm_squared_shortcut_edge_cost_factory_over_obj_weighted(
-    u_vars: ContactSetDecisionVariables, v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    add_const_cost: bool = False,
 ) -> List[Cost]:
     """Creates a list of costs for the shortcut between set u and set v"""
     u_vars_all = create_vars_from_template(u_vars.all, "u")
