@@ -9,7 +9,7 @@ should_incl_simul_mode_switches: false
 should_add_const_edge_cost: true
 
 algorithm:
-  only_consider_reachability: true
+  only_consider_reachability: false
 cost_estimator:
   shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted
   # shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_under_obj_weighted"
@@ -27,11 +27,11 @@ hydra:
         level: DEBUG
       large_gcs.cost_estimators:
         level: INFO
-  # mode: MULTIRUN
-  # sweeper:
-  #   params:
-      # algorithm.only_consider_reachability: false, true
-      # graph_name: cg_simple_2, cg_simple_3, cg_trichal2, cg_trichal4, cg_maze_b1, cg_maze_b3 #, cg_maze_a35
+  mode: MULTIRUN
+  sweeper:
+    params:
+      algorithm.only_consider_reachability: false, true
+      graph_name: cg_simple_2, cg_simple_3, cg_trichal2, cg_trichal4, cg_maze_b1, cg_maze_b3 #, cg_maze_a35
       # cost_estimator.shortcut_edge_cost_factory:  large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted, large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_under_obj_weighted
 
 # cg_simple_2, cg_simple_3, cg_trichal2, cg_trichal4, cg_maze_b1, cg_maze_b3 #, cg_maze_a35

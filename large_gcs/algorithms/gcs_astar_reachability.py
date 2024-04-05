@@ -1,3 +1,4 @@
+from copy import copy, deepcopy
 import itertools
 import logging
 import os
@@ -26,7 +27,7 @@ from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.geometry_utils import unique_rows_with_tolerance_ignore_nan
 from large_gcs.geometry.point import Point
-from large_gcs.graph.cost_constraint_factory import create_equality_edge_constraint
+from large_gcs.graph.cost_constraint_factory import create_equality_edge_constraint, create_l2norm_squared_vertex_cost_from_point
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution, Vertex
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 
@@ -52,6 +53,70 @@ class SetSamples:
             vertex_name=vertex_name,
             samples=samples,
         )
+    
+    def init_graph_for_projection(self, graph: Graph, node: SearchNode):
+        self._proj_graph = Graph()
+        
+        # Add vertices along the candidate path to the projection graph
+        # Leave out the last vertex, as we need to add the cost specific to the sample to it
+        for vertex_name in node.vertex_path[:-1]:
+            # Only add constraints, not costs
+            ref_vertex = graph.vertices[vertex_name]
+            vertex = Vertex(ref_vertex.convex_set, constraints=ref_vertex.constraints)
+            self._proj_graph.add_vertex(vertex, vertex_name)
+        
+        # Add edges along the candidate path to the projection graph
+        # Leave out the last edge, as we didn't add the last vertex
+        for edge_key in node.edge_path[:-1]:
+            ref_edge = graph.edges[edge_key]
+            edge = Edge(
+                u=ref_edge.u,
+                v=ref_edge.v,
+                constraints=ref_edge.constraints,
+            )
+            self._proj_graph.add_edge(edge)
+
+        self._proj_graph.set_source(graph.source_name)
+
+
+    def project_single_gcs(self, graph: Graph, node: SearchNode, sample: np.ndarray) -> np.ndarray:
+
+        cost = create_l2norm_squared_vertex_cost_from_point(sample)
+        ref_vertex = graph.vertices[node.vertex_name]
+        vertex = Vertex(
+            convex_set=ref_vertex.convex_set,
+            constraints=ref_vertex.constraints,
+            costs=[cost],
+        )
+        self._proj_graph.add_vertex(vertex, node.vertex_name)
+
+        ref_edge = graph.edges[node.edge_path[-1]]
+        edge = Edge(
+            u=ref_edge.u,
+            v=ref_edge.v,
+            constraints=ref_edge.constraints,
+            # No costs
+        )
+        self._proj_graph.add_edge(edge)
+
+        self._proj_graph.set_target(node.vertex_name)
+
+        active_edges = node.edge_path
+
+        sol = self._proj_graph.solve_convex_restriction(active_edges, skip_post_solve=True)
+
+        if not sol.is_success:
+            logger.error(f"Failed to project sample for vertex {node.vertex_name}, sample: {sample}")
+            assert sol.is_success, "Failed to project sample"
+        
+        proj_sample = sol.ambient_path[-1]
+
+        # Clean up the projection graph
+        self._proj_graph.remove_vertex(node.vertex_name)
+        # Edge is automatically removed when vertex is removed
+
+        return proj_sample
+
     
 
     def project_single(
@@ -393,6 +458,7 @@ class GcsAstarReachability(SearchAlgorithm):
 
         reached_cheaper = False
         projected_samples = set()
+        self._set_samples[n_next.vertex_name].init_graph_for_projection(self._graph, n_next)
         for idx, sample in enumerate(self._set_samples[n_next.vertex_name].samples):
             proj_sample = self._project(n_next, sample)
 
@@ -507,6 +573,7 @@ class GcsAstarReachability(SearchAlgorithm):
 
         reached_new = False
         projected_samples = set()
+        self._set_samples[n_next.vertex_name].init_graph_for_projection(self._graph, n_next)
         for idx, sample in enumerate(self._set_samples[n_next.vertex_name].samples):
             sample = self._project(n_next, sample)
 
@@ -548,7 +615,7 @@ class GcsAstarReachability(SearchAlgorithm):
                     # Clean up current sample
                     self._graph.remove_vertex(sample_vertex_name)
                     # Move on to the next sample, don't need to check other paths
-                    logger.debug(f"Sample {idx} reached by path {alt_n.vertex_path}")
+                    # logger.debug(f"Sample {idx} reached by path {alt_n.vertex_path}")
                     go_to_next_sample = True
                     break
                 else:
@@ -569,7 +636,7 @@ class GcsAstarReachability(SearchAlgorithm):
 
     @profile_method
     def _project(self, n_next: SearchNode, sample: np.ndarray) -> np.ndarray:
-        sample = self._set_samples[n_next.vertex_name].project_single(
+        sample = self._set_samples[n_next.vertex_name].project_single_gcs(
             self._graph, n_next, sample
         )
         return sample

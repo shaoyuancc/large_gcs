@@ -32,6 +32,19 @@ def create_l2norm_vertex_cost(dim: int):
     return edge_cost
 
 
+def create_l2norm_squared_vertex_cost_from_point(point: np.ndarray):
+    """
+    ||x - point||^2 = (x - point)^T (x - point) = x^T x - 2 x^T point + point^T point
+    QuadraticCost(Q, b, c) = 0.5 x^T Q x + b^T x + c
+    So, Q = 2 * I, b = -2 * point, c = point^T point
+    """
+    Q = 2 * np.identity(point.shape[0])
+    b = -2 * point
+    c = point.T @ point
+    vertex_cost = QuadraticCost(Q, b, c)
+    return vertex_cost
+
+
 def create_l2norm_squared_vertex_cost(dim: int):
     Q = np.identity(dim)
     b = np.zeros((dim, 1))
