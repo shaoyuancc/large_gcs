@@ -46,6 +46,7 @@ class ContactPairMode(ABC):
         ) = self._create_constraint_formulas()
 
     def plot(self, **kwargs):
+        plt.title(self.id, y=1.05)
         self._plot(**kwargs)
         plt.show()
 

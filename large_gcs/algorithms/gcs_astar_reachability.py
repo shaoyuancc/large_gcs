@@ -57,7 +57,10 @@ class SetSamples:
             samples=samples,
         )
 
-    def init_graph_for_projection(self, graph: Graph, node: SearchNode):
+    def init_graph_for_projection(
+        self, graph: Graph, node: SearchNode, alg_metrics: AlgMetrics
+    ):
+        self._alg_metrics = alg_metrics
         self._proj_graph = Graph()
 
         # Add vertices along the candidate path to the projection graph
@@ -109,6 +112,8 @@ class SetSamples:
         sol = self._proj_graph.solve_convex_restriction(
             active_edges, skip_post_solve=True
         )
+
+        self._alg_metrics.update_after_gcs_solve(sol.time)
 
         if not sol.is_success:
             logger.error(
@@ -467,7 +472,7 @@ class GcsAstarReachability(SearchAlgorithm):
         reached_cheaper = False
         projected_samples = set()
         self._set_samples[n_next.vertex_name].init_graph_for_projection(
-            self._graph, n_next
+            self._graph, n_next, self._alg_metrics
         )
         for idx, sample in enumerate(self._set_samples[n_next.vertex_name].samples):
             proj_sample = self._project(n_next, sample)
@@ -585,7 +590,7 @@ class GcsAstarReachability(SearchAlgorithm):
         reached_new = False
         projected_samples = set()
         self._set_samples[n_next.vertex_name].init_graph_for_projection(
-            self._graph, n_next
+            self._graph, n_next, self._alg_metrics
         )
         for idx, sample in enumerate(self._set_samples[n_next.vertex_name].samples):
             sample = self._project(n_next, sample)
