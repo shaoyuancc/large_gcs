@@ -16,7 +16,7 @@ cost_estimator:
 
 
 save_visualization: true
-save_to_wandb: false
+save_to_wandb: true
 
 hydra:
   job_logging:
@@ -30,8 +30,8 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      algorithm.only_consider_reachability: false, true
-      # cost_estimator.shortcut_edge_cost_factory:  large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted, large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_under_obj_weighted
+      # algorithm.only_consider_reachability: false, true
+      cost_estimator.shortcut_edge_cost_factory:  large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_under_obj_weighted, large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted
       # graph_name: cg_simple_3, cg_trichal4 , cg_maze_b1, cg_maze_b3
       
 
