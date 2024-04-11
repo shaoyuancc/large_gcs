@@ -11,7 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 class ShortcutEdgeCE(CostEstimator):
-    def __init__(self, graph: Graph, shortcut_edge_cost_factory=None):
+    def __init__(
+        self,
+        graph: Graph,
+        shortcut_edge_cost_factory=None,
+        add_const_cost: bool = False,
+    ):
         # To allow function string path to be passed in from hydra config
         if type(shortcut_edge_cost_factory) == str:
             shortcut_edge_cost_factory = get_function_from_string(
@@ -27,6 +32,7 @@ class ShortcutEdgeCE(CostEstimator):
             )
         self._graph = graph
         self._shortcut_edge_cost_factory = shortcut_edge_cost_factory
+        self._add_const_cost = add_const_cost
 
     def estimate_cost_on_graph(
         self,
@@ -53,10 +59,12 @@ class ShortcutEdgeCE(CostEstimator):
                     direct_edge_costs = self._shortcut_edge_cost_factory(
                         self._graph.vertices[neighbor].convex_set.vars,
                         self._graph.vertices[self._graph.target_name].convex_set.vars,
+                        add_const_cost=self._add_const_cost,
                     )
                 else:
                     direct_edge_costs = self._shortcut_edge_cost_factory(
                         self._graph.vertices[self._graph.target_name].convex_set.dim,
+                        add_const_cost=self._add_const_cost,
                     )
             edge_to_target = Edge(
                 u=neighbor,
@@ -114,10 +122,12 @@ class ShortcutEdgeCE(CostEstimator):
                     direct_edge_costs = self._shortcut_edge_cost_factory(
                         self._graph.vertices[neighbor].convex_set.vars,
                         self._graph.vertices[self._graph.target_name].convex_set.vars,
+                        add_const_cost=self._add_const_cost,
                     )
                 else:
                     direct_edge_costs = self._shortcut_edge_cost_factory(
                         self._graph.vertices[self._graph.target_name].convex_set.dim,
+                        add_const_cost=self._add_const_cost,
                     )
             edge_to_target = Edge(
                 neighbor, self._graph.target_name, costs=direct_edge_costs

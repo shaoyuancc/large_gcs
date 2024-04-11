@@ -100,7 +100,9 @@ def main(cfg: OmegaConf) -> None:
             )
     else:
         print("No abstraction model generator")
-        cost_estimator: CostEstimator = instantiate(cfg.cost_estimator, graph=cg)
+        cost_estimator: CostEstimator = instantiate(
+            cfg.cost_estimator, graph=cg, add_const_cost=cfg.should_add_const_edge_cost
+        )
         alg: SearchAlgorithm = instantiate(
             cfg.algorithm,
             graph=cg,
