@@ -16,6 +16,11 @@ def create_l2norm_edge_cost(dim: int):
     return edge_cost
 
 
+"""
+There seems to be a bug that causes gcs solve convex restrictions to fail sometimes when using this cost
+e.g. hor vert graph, Without create_2d_x_equality_edge_constraint on edge ('s', 'p0')
+["('s', 'p0')", "('p0', 't')"] fails
+"""
 def create_l2norm_squared_edge_cost(dim: int):
     I_n = np.identity(dim)
     Q = np.block([[I_n, -I_n], [-I_n, I_n]])
@@ -25,6 +30,13 @@ def create_l2norm_squared_edge_cost(dim: int):
     return edge_cost
 
 
+def create_l2norm_vertex_cost_from_point(point: np.ndarray):
+    A = np.eye(point.shape[0])
+    b = -point
+    vertex_cost = L2NormCost(A, b)
+    return vertex_cost
+
+
 def create_l2norm_vertex_cost(dim: int):
     A = np.eye(dim)
     b = np.zeros((dim, 1))
@@ -32,6 +44,7 @@ def create_l2norm_vertex_cost(dim: int):
     return edge_cost
 
 
+# There seems to be a bug where this causes gcs solve convex restrictions to fail sometimes
 def create_l2norm_squared_vertex_cost_from_point(point: np.ndarray):
     """
     ||x - point||^2 = (x - point)^T (x - point) = x^T x - 2 x^T point + point^T point

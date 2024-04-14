@@ -11,8 +11,8 @@ should_add_const_edge_cost: true
 algorithm:
   only_consider_reachability: false
 cost_estimator:
-  # shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted
-  shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_under_obj_weighted"
+  shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted
+  # shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_under_obj_weighted"
 
 
 save_visualization: true
@@ -24,15 +24,15 @@ hydra:
       large_gcs:
         level: INFO
       large_gcs.algorithms:
-        level: INFO
+        level: DEBUG
       large_gcs.cost_estimators:
         level: INFO
   mode: MULTIRUN
   sweeper:
     params:
-      # algorithm.only_consider_reachability: false, true
-      cost_estimator.shortcut_edge_cost_factory:  large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_under_obj_weighted, large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted
-      # graph_name: cg_simple_3, cg_trichal4 , cg_maze_b1, cg_maze_b3
+      algorithm.only_consider_reachability: true, false
+      cost_estimator.shortcut_edge_cost_factory:  large_gcs.graph.contact_cost_constraint_factory.contact_norm_squared_shortcut_edge_cost_factory_over_obj_weighted, large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted #, large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_under_obj_weighted
+      graph_name: cg_simple_3, cg_trichal4 , cg_maze_b1, cg_maze_b3
       
 
 # cg_simple_2, cg_simple_3, cg_trichal2, cg_trichal4, cg_maze_b1, cg_maze_b3 #, cg_maze_a35

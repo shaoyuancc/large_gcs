@@ -30,6 +30,7 @@ from large_gcs.geometry.point import Point
 from large_gcs.graph.cost_constraint_factory import (
     create_equality_edge_constraint,
     create_l2norm_squared_vertex_cost_from_point,
+    create_l2norm_vertex_cost_from_point,
 )
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution, Vertex
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
@@ -122,6 +123,7 @@ class SetSamples:
                 f"sample: {sample}"
                 f"vertex_path: {node.vertex_path}"
             )
+            self._proj_graph.remove_vertex(node.vertex_name)
             return None
             # assert sol.is_success, "Failed to project sample"
 
