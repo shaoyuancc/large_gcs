@@ -1,18 +1,29 @@
 from typing import List
 
 import numpy as np
-from pydrake.all import Cost, L2NormCost, LinearEqualityConstraint, QuadraticCost
+from pydrake.all import (Cost, L2NormCost, 
+                         LinearEqualityConstraint, QuadraticCost,
+                         L1NormCost)
 
 
 def shortcut_edge_cost_factory(dim: int) -> List[Cost]:
     edge_cost = create_l2norm_edge_cost(dim)
     return [edge_cost]
 
+def l1_norm_shortcut_edge_cost_factory(dim: int, add_const_cost=False) -> List[Cost]:
+    edge_cost = create_l1norm_edge_cost(dim)
+    return [edge_cost]
 
 def create_l2norm_edge_cost(dim: int):
     A = np.hstack((np.eye(dim), -np.eye(dim)))
     b = np.zeros((dim, 1))
     edge_cost = L2NormCost(A, b)
+    return edge_cost
+
+def create_l1norm_edge_cost(dim: int):
+    A = np.hstack((np.eye(dim), -np.eye(dim)))
+    b = np.zeros((dim, 1))
+    edge_cost = L1NormCost(A, b)
     return edge_cost
 
 
