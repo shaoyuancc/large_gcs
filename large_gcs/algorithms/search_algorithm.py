@@ -12,7 +12,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 import wandb
-from large_gcs.graph.graph import Edge, ShortestPathSolution
+from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
 
 
 class TieBreak(Enum):
@@ -250,6 +250,20 @@ class SearchNode:
             edge_path=parent.edge_path.copy() + [new_edge.key],
             vertex_path=parent.vertex_path.copy() + [child_vertex_name],
             parent=parent,
+        )
+
+    @classmethod
+    def from_vertex_path(cls, vertex_path: List[str]):
+        edge_path = []
+        for u, v in zip(vertex_path[:-1], vertex_path[1:]):
+            # Note that this will break if the edges in the graph have key_suffixes
+            edge_path.append(Edge(u, v).key)
+        return cls(
+            priority=None,
+            vertex_name=vertex_path[-1],
+            edge_path=edge_path,
+            vertex_path=vertex_path,
+            parent=None,
         )
 
 

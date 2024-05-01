@@ -24,6 +24,7 @@ autoflake = "^2.2.0"
 isort = "^5.12.0"
 pdbpp = "^0.10.3"
 plotly = "^5.20.0"
+pycddlib = "^2.1.7"
 
 [tool.isort]
 profile = "black"

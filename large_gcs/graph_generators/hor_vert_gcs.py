@@ -173,6 +173,7 @@ def create_intermediate_line_hor_vert_graph() -> Graph:
     add_edges(hor_edges, hor_constraint)
     return G
 
+
 def create_polyhedral_hor_vert_b_graph() -> Graph:
     dim = 2
     # Convex sets
@@ -193,7 +194,7 @@ def create_polyhedral_hor_vert_b_graph() -> Graph:
         Polyhedron.from_vertices([[3, 0.3], [4, 0.3], [3, 0.7]]),
         # Bottom row
         Polyhedron.from_vertices([[0.5, -1], [1, -1], [1, -0.5], [0.5, -0.5]]),
-        Polyhedron.from_vertices([[3,-1], [6,-1], [6,-0.5], [3,-0.5]]),
+        Polyhedron.from_vertices([[3, -1], [6, -1], [6, -0.5], [3, -0.5]]),
     )
 
     # Vertex names
