@@ -13,6 +13,7 @@ from large_gcs.algorithms.gcs_hastar import GcsHAstar
 from large_gcs.algorithms.gcs_hastar_reachability import GcsHAstarReachability
 from large_gcs.algorithms.search_algorithm import AlgVisParams, SearchAlgorithm
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
+from large_gcs.domination_checkers.domination_checker import DominationChecker
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.graph import ShortestPathSolution
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
@@ -103,10 +104,14 @@ def main(cfg: OmegaConf) -> None:
         cost_estimator: CostEstimator = instantiate(
             cfg.cost_estimator, graph=cg, add_const_cost=cfg.should_add_const_edge_cost
         )
+        domination_checker: DominationChecker = instantiate(
+            cfg.domination_checker, graph=cg
+        )
         alg: SearchAlgorithm = instantiate(
             cfg.algorithm,
             graph=cg,
             cost_estimator=cost_estimator,
+            domination_checker=domination_checker,
             vis_params=AlgVisParams(log_dir=full_log_dir),
         )
 

@@ -21,6 +21,8 @@ There seems to be a bug that causes gcs solve convex restrictions to fail someti
 e.g. hor vert graph, Without create_2d_x_equality_edge_constraint on edge ('s', 'p0')
 ["('s', 'p0')", "('p0', 't')"] fails
 """
+
+
 def create_l2norm_squared_edge_cost(dim: int):
     I_n = np.identity(dim)
     Q = np.block([[I_n, -I_n], [-I_n, I_n]])

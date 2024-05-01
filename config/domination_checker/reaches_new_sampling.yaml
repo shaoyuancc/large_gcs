@@ -1,0 +1,3 @@
+_target_: large_gcs.domination_checkers.reaches_new_sampling.ReachesNewSampling
+
+num_samples_per_vertex: 10

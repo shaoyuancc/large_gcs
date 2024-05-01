@@ -16,7 +16,6 @@ from large_gcs.abstraction_models.gcshastar_node import (
     GCSHANode,
     StatementNode,
 )
-from large_gcs.algorithms.gcs_astar_reachability import SetSamples
 from large_gcs.algorithms.gcs_hastar import GcsHAstarMetrics
 from large_gcs.algorithms.search_algorithm import (
     AlgMetrics,
@@ -51,9 +50,6 @@ class GcsHAstarReachability(SearchAlgorithm):
         max_abs_level = len(self._graphs)
         self._alg_metrics = GcsHAstarMetrics()
         self._alg_metrics.initialize(n_levels=max_abs_level + 1)
-        # Keeps track of samples for each vertex(set) in the graph.
-        # These samples are not used directly but first projected into the feasible subspace of a particular path.
-        self._set_samples: dict[str, SetSamples] = {}
 
         start_node = StatementNode.create_start_node(
             vertex_name="START", abs_level=max_abs_level, priority=0
@@ -350,6 +346,7 @@ class GcsHAstarReachability(SearchAlgorithm):
         Assumes that this path is feasible and that the vertex has been expanded before.
         i.e. there already exists a path that reaches the vertex.
         """
+        raise NotImplementedError
         # Assume that entire source is already reachable
         if n.vertex_name == g.source_name:
             return False
