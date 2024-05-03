@@ -3,6 +3,8 @@ import logging
 from typing import List
 
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import plotly.graph_objects as go
 import numpy as np
 import scipy
 from pydrake.all import (
@@ -148,6 +150,101 @@ class Polyhedron(ConvexSet):
         else:
             vertices = self.vertices
         plt.fill(*vertices.T, **kwargs)
+
+    def plot_transformation(self, T, **kwargs):
+        transformed_vertices = self.vertices @ T.T
+        hull = ConvexHull(transformed_vertices)  # orders vertices counterclockwise
+
+        if transformed_vertices.shape[1] == 2:
+            transformed_vertices = transformed_vertices[hull.vertices]
+            # Repeat the first vertex to close the polygon
+            transformed_vertices = np.vstack(
+                (transformed_vertices, transformed_vertices[0])
+            )
+            # print(f"transformed_vertices: {transformed_vertices}")
+            plt.plot(*transformed_vertices.T, **kwargs)
+            plt.title("Transformed Polyhedron")
+        elif transformed_vertices.shape[1] == 3:
+            # MATPLOTLIB
+
+            # # Setting up the plot
+            # fig = plt.figure()
+            # ax = fig.add_subplot(111, projection='3d')
+
+            # # Collect the vertices for each face of the convex hull
+            # faces = [transformed_vertices[simplex] for simplex in hull.simplices]
+            # face_collection = Poly3DCollection(faces, **kwargs)
+            # ax.add_collection3d(face_collection)
+
+            # # Set the limits for the axes
+            # for coord in range(3):
+            #     lim = (np.min(transformed_vertices[:, coord]), np.max(transformed_vertices[:, coord]))
+            #     getattr(ax, f'set_xlim' if coord == 0 else f'set_ylim' if coord == 1 else f'set_zlim')(lim)
+
+            # ax.set_xlabel('X')
+            # ax.set_ylabel('Y')
+            # ax.set_zlabel('Z')
+
+            # Plotly
+            # if 'fig' not in kwargs:
+            if "fig" not in kwargs:
+                # Creating the plot
+                fig = go.Figure()
+            else:
+                fig = kwargs["fig"]
+                del kwargs["fig"]
+
+            # Adding each face of the convex hull to the plot
+            # print(f"number of simplices: {len(hull.simplices)}")
+            # print(f"simplices: {hull.simplices}")
+            # for simplex in hull.simplices:
+            #     fig.add_trace(go.Mesh3d(
+            #         x=transformed_vertices[simplex, 0],
+            #         y=transformed_vertices[simplex, 1],
+            #         z=transformed_vertices[simplex, 2],
+            #         flatshading=True,
+            #         **kwargs
+            #     ))
+
+            # Extracting the vertices for each face of the convex hull
+            x, y, z = transformed_vertices.T
+
+            # Creating the plot
+            fig = fig.add_trace(
+                go.Mesh3d(
+                    x=x,
+                    y=y,
+                    z=z,
+                    i=hull.simplices[:, 0],
+                    j=hull.simplices[:, 1],
+                    k=hull.simplices[:, 2],
+                    **kwargs
+                )
+            )
+
+            # Wireframe
+            # for simplex in hull.simplices:
+            #     # Plot each edge of the simplex (triangle)
+            #     for i in range(len(simplex)):
+            #         # Determine start and end points for each line segment
+            #         start, end = simplex[i], simplex[(i+1) % len(simplex)]
+            #         fig.add_trace(go.Scatter3d(
+            #             x=[x[start], x[end]],
+            #             y=[y[start], y[end]],
+            #             z=[z[start], z[end]],
+            #             mode='lines',
+            #             line=kwargs
+            #         ))
+
+            # Setting plot layout
+            fig.update_layout(
+                scene=dict(xaxis_title="X", yaxis_title="Y", zaxis_title="Z"),
+                title="Transformed Polyhedron",
+            )
+
+            return fig
+        else:
+            raise ValueError("Cannot plot polyhedron with more than 3 dimensions")
 
     def plot_vertex(self, index, **kwargs):
         assert index < self.vertices.shape[0], "Index out of bounds"

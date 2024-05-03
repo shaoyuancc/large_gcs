@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy as np
 import pypolycontain as pp
 from pydrake.all import HPolyhedron, L1NormCost, MathematicalProgram, Solve
@@ -14,19 +15,12 @@ class AHContainmentDominationChecker(DominationChecker):
     def is_dominated():
         pass
 
-    def is_contained_in(self, A_x, b_x, A_y, b_y, n_dim_proj: int) -> bool:
+    def is_contained_in(self, A_x, b_x, T_x, A_y, b_y, T_y) -> bool:
         X = pp.H_polytope(A_x, b_x)
         Y = pp.H_polytope(A_y, b_y)
 
-        T_x = np.hstack(
-            (np.zeros((n_dim_proj, A_x.shape[1] - n_dim_proj)), np.eye(n_dim_proj))
-        )
-        T_y = np.hstack(
-            (np.zeros((n_dim_proj, A_y.shape[1] - n_dim_proj)), np.eye(n_dim_proj))
-        )
-
-        AH_X = pp.AH_polytope(np.zeros((n_dim_proj, 1)), T_x, X)
-        AH_Y = pp.AH_polytope(np.zeros((n_dim_proj, 1)), T_y, Y)
+        AH_X = pp.AH_polytope(np.zeros((T_x.shape[0], 1)), T_x, X)
+        AH_Y = pp.AH_polytope(np.zeros((T_y.shape[0], 1)), T_y, Y)
 
         prog = MathematicalProgram()
 
@@ -81,6 +75,7 @@ class AHContainmentDominationChecker(DominationChecker):
         edges = [self._graph.edges[edge].gcs_edge for edge in node.edge_path]
 
         prog = MathematicalProgram()
+
         vertex_vars = [
             prog.NewContinuousVariables(v.ambient_dimension(), name=f"{v_name}_vars")
             for v, v_name in zip(vertices, node.vertex_path)
@@ -142,8 +137,6 @@ class AHContainmentDominationChecker(DominationChecker):
     ):
         prog = self.get_path_mathematical_program(node)
         X = HPolyhedron(prog)
-        print(f"X.A(): {X.A()}")
-        print(f"X.b(): {X.b()}")
         vars = list(prog.decision_variables())
         cs = prog.GetAllCosts()
         c_coeff_vec = np.zeros(len(vars))
@@ -167,6 +160,54 @@ class AHContainmentDominationChecker(DominationChecker):
             b_x = np.hstack([b_x, cost_upper_bound])
 
         return A_x, b_x
+
+    def get_projection_transformation(
+        self,
+        graph: Graph,
+        node: SearchNode,
+        total_dims: int,
+        include_cost_epigraph: bool,
+        vertex_idx_to_project_to: Optional[int] = None,
+    ):
+        """
+        Get the transformation matrix that will project the polyhedron that defines the whole path
+        down to just the dimensions of the selected vertex. Can either include the epigraph (include the cost) or just the dimensions of the vertex.
+
+        Args:
+            - graph(Graph)
+            - node(SearchNode) : Defines the path which defines the original matrix that will be projected.
+            - total_dims(int) : Total number of decision variables in the original matrix/mathematical program. (len(x) in Ax <= b)
+            Should include the cost decision variable if it is present in the matrix.
+            - include_cost_epigraph(bool) : Whether to include the cost epigraph in the projection.
+            Assumed to be the last decision variable in x.
+            - vertex_idx_to_project_to(Optional[int]) : Index of the vertex to project to. If None, will project to the last vertex in the path.
+        """
+
+        if vertex_idx_to_project_to is None:
+            vertex_idx_to_project_to = len(node.vertex_path) - 1
+
+        v_dims = [graph.vertices[name].convex_set.dim for name in node.vertex_path]
+        proj_dims = v_dims[vertex_idx_to_project_to]
+        if include_cost_epigraph:
+            proj_dims += 1
+        matrices_to_stack = []
+        cols_count = 0
+        for i in range(len(node.vertex_path)):
+            if i == vertex_idx_to_project_to:
+                M = np.eye(v_dims[i])
+                if include_cost_epigraph:
+                    M = np.vstack([M, np.zeros((1, v_dims[i]))])
+                matrices_to_stack.append(M)
+            else:
+                matrices_to_stack.append(np.zeros((proj_dims, v_dims[i])))
+            cols_count += v_dims[i]
+        if cols_count < total_dims:
+            M = np.zeros((proj_dims, total_dims - cols_count))
+            if include_cost_epigraph:
+                M[-1, -1] = 1
+            matrices_to_stack.append(M)
+
+        return np.hstack(matrices_to_stack)
 
     @staticmethod
     def find_index(list, el):
