@@ -1,7 +1,8 @@
 import numpy as np
-from pydrake.all import MathematicalProgram, Solve, L1NormCost, HPolyhedron
-from large_gcs.algorithms.search_algorithm import SearchNode
 import pypolycontain as pp
+from pydrake.all import HPolyhedron, L1NormCost, MathematicalProgram, Solve
+
+from large_gcs.algorithms.search_algorithm import SearchNode
 from large_gcs.domination_checkers.domination_checker import DominationChecker
 from large_gcs.graph.graph import Graph
 
@@ -136,8 +137,13 @@ class AHContainmentDominationChecker(DominationChecker):
 
         return prog
 
-    def get_epigraph_matrices(self, node: SearchNode):
+    def get_epigraph_matrices(
+        self, node: SearchNode, add_upper_bound=True, cost_upper_bound=1e4
+    ):
         prog = self.get_path_mathematical_program(node)
+        X = HPolyhedron(prog)
+        print(f"X.A(): {X.A()}")
+        print(f"X.b(): {X.b()}")
         vars = list(prog.decision_variables())
         cs = prog.GetAllCosts()
         c_coeff_vec = np.zeros(len(vars))
@@ -148,11 +154,17 @@ class AHContainmentDominationChecker(DominationChecker):
                 c_var_ind = self.find_index(vars, c_var)
 
                 c_coeff_vec[c_var_ind] += c_coeff[i_c_var]
-        X = HPolyhedron(prog)
+
         col = np.zeros(X.A().shape[0] + 1)
         col[-1] = -1
         A_x = np.hstack((np.vstack([X.A(), c_coeff_vec]), col.reshape(-1, 1)))
         b_x = np.hstack([X.b(), 0])
+
+        if add_upper_bound:
+            # Add upper bound constraint
+            A_x = np.vstack([A_x, np.zeros(A_x.shape[1])])
+            A_x[-1, -1] = 1
+            b_x = np.hstack([b_x, cost_upper_bound])
 
         return A_x, b_x
 

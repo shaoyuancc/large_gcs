@@ -15,8 +15,8 @@ from pydrake.all import (
     GraphOfConvexSets,
     GraphOfConvexSetsOptions,
     MathematicalProgramResult,
-    SolverOptions,
     MosekSolver,
+    SolverOptions,
 )
 from tqdm import tqdm
 
@@ -677,7 +677,13 @@ class Graph:
         offset = np.array([0.2, 0.1])
         patch_offset = np.array([-0.05, -0.1])  # from text
         for v, label in zip(self.vertices.values(), labels):
-            pos = v.convex_set.center + offset
+            if v.convex_set.dim == 1:
+                # Add extra dimension for 1D sets
+                offset = np.array([0, -0.2])
+                patch_offset = np.array([-0.05, -0.5])  # from text
+                pos = np.array([v.convex_set.center[0], 0]) + offset
+            else:
+                pos = v.convex_set.center + offset
             # Create a colored rectangle as the background
             rect = patches.FancyBboxPatch(
                 pos + patch_offset,

@@ -142,14 +142,23 @@ class Polyhedron(ConvexSet):
         return polyhedron
 
     def _plot(self, **kwargs):
-        plt.fill(*self.vertices.T, **kwargs)
+        if self.dim == 1:
+            # Add extra dimension to vertices for plotting
+            vertices = np.hstack((self.vertices, np.zeros((self.vertices.shape[0], 1))))
+        else:
+            vertices = self.vertices
+        plt.fill(*vertices.T, **kwargs)
 
     def plot_vertex(self, index, **kwargs):
         assert index < self.vertices.shape[0], "Index out of bounds"
-        plt.scatter(*self.vertices[index], **kwargs)
+        if self.dim == 1:
+            vertex = np.array([self.vertices[index], 0])
+        else:
+            vertex = self.vertices[index]
+        plt.scatter(*vertex, **kwargs)
         plt.annotate(
             index,
-            self.vertices[index],
+            vertex,
             textcoords="offset points",
             xytext=(5, 5),
             ha="center",
