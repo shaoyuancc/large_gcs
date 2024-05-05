@@ -36,6 +36,7 @@ class IncrementalContactGraph(ContactGraph):
         should_incl_simul_mode_switches: bool = True,
         should_add_gcs: bool = False,
         should_add_const_edge_cost: bool = True,
+        should_use_l1_norm_vertex_cost: bool = False,
     ):
         """
         Can either specify target_pos or target_region_params, but not both.
@@ -46,6 +47,7 @@ class IncrementalContactGraph(ContactGraph):
         """
         Graph.__init__(self, workspace=workspace)
         assert self.workspace is not None, "Workspace must be set"
+        self._should_use_l1_norm_vertex_cost = should_use_l1_norm_vertex_cost
         # Note: The order of operations in this constructor is important
 
         self.target_pos = None

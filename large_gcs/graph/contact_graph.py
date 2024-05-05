@@ -24,6 +24,7 @@ from large_gcs.graph.contact_cost_constraint_factory import (
     edge_constraint_position_continuity,
     edge_cost_constant,
     vertex_cost_force_actuation_norm,
+    vertex_cost_position_l1_norm,
     vertex_cost_position_path_length,
 )
 from large_gcs.graph.graph import Graph, ShortestPathSolution
@@ -57,6 +58,7 @@ class ContactGraph(Graph):
         contact_pair_modes: List[ContactPairMode] = None,  # For loading a saved graph
         contact_set_mode_ids: List[List[str]] = None,  # For loading a saved graph
         edge_keys: List[str] = None,  # For loading a saved graph
+        should_use_l1_norm_vertex_cost: bool = False,
     ):
         """
         Args:
@@ -67,6 +69,7 @@ class ContactGraph(Graph):
         """
         Graph.__init__(self, workspace=workspace)
         assert self.workspace is not None, "Must specify workspace"
+        self._should_use_l1_norm_vertex_cost = should_use_l1_norm_vertex_cost
         # Note: The order of operations in this constructor is important
         self.vertex_inclusion = vertex_inclusion
         self.vertex_exclusion = vertex_exclusion
@@ -166,10 +169,13 @@ class ContactGraph(Graph):
         return costs
 
     def _create_single_vertex_costs(self, set: ContactSet) -> List[Cost]:
-        return [
-            vertex_cost_position_path_length(set.vars),
-            # vertex_cost_force_actuation_norm(set.vars),
-        ]
+        if self._should_use_l1_norm_vertex_cost:
+            return [vertex_cost_position_l1_norm]
+        else:
+            return [
+                vertex_cost_position_path_length(set.vars),
+                # vertex_cost_force_actuation_norm(set.vars),
+            ]
 
     def _create_vertex_constraints(
         self, sets: List[ContactSet]

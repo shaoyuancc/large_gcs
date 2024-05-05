@@ -6,6 +6,7 @@ from pydrake.all import (
     DecomposeAffineExpressions,
     DecomposeLinearExpressions,
     DecomposeQuadraticPolynomial,
+    L1NormCost,
     L2NormCost,
     LinearConstraint,
     LinearCost,
@@ -89,6 +90,46 @@ def contact_shortcut_edge_cost_factory_under_obj_weighted(
     costs = [
         create_l2norm_cost(u_pos[:n_objs], v_pos[:n_objs], scaling=1),
         create_l2norm_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=0.1),
+    ]
+
+    if add_const_cost:
+        # Constant cost for the edge
+        a = np.zeros((uv_vars_all.size, 1))
+        constant_cost = 1
+        costs.append(LinearCost(a, constant_cost))
+
+    return costs
+
+
+def contact_shortcut_edge_l1_norm_cost_factory_under_obj_weighted(
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    add_const_cost: bool = False,
+) -> List[Cost]:
+    """Creates a list of costs for the shortcut between set u and set v"""
+    u_vars_all = create_vars_from_template(u_vars.all, "u")
+    v_vars_all = create_vars_from_template(v_vars.all, "v")
+    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
+    u_pos = u_vars.pos_from_all(u_vars_all)
+    v_pos = v_vars.pos_from_all(v_vars_all)
+
+    # Hacky way to separate the object and robot positions variables
+    # I know that v will be the target, and so will not have force variables
+    # I know that only robots have actuation force variables
+    n_robs = u_vars.force_act.shape[0]
+    n_objs = u_vars.pos.shape[0] - n_robs
+
+    def create_l1norm_cost(u_pos, v_pos, scaling=1):
+        u_last_pos = u_pos[:, :, -1].flatten()
+        v_first_pos = v_pos[:, :, 0].flatten()
+        exprs = (u_last_pos - v_first_pos).flatten() * scaling
+        A = DecomposeLinearExpressions(exprs, uv_vars_all)
+        b = np.zeros(A.shape[0])
+        return L1NormCost(A, b)
+
+    costs = [
+        create_l1norm_cost(u_pos[:n_objs], v_pos[:n_objs], scaling=1),
+        create_l1norm_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=0.1),
     ]
 
     if add_const_cost:
@@ -200,6 +241,46 @@ def contact_shortcut_edge_cost_factory_over_obj_weighted(
     return costs
 
 
+def contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted(
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    add_const_cost: bool = False,
+) -> List[Cost]:
+    """Creates a list of costs for the shortcut between set u and set v"""
+    u_vars_all = create_vars_from_template(u_vars.all, "u")
+    v_vars_all = create_vars_from_template(v_vars.all, "v")
+    # Hacky way to separate the object and robot positions variables
+    # I know that v will be the target, and so will not have force variables
+    # I know that only robots have actuation force variables
+    n_robs = u_vars.force_act.shape[0]
+    n_objs = u_vars.pos.shape[0] - n_robs
+    # Position continuity cost
+    u_pos = u_vars.pos_from_all(u_vars_all)
+    v_pos = v_vars.pos_from_all(v_vars_all)
+    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
+
+    def create_l1norm_cost(u_pos, v_pos, scaling=1):
+        u_last_pos = u_pos[:, :, -1].flatten()
+        v_first_pos = v_pos[:, :, 0].flatten()
+        exprs = (u_last_pos - v_first_pos).flatten() * scaling
+        A = DecomposeLinearExpressions(exprs, uv_vars_all)
+        b = np.zeros(A.shape[0])
+        return L1NormCost(A, b)
+
+    costs = [
+        create_l1norm_cost(u_pos[:n_objs], v_pos[:n_objs], scaling=10),
+        create_l1norm_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=2),
+    ]
+
+    if add_const_cost:
+        # Constant cost for the edge
+        a = np.zeros((uv_vars_all.size, 1))
+        constant_cost = 1
+        costs.append(LinearCost(a, constant_cost))
+
+    return costs
+
+
 def contact_norm_squared_shortcut_edge_cost_factory_over_obj_weighted(
     u_vars: ContactSetDecisionVariables,
     v_vars: ContactSetDecisionVariables,
@@ -256,6 +337,20 @@ def vertex_cost_position_path_length(
     b = np.zeros(A.shape[0])
     # print(f"vertex_cost_position_path_length A: {A}")
     return L2NormCost(A, b)
+
+
+def vertex_cost_position_l1_norm(
+    vars: ContactSetDecisionVariables, scaling: float = 1.0
+) -> L1NormCost:
+    """Creates a vertex cost that penalizes the l1 norm of the path in position space.
+    vars.pos has shape (Euclidean/base dim, num positions/pos order per set)
+    So to get the path length we need to diff over the second axis.
+    """
+    exprs = np.diff(vars.pos).flatten() * scaling
+    A = DecomposeLinearExpressions(exprs, vars.all)
+    b = np.zeros(A.shape[0])
+    # print(f"vertex_cost_position_path_length A: {A}")
+    return L1NormCost(A, b)
 
 
 def vertex_cost_position_path_length_squared(
