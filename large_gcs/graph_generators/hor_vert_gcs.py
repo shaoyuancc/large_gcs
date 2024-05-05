@@ -185,16 +185,19 @@ def create_polyhedral_hor_vert_b_graph() -> Graph:
         Polyhedron.from_vertices([[4.5, 0], [5.5, 0], [5.5, 0.5], [4.5, 0.5]]),
         # intermediate sets
         Polyhedron.from_vertices(box_vert + np.array([-0.7, 3])),
-        Polyhedron.from_vertices(box_vert + np.array([-0.5, 7.5])),
+        Polyhedron.from_vertices(box_vert + np.array([0, 7.5])),
         # Diagonal set
         Polyhedron.from_vertices([[2, 3], [2.5, 3], [5, 9], [4.5, 9]]),
         # Cluster of 3
         Polyhedron.from_vertices([[1.5, 0.3], [2.5, 0.3], [1.5, 0.7]]),
         Polyhedron.from_vertices([[2.3, 0], [3.3, 0], [2.3, 0.2]]),
         Polyhedron.from_vertices([[3, 0.3], [4, 0.3], [3, 0.7]]),
-        # Bottom row
+        # 2nd row from the bottom
         Polyhedron.from_vertices([[0.5, -1], [1, -1], [1, -0.5], [0.5, -0.5]]),
         Polyhedron.from_vertices([[3, -1], [6, -1], [6, -0.5], [3, -0.5]]),
+        # bottommost row
+        Polyhedron.from_vertices([[0.5, -2], [1, -2], [1, -1.5], [0.5, -1.5]]),
+        Polyhedron.from_vertices([[4.5, -2], [5, -2], [5, -1.5], [4.5, -1.5]]),
     )
 
     # Vertex names
@@ -213,17 +216,24 @@ def create_polyhedral_hor_vert_b_graph() -> Graph:
 
     # Edges
     vert_edges = {
-        "s": ("p0", "p1", "p6"),
+        "s": ("p0", "p1", "p6", "p8"),
         "p2": ("t",),
         "p3": ("p2",),
         "p4": ("p2",),
         "p5": ("p2",),
         "p7": ("p2",),
+        "p9": ("p2",),
     }
     hor_edges = {
+        "s": (
+            "p3",
+            "p4",
+            "p5",
+        ),
         "p0": ("p2",),
         "p1": ("p2",),
         "p6": ("p7",),
+        "p8": ("p9",),
     }
 
     def add_edges(edges, constraints):

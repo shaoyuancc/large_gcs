@@ -1,4 +1,5 @@
 from typing import Optional
+
 import numpy as np
 import pypolycontain as pp
 from pydrake.all import HPolyhedron, L1NormCost, MathematicalProgram, Solve
@@ -9,8 +10,9 @@ from large_gcs.graph.graph import Graph
 
 
 class AHContainmentDominationChecker(DominationChecker):
-    def __init__(self, graph: Graph):
+    def __init__(self, graph: Graph, containment_condition: int = -1):
         super().__init__(graph=graph)
+        self._containment_condition = containment_condition
 
     def is_dominated():
         pass
@@ -27,7 +29,7 @@ class AHContainmentDominationChecker(DominationChecker):
         # https://github.com/sadraddini/pypolycontain/blob/master/pypolycontain/containment.py
         # -1 for sufficient condition
         # pick `0` for necessary and sufficient encoding (may be too slow) (2019b)
-        pp.subset(prog, AH_X, AH_Y, -1)
+        pp.subset(prog, AH_X, AH_Y, self._containment_condition)
         result = Solve(prog)
         return result.is_success()
 
@@ -132,8 +134,13 @@ class AHContainmentDominationChecker(DominationChecker):
 
         return prog
 
+    def get_feasibility_matrices(self, node: SearchNode):
+        prog = self.get_path_constraint_mathematical_program(node)
+        X = HPolyhedron(prog)
+        return X.A(), X.b()
+
     def get_epigraph_matrices(
-        self, node: SearchNode, add_upper_bound=True, cost_upper_bound=1e4
+        self, node: SearchNode, add_upper_bound=False, cost_upper_bound=1e4
     ):
         prog = self.get_path_mathematical_program(node)
         X = HPolyhedron(prog)
@@ -163,9 +170,8 @@ class AHContainmentDominationChecker(DominationChecker):
 
     def get_projection_transformation(
         self,
-        graph: Graph,
         node: SearchNode,
-        total_dims: int,
+        A: np.ndarray,
         include_cost_epigraph: bool,
         vertex_idx_to_project_to: Optional[int] = None,
     ):
@@ -174,19 +180,19 @@ class AHContainmentDominationChecker(DominationChecker):
         down to just the dimensions of the selected vertex. Can either include the epigraph (include the cost) or just the dimensions of the vertex.
 
         Args:
-            - graph(Graph)
             - node(SearchNode) : Defines the path which defines the original matrix that will be projected.
-            - total_dims(int) : Total number of decision variables in the original matrix/mathematical program. (len(x) in Ax <= b)
-            Should include the cost decision variable if it is present in the matrix.
+            - A(np.ndarray) : The A matrix of the polyhedron (Ax <= b) that will get transformed.
             - include_cost_epigraph(bool) : Whether to include the cost epigraph in the projection.
             Assumed to be the last decision variable in x.
             - vertex_idx_to_project_to(Optional[int]) : Index of the vertex to project to. If None, will project to the last vertex in the path.
         """
-
+        total_dims = A.shape[1]
         if vertex_idx_to_project_to is None:
             vertex_idx_to_project_to = len(node.vertex_path) - 1
 
-        v_dims = [graph.vertices[name].convex_set.dim for name in node.vertex_path]
+        v_dims = [
+            self._graph.vertices[name].convex_set.dim for name in node.vertex_path
+        ]
         proj_dims = v_dims[vertex_idx_to_project_to]
         if include_cost_epigraph:
             proj_dims += 1
