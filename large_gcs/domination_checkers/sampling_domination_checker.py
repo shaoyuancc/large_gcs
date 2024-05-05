@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 from pydrake.all import CommonSolverOption, MathematicalProgram, Solve, SolverOptions
 
@@ -312,3 +313,16 @@ class SamplingDominationChecker(DominationChecker):
         # Clean up edge, but leave the sample vertex
         self._graph.remove_edge(edge_to_sample.key)
         return sol
+
+    def plot_set_samples(self, vertex_name: str):
+        self._maybe_add_set_samples(vertex_name)
+        samples = self._set_samples[vertex_name].samples
+        self._graph.plot_points(samples, edgecolor="black")
+        self._graph.vertices[vertex_name].convex_set.plot()
+
+    def plot_projected_samples(self, node: SearchNode):
+        self._maybe_add_set_samples(node.vertex_name)
+        projected_samples = self._set_samples[node.vertex_name].project_all_gcs(
+            self._graph, node, AlgMetrics()
+        )
+        self._graph.plot_points(projected_samples, edgecolor="blue")
