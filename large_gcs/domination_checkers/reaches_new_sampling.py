@@ -1,5 +1,6 @@
-from typing import List
 import logging
+from typing import List
+
 from large_gcs.algorithms.search_algorithm import SearchNode
 from large_gcs.domination_checkers.sampling_domination_checker import (
     SamplingDominationChecker,
@@ -7,7 +8,6 @@ from large_gcs.domination_checkers.sampling_domination_checker import (
 )
 from large_gcs.geometry.point import Point
 from large_gcs.graph.graph import Edge, Vertex
-
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +24,7 @@ class ReachesNewSampling(SamplingDominationChecker):
         """
         A candidate path is dominated if it does not reach any new regions in the set.
         """
-        if candidate_node.vertex_name not in self._set_samples:
-            logger.debug(f"Adding samples for {candidate_node.vertex_name}")
-            self._set_samples[candidate_node.vertex_name] = SetSamples.from_vertex(
-                candidate_node.vertex_name,
-                self._graph.vertices[candidate_node.vertex_name],
-                self._num_samples_per_vertex,
-            )
+        self._maybe_add_set_samples(candidate_node.vertex_name)
 
         reached_new = False
         projected_samples = set()
@@ -51,6 +45,7 @@ class ReachesNewSampling(SamplingDominationChecker):
                 continue
             else:
                 if tuple(sample) in projected_samples:
+                    logger.debug(f"projected sample {idx} same as a previous sample")
                     continue
                 projected_samples.add(tuple(sample))
             # Create a new vertex for the sample and add it to the graph
@@ -60,24 +55,7 @@ class ReachesNewSampling(SamplingDominationChecker):
             )
             go_to_next_sample = False
             for alt_n in alternate_nodes:
-                # Add edge between the sample and the second last vertex in the path
-                e = self._graph.edges[alt_n.edge_path[-1]]
-                edge_to_sample = Edge(
-                    u=e.u,
-                    v=sample_vertex_name,
-                    costs=e.costs,
-                    constraints=e.constraints,
-                )
-                self._graph.add_edge(edge_to_sample)
-                # Check whether sample can be reached via the path
-                self._graph.set_target(sample_vertex_name)
-                active_edges = alt_n.edge_path.copy()
-                active_edges[-1] = edge_to_sample.key
-
-                sol = self._graph.solve_convex_restriction(
-                    active_edges, skip_post_solve=True
-                )
-                self._alg_metrics.update_after_gcs_solve(sol.time)
+                sol = self._solve_conv_res_to_sample(alt_n, sample_vertex_name)
                 if sol.is_success:
                     # Clean up current sample
                     self._graph.remove_vertex(sample_vertex_name)
@@ -85,9 +63,6 @@ class ReachesNewSampling(SamplingDominationChecker):
                     # logger.debug(f"Sample {idx} reached by path {alt_n.vertex_path}")
                     go_to_next_sample = True
                     break
-                else:
-                    # Clean up edge, but leave the sample vertex
-                    self._graph.remove_edge(edge_to_sample.key)
             if go_to_next_sample:
                 continue
             # If no paths can reach the sample, do not need to check more samples

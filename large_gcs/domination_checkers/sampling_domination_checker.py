@@ -1,19 +1,20 @@
-from typing import Optional
-import numpy as np
 import logging
 from dataclasses import dataclass
+from typing import Optional
+
+import numpy as np
 from pydrake.all import CommonSolverOption, MathematicalProgram, Solve, SolverOptions
 
 from large_gcs.algorithms.search_algorithm import AlgMetrics, SearchNode
 from large_gcs.domination_checkers.domination_checker import DominationChecker
 from large_gcs.geometry.geometry_utils import unique_rows_with_tolerance_ignore_nan
 from large_gcs.geometry.point import Point
-from large_gcs.graph.graph import Edge, Graph, Vertex
 from large_gcs.graph.cost_constraint_factory import (
     create_equality_edge_constraint,
     create_l2norm_squared_vertex_cost_from_point,
     create_l2norm_vertex_cost_from_point,
 )
+from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution, Vertex
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +115,26 @@ class SetSamples:
         # Edge is automatically removed when vertex is removed
 
         return proj_sample
+
+    def project_all_gcs(
+        self, graph: Graph, node: SearchNode, alg_metrics: AlgMetrics
+    ) -> np.ndarray:
+        self.init_graph_for_projection(graph, node, alg_metrics)
+        results = np.full_like(self.samples, np.nan)
+        n_failed = 0
+        for idx, sample in enumerate(self.samples):
+            proj_sample = self.project_single_gcs(graph, node, sample)
+            if proj_sample is None:
+                n_failed += 1
+                logger.warn(
+                    f"Failed to project sample {idx} for vertex {self.vertex_name}"
+                )
+            else:
+                results[idx] = proj_sample
+        if n_failed == len(self.samples):
+            logger.error(f"Failed to project any samples for vertex {self.vertex_name}")
+        filtered_results = unique_rows_with_tolerance_ignore_nan(results, tol=1e-3)
+        return filtered_results
 
     def project_single(
         self, graph: Graph, node: SearchNode, sample: np.ndarray
@@ -260,3 +281,34 @@ class SamplingDominationChecker(DominationChecker):
         # Keeps track of samples for each vertex(set) in the graph.
         # These samples are not used directly but first projected into the feasible subspace of a particular path.
         self._set_samples: dict[str, SetSamples] = {}
+
+    def _maybe_add_set_samples(self, vertex_name: str) -> None:
+        if vertex_name not in self._set_samples:
+            logger.debug(f"Adding samples for {vertex_name}")
+            self._set_samples[vertex_name] = SetSamples.from_vertex(
+                vertex_name,
+                self._graph.vertices[vertex_name],
+                self._num_samples_per_vertex,
+            )
+
+    def _solve_conv_res_to_sample(
+        self, node: SearchNode, sample_vertex_name: str
+    ) -> ShortestPathSolution:
+        # Add edge between the sample and the second last vertex in the path
+        e = self._graph.edges[node.edge_path[-1]]
+        edge_to_sample = Edge(
+            u=e.u,
+            v=sample_vertex_name,
+            costs=e.costs,
+            constraints=e.constraints,
+        )
+        self._graph.add_edge(edge_to_sample)
+        self._graph.set_target(sample_vertex_name)
+        active_edges = node.edge_path.copy()
+        active_edges[-1] = edge_to_sample.key
+
+        sol = self._graph.solve_convex_restriction(active_edges, skip_post_solve=True)
+        self._alg_metrics.update_after_gcs_solve(sol.time)
+        # Clean up edge, but leave the sample vertex
+        self._graph.remove_edge(edge_to_sample.key)
+        return sol

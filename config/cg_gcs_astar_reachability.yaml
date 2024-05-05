@@ -1,18 +1,18 @@
 defaults:
   - algorithm: gcs_astar_reachability
   - cost_estimator: shortcut_edge
-  - domination_checker: reaches_new_sampling
+  - domination_checker: reaches_cheaper_sampling_pairwise
   - hydra: hydra
 
-graph_name: "cg_simple_3"
+graph_name: "cg_trichal4"
 should_use_incremental_graph: true
 should_incl_simul_mode_switches: false
 should_add_const_edge_cost: true
 
 
 cost_estimator:
-  shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted
-  # shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_under_obj_weighted"
+  # shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted
+  shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_under_obj_weighted"
 
 save_visualization: true
 save_to_wandb: true
@@ -29,9 +29,9 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      # cost_estimator.shortcut_edge_cost_factory:  large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted, large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_under_obj_weighted
+      cost_estimator.shortcut_edge_cost_factory:  large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted, large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_under_obj_weighted
       # large_gcs.graph.contact_cost_constraint_factory.contact_norm_squared_shortcut_edge_cost_factory_over_obj_weighted, 
-      graph_name: cg_simple_3, cg_trichal4
+      # graph_name: cg_simple_3, cg_trichal4
       
 # cg_simple_3, cg_trichal4 , cg_maze_b1, cg_maze_b3
 # cg_simple_2, cg_simple_3, cg_trichal2, cg_trichal4, cg_maze_b1, cg_maze_b3 #, cg_maze_a35

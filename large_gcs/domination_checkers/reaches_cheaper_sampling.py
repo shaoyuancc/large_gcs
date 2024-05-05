@@ -1,5 +1,6 @@
-from typing import List
 import logging
+from typing import List
+
 from large_gcs.algorithms.search_algorithm import SearchNode
 from large_gcs.domination_checkers.sampling_domination_checker import (
     SamplingDominationChecker,
@@ -7,7 +8,6 @@ from large_gcs.domination_checkers.sampling_domination_checker import (
 )
 from large_gcs.geometry.point import Point
 from large_gcs.graph.graph import Edge, Vertex
-
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +27,7 @@ class ReachesCheaperSampling(SamplingDominationChecker):
         (Any cost is cheaper than infinity)
         """
 
-        if candidate_node.vertex_name not in self._set_samples:
-            logger.debug(f"Adding samples for {candidate_node.vertex_name}")
-            self._set_samples[candidate_node.vertex_name] = SetSamples.from_vertex(
-                candidate_node.vertex_name,
-                self._graph.vertices[candidate_node.vertex_name],
-                self._num_samples_per_vertex,
-            )
+        self._maybe_add_set_samples(candidate_node.vertex_name)
 
         reached_cheaper = False
         projected_samples = set()
@@ -64,32 +58,15 @@ class ReachesCheaperSampling(SamplingDominationChecker):
                 vertex=Vertex(convex_set=Point(proj_sample)), name=sample_vertex_name
             )
 
-            # Calculate the cost to come to the sample for the candidate path
-            e = self._graph.edges[candidate_node.edge_path[-1]]
-            edge_to_sample = Edge(
-                u=e.u,
-                v=sample_vertex_name,
-                costs=e.costs,
-                constraints=e.constraints,
-            )
-            self._graph.add_edge(edge_to_sample)
-            self._graph.set_target(sample_vertex_name)
-            active_edges = candidate_node.edge_path.copy()
-            active_edges[-1] = edge_to_sample.key
+            sol = self._solve_conv_res_to_sample(candidate_node, sample_vertex_name)
 
-            sol = self._graph.solve_convex_restriction(
-                active_edges, skip_post_solve=True
-            )
-            self._alg_metrics.update_after_gcs_solve(sol.time)
-            # Clean up edge, but leave the sample vertex
-            self._graph.remove_edge(edge_to_sample.key)
             if not sol.is_success:
                 logger.error(
                     f"Candidate path was not feasible to reach sample {idx}"
                     f"\nnum samples: {len(self._set_samples[candidate_node.vertex_name].samples)}"
                     f"\nsample: {proj_sample}"
                     f"\nproj_sample: {proj_sample}"
-                    f"\nactive edges: {active_edges}"
+                    f"\nactive edges: {candidate_node.edge_path}"
                     f"\nvertex_path: {candidate_node.vertex_path}"
                     f"\n Skipping to next sample"
                 )
@@ -100,31 +77,11 @@ class ReachesCheaperSampling(SamplingDominationChecker):
 
             go_to_next_sample = False
             for alt_n in alternate_nodes:
-                # Add edge between the sample and the second last vertex in the path
-                e = self._graph.edges[alt_n.edge_path[-1]]
-                edge_to_sample = Edge(
-                    u=e.u,
-                    v=sample_vertex_name,
-                    costs=e.costs,
-                    constraints=e.constraints,
-                )
-                self._graph.add_edge(edge_to_sample)
-                # Check whether sample can be reached via the path
-                self._graph.set_target(sample_vertex_name)
-                active_edges = alt_n.edge_path.copy()
-                active_edges[-1] = edge_to_sample.key
-
-                sol = self._graph.solve_convex_restriction(
-                    active_edges, skip_post_solve=True
-                )
-                self._alg_metrics.update_after_gcs_solve(sol.time)
+                sol = self._solve_conv_res_to_sample(alt_n, sample_vertex_name)
                 if sol.is_success and sol.cost <= candidate_path_cost_to_come:
                     self._graph.remove_vertex(sample_vertex_name)
                     go_to_next_sample = True
                     break
-                else:
-                    # Clean up edge, but leave the sample vertex
-                    self._graph.remove_edge(edge_to_sample.key)
 
             if go_to_next_sample:
                 continue
