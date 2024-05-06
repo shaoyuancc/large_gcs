@@ -1,10 +1,10 @@
 defaults:
   - algorithm: gcs_astar_reachability
   - cost_estimator: shortcut_edge
-  - domination_checker: reaches_cheaper_sampling_pairwise
+  - domination_checker: reaches_new_containment
   - hydra: hydra
 
-graph_name: "cg_trichal4"
+graph_name: "cg_simple_3"
 should_use_incremental_graph: true
 should_incl_simul_mode_switches: false
 should_add_const_edge_cost: true
@@ -15,6 +15,10 @@ should_use_l1_norm_vertex_cost: true
 cost_estimator:
   # USE L1 NORM SHORTCUT EDGE COST
   shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted
+
+# Note: Comment this out if not using sampling domination checkers
+domination_checker:
+  num_samples_per_vertex: 100
 
 save_visualization: true
 save_to_wandb: true
@@ -31,5 +35,6 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      domination_checker: reaches_new_sampling, reaches_cheaper_sampling, reaches_new_containment, reaches_cheaper_containment 
+      domination_checker: reaches_cheaper_sampling, reaches_cheaper_sampling
+      # domination_checker: reaches_cheaper_sampling, reaches_cheaper_sampling, reaches_new_containment, reaches_cheaper_containment 
       graph_name: cg_simple_3, cg_trichal4, cg_maze_b1, cg_maze_b3

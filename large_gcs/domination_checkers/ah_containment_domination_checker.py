@@ -4,7 +4,7 @@ import numpy as np
 import pypolycontain as pp
 from pydrake.all import HPolyhedron, L1NormCost, MathematicalProgram, Solve
 
-from large_gcs.algorithms.search_algorithm import SearchNode
+from large_gcs.algorithms.search_algorithm import AlgMetrics, SearchNode, profile_method
 from large_gcs.domination_checkers.domination_checker import DominationChecker
 from large_gcs.graph.graph import Graph
 
@@ -14,22 +14,45 @@ class AHContainmentDominationChecker(DominationChecker):
         super().__init__(graph=graph)
         self._containment_condition = containment_condition
 
-    def is_dominated():
-        pass
+    def set_alg_metrics(self, alg_metrics: AlgMetrics):
+        self._alg_metrics = alg_metrics
+        call_structure = {
+            "_is_dominated": [
+                "is_contained_in",
+                "get_feasibility_matrices",
+                "get_epigraph_matrices",
+                ],
+            "is_contained_in": [
+                "_create_AH_polytopes",
+                "_solve_containment_prog",
+            ]
+        }
+        alg_metrics.update_method_call_structure(call_structure)
 
+    @profile_method
     def is_contained_in(self, A_x, b_x, T_x, A_y, b_y, T_y) -> bool:
+        AH_X, AH_Y = self._create_AH_polytopes(A_x, b_x, T_x, A_y, b_y, T_y)
+
+        prog = MathematicalProgram()
+
+        # https://github.com/sadraddini/pypolycontain/blob/master/pypolycontain/containment.py#L123
+        # -1 for sufficient condition
+        # pick `0` for necessary and sufficient encoding (may be too slow) (2019b)
+        pp.subset(prog, AH_X, AH_Y, self._containment_condition)
+        
+        return self._solve_containment_prog(prog)
+    
+    @profile_method
+    def _create_AH_polytopes(self, A_x, b_x, T_x, A_y, b_y, T_y):
         X = pp.H_polytope(A_x, b_x)
         Y = pp.H_polytope(A_y, b_y)
 
         AH_X = pp.AH_polytope(np.zeros((T_x.shape[0], 1)), T_x, X)
         AH_Y = pp.AH_polytope(np.zeros((T_y.shape[0], 1)), T_y, Y)
-
-        prog = MathematicalProgram()
-
-        # https://github.com/sadraddini/pypolycontain/blob/master/pypolycontain/containment.py
-        # -1 for sufficient condition
-        # pick `0` for necessary and sufficient encoding (may be too slow) (2019b)
-        pp.subset(prog, AH_X, AH_Y, self._containment_condition)
+        return AH_X, AH_Y
+    
+    @profile_method
+    def _solve_containment_prog(self, prog: MathematicalProgram):
         result = Solve(prog)
         return result.is_success()
 
@@ -134,11 +157,13 @@ class AHContainmentDominationChecker(DominationChecker):
 
         return prog
 
+    @profile_method
     def get_feasibility_matrices(self, node: SearchNode):
         prog = self.get_path_constraint_mathematical_program(node)
         X = HPolyhedron(prog)
         return X.A(), X.b()
 
+    @profile_method
     def get_epigraph_matrices(
         self, node: SearchNode, add_upper_bound=False, cost_upper_bound=1e4
     ):

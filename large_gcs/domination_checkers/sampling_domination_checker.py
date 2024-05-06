@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pydrake.all import CommonSolverOption, MathematicalProgram, Solve, SolverOptions
 
-from large_gcs.algorithms.search_algorithm import AlgMetrics, SearchNode
+from large_gcs.algorithms.search_algorithm import AlgMetrics, SearchNode, profile_method
 from large_gcs.domination_checkers.domination_checker import DominationChecker
 from large_gcs.geometry.geometry_utils import unique_rows_with_tolerance_ignore_nan
 from large_gcs.geometry.point import Point
@@ -67,6 +67,7 @@ class SetSamples:
 
         self._proj_graph.set_source(graph.source_name)
 
+    @profile_method
     def project_single_gcs(
         self, graph: Graph, node: SearchNode, sample: np.ndarray
     ) -> Optional[np.ndarray]:
@@ -117,6 +118,7 @@ class SetSamples:
 
         return proj_sample
 
+    @profile_method
     def project_all_gcs(
         self, graph: Graph, node: SearchNode, alg_metrics: AlgMetrics
     ) -> np.ndarray:
@@ -283,6 +285,18 @@ class SamplingDominationChecker(DominationChecker):
         # These samples are not used directly but first projected into the feasible subspace of a particular path.
         self._set_samples: dict[str, SetSamples] = {}
 
+    def set_alg_metrics(self, alg_metrics: AlgMetrics):
+        self._alg_metrics = alg_metrics
+        call_structure = {
+            "_is_dominated": [
+                "_maybe_add_set_samples",
+                "project_single_gcs",
+                "project_all_gcs"
+                ],
+        }
+        alg_metrics.update_method_call_structure(call_structure)
+
+    @profile_method
     def _maybe_add_set_samples(self, vertex_name: str) -> None:
         if vertex_name not in self._set_samples:
             logger.debug(f"Adding samples for {vertex_name}")

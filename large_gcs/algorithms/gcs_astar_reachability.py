@@ -78,7 +78,7 @@ class GcsAstarReachability(SearchAlgorithm):
                 "_is_dominated",
             ],
         }
-        self._alg_metrics.set_method_call_structure(call_structure)
+        self._alg_metrics.update_method_call_structure(call_structure)
         self._last_plots_save_time = time.time()
         self._step = 0
 
