@@ -7,17 +7,28 @@ from pydrake.all import (
     LinearEqualityConstraint,
     QuadraticCost,
     L1NormCost,
+    LinearCost,
 )
 
 
-def shortcut_edge_cost_factory(dim: int) -> List[Cost]:
+def shortcut_edge_cost_factory(dim: int, add_const_cost: bool = False) -> List[Cost]:
     edge_cost = create_l2norm_edge_cost(dim)
-    return [edge_cost]
+    costs = [edge_cost]
+    if add_const_cost:
+        a = np.zeros((dim, 1))
+        constant_cost = 1
+        costs.append(LinearCost(a, constant_cost))
+    return
 
 
 def l1_norm_shortcut_edge_cost_factory(dim: int, add_const_cost=False) -> List[Cost]:
     edge_cost = create_l1norm_edge_cost(dim)
-    return [edge_cost]
+    costs = [edge_cost]
+    if add_const_cost:
+        a = np.zeros((dim, 1))
+        constant_cost = 1
+        costs.append(LinearCost(a, constant_cost))
+    return
 
 
 def create_l2norm_edge_cost(dim: int):

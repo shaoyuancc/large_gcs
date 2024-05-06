@@ -42,7 +42,7 @@ class ReachesCheaperSampling(SamplingDominationChecker):
             ].project_single_gcs(self._graph, candidate_node, sample)
 
             if proj_sample is None:
-                logger.warn(
+                logger.warning(
                     f"Failed to project sample {idx} for vertex {candidate_node.vertex_name}"
                 )
                 continue

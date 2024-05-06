@@ -75,7 +75,7 @@ class GcsHAstarReachability(SearchAlgorithm):
             sol = self._run_iteration()
             self._alg_metrics.time_wall_clock = time.time() - self._start_time
         if sol is None:
-            logger.warn(
+            logger.warning(
                 f"{self.__class__.__name__} failed to find a path to the target."
             )
             return

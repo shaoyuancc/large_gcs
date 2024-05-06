@@ -153,9 +153,9 @@ class ContactGraph(Graph):
 
         # Check that the source and target are reachable
         if len(self.outgoing_edges(self.source_name)) == 0:
-            logger.warn("Source does not overlap with any other set")
+            logger.warning("Source does not overlap with any other set")
         if len(self.incoming_edges(self.target_name)) == 0:
-            logger.warn("Target is not reachable from any other set")
+            logger.warning("Target is not reachable from any other set")
 
         logger.info(f"Created contact graph: {self.params}")
 

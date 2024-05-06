@@ -39,6 +39,10 @@ class SppShapeGcsGeneratorParams:
     save_path: str = "spp_shape_gcs.npy"
     # Whether to save the graph as a .npy file
     should_save: bool = False
+    # Whether to add hor-vert constraints to edges
+    add_hor_vert_constraints: bool = True
+    # Whether to use polyhedrons only
+    use_polyhedrons_only: bool = True
 
     def __post_init__(self):
         self.source = np.array(self.source)
@@ -106,7 +110,7 @@ def generate_spp_shape_gcs(
     print("Processing samples into convex sets...")
     for i in tqdm(range(len(samples))):
         sample = samples[i]
-        if np.random.choice([True, False]):
+        if not params.use_polyhedrons_only and np.random.choice([True, False]):
             Q, _ = np.linalg.qr(
                 np.random.randn(params.dim, params.dim)
             )  # Random orthogonal matrix
@@ -149,9 +153,13 @@ def generate_spp_shape_gcs(
         n_edges = np.random.randint(
             params.k_nearest_edges[0], params.k_nearest_edges[1]
         )
-        edges[u] = vertex_names_by_samples[
+        potential_edges = vertex_names_by_samples[
             np.random.choice(nearest_indices, n_edges, replace=False)
         ]
+        # if params.add_hor_vert_constraints:
+        # Check if a horizontal edge is feasible
+        # Check if a vertical edge is feasible
+        edges[u] = potential_edges
 
     nearest_target_indices = np.argsort(st_dist_matrix[1])[: params.n_st_edges]
     for i in tqdm(range(len(nearest_target_indices))):
@@ -177,6 +185,9 @@ def generate_spp_shape_gcs(
     print("Adding vertices and edges to graph...")
     graph = _add_vertices_edges_to_graph(points, ellipsoids, polyhedra, edges, graph)
     return graph
+
+
+# def check_if_edge_is_feasible(u_set, v_set, constraint):
 
 
 def load_spp_shape_gcs(path: str, edge_cost_factory) -> Graph:

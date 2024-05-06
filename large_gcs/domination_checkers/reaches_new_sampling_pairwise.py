@@ -52,7 +52,6 @@ class ReachesNewSamplingPairwise(SamplingDominationChecker):
         for alt_n in alternate_nodes:
             alt_reaches = np.full(len(sample_names), False)
             for idx, sample_vertex_name in enumerate(sample_names):
-
                 sol = self._solve_conv_res_to_sample(alt_n, sample_vertex_name)
                 alt_reaches[idx] = sol.is_success
             if np.all(alt_reaches):

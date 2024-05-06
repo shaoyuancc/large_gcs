@@ -110,7 +110,7 @@ class GcsAstarReachability(SearchAlgorithm):
             sol = self._run_iteration()
             self._alg_metrics.time_wall_clock = time.time() - start_time
         if sol is None:
-            logger.warn(
+            logger.warning(
                 f"{self.__class__.__name__} failed to find a path to the target."
             )
             return
@@ -222,10 +222,11 @@ class GcsAstarReachability(SearchAlgorithm):
         self._step += 1
         current_time = time.time()
         PERIOD = 300
-        log_dir = self._vis_params.log_dir
-        if log_dir is not None and (
+
+        if self._vis_params is not None and (
             override_save or self._last_plots_save_time + PERIOD < current_time
         ):
+            log_dir = self._vis_params.log_dir
             # Histogram of paths per vertex
             # Preparing tracked and pruned counts
             tracked_counts = [len(self._S[v]) for v in self._S]

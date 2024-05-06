@@ -135,7 +135,7 @@ class FactoredCollisionFreeGraph(ContactGraph):
 
         # Check that the target is reachable
         if len(self.incoming_edges(self.target_name)) == 0:
-            logger.warn("Target is not reachable from any other set")
+            logger.warning("Target is not reachable from any other set")
 
         logger.info(
             f"Created factored collision free graph for {movable_body.name}: {self.params}"

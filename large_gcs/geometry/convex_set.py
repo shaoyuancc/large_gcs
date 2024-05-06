@@ -52,10 +52,12 @@ class ConvexSet(ABC):
         except:
             chebyshev_center = self.set.ChebyshevCenter()
             if not self.set.PointInSet(chebyshev_center, tol=0):
-                logger.warn("Set has no interior, returning chebyshev center as sample")
+                logger.warning(
+                    "Set has no interior, returning chebyshev center as sample"
+                )
                 return np.array([chebyshev_center])
             else:
-                logger.warn("Warning: failed to sample convex set")
+                logger.warning("Warning: failed to sample convex set")
         return np.array(samples)
 
     @property

@@ -104,7 +104,7 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             self._run_iteration()
             self._alg_metrics.time_wall_clock = time.time() - self._start_time
 
-        logger.warn("Gcs A* Convex Restriction failed to find a path to the target.")
+        logger.warning("Gcs A* Convex Restriction failed to find a path to the target.")
         return None
 
     def _run_iteration(self):

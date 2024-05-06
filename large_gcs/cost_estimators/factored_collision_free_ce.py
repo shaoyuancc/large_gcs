@@ -232,7 +232,7 @@ class FactoredCollisionFreeCE(CostEstimator):
                     self._cfree_cost[cfree_vertex_name] = float("inf")
                     self._cfree_init_pos[cfree_vertex_name] = body_pos_end
                     cfree_init_pos = body_pos_end
-                    logger.warn(
+                    logger.warning(
                         f"Could not find collision free path for {cfree_vertex_name}"
                     )
 

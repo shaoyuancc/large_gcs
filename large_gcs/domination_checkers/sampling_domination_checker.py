@@ -127,7 +127,7 @@ class SetSamples:
             proj_sample = self.project_single_gcs(graph, node, sample)
             if proj_sample is None:
                 n_failed += 1
-                logger.warn(
+                logger.warning(
                     f"Failed to project sample {idx} for vertex {self.vertex_name}"
                 )
             else:
@@ -261,10 +261,10 @@ class SetSamples:
             result = Solve(prog, solver_options=solver_options)
             if not result.is_success():
                 n_failed += 1
-                logger.warn(
+                logger.warning(
                     f"Failed to project sample {idx} for vertex {vertex_sampled}, original sample: {sample}"
                 )
-                # logger.warn(f"Failed to project samples node {n.vertex_name}, vertex_path={n.vertex_path}, edge_path={n.edge_path}")
+                # logger.warning(f"Failed to project samples node {n.vertex_name}, vertex_path={n.vertex_path}, edge_path={n.edge_path}")
             else:
                 results[idx] = result.GetSolution(sample_vars)
         if n_failed == len(samples):

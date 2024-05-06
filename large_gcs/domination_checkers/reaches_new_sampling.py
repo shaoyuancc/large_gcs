@@ -39,7 +39,7 @@ class ReachesNewSampling(SamplingDominationChecker):
             )
 
             if sample is None:
-                logger.warn(
+                logger.warning(
                     f"Failed to project sample {idx} for vertex {candidate_node.vertex_name}"
                 )
                 continue
