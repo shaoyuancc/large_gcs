@@ -48,29 +48,21 @@ class Polyhedron(ConvexSet):
                 A = np.delete(A, i, axis=0)
                 b = np.delete(b, i)
 
-        if Polyhedron._check_contains_equality_constraints(A, b):
-            self._has_equality_constraints = True
-            self._h_polyhedron = HPolyhedron(A, b)
-            if not self._h_polyhedron.IsEmpty():
-                self._create_null_space_polyhedron()
-            return
-        else:
-            self._has_equality_constraints = False
-
-        if A.shape[1] == 1:
-            self._h_polyhedron = HPolyhedron(A, b)
-            return
-
+        self._h_polyhedron = HPolyhedron(A, b)
+        
         if should_compute_vertices:
+            if A.shape[1] == 1 or self._h_polyhedron.IsEmpty():
+                logger.warning("Polyhedron is empty or 1D, skipping compute vertices")
+                return
+            
             vertices = VPolytope(HPolyhedron(A, b)).vertices().T
             hull = ConvexHull(vertices)  # orders vertices counterclockwise
             self._vertices = vertices[hull.vertices]
             A, b = Polyhedron._reorder_A_b_by_vertices(A, b, self._vertices)
 
-        self._h_polyhedron = HPolyhedron(A, b)
+            self._h_polyhedron = HPolyhedron(A, b)
 
-        # Compute center
-        if should_compute_vertices:
+            # Compute center
             try:
                 max_ellipsoid = self._h_polyhedron.MaximumVolumeInscribedEllipsoid()
                 self._center = np.array(max_ellipsoid.center())
@@ -377,6 +369,19 @@ class Polyhedron(ConvexSet):
         )
 
     def get_samples(self, n_samples=100):
+
+        # Check if _has_equality_constraints attribute has been set
+        if not hasattr(self, "_has_equality_constraints"):
+            if Polyhedron._check_contains_equality_constraints(self.set.A(), self.set.b()):
+                self._has_equality_constraints = True
+                if not self._h_polyhedron.IsEmpty():
+                    self._create_null_space_polyhedron()
+                else:
+                    logger.warning("Trying to sample from an empty polyhedron")
+                    return None
+            else:
+                self._has_equality_constraints = False
+
         if self._has_equality_constraints:
             q_samples = self._null_space_polyhedron.get_samples(n_samples)
             assert len(q_samples) > 0
