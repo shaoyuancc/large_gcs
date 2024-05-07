@@ -1,4 +1,4 @@
-from large_gcs.algorithms.search_algorithm import SearchNode
+from large_gcs.algorithms.search_algorithm import AlgMetrics, SearchNode
 from large_gcs.domination_checkers.reaches_cheaper_containment import (
     ReachesCheaperContainment,
 )
@@ -10,6 +10,7 @@ from large_gcs.graph_generators.one_dimensional_gcs import create_simple_1d_grap
 def test_reaches_new_containment_polyhedral_hor_vert_b_graph():
     G = create_polyhedral_hor_vert_b_graph()
     domination_checker = ReachesNewContainment(graph=G, containment_condition=-1)
+    domination_checker.set_alg_metrics(AlgMetrics())
     n_x = SearchNode.from_vertex_path(["s", "p1", "p2"])
     n_y = SearchNode.from_vertex_path(["s", "p6", "p7", "p2"])
     n_z = SearchNode.from_vertex_path(["s", "p8", "p9", "p2"])
@@ -34,6 +35,7 @@ def test_reaches_new_containment_polyhedral_hor_vert_b_graph():
 def test_reaches_cheaper_containment_polyhedral_hor_vert_b_graph():
     G = create_polyhedral_hor_vert_b_graph()
     domination_checker = ReachesCheaperContainment(graph=G, containment_condition=-1)
+    domination_checker.set_alg_metrics(AlgMetrics())
     n_x = SearchNode.from_vertex_path(["s", "p1", "p2"])
     n_y = SearchNode.from_vertex_path(["s", "p6", "p7", "p2"])
     n_z = SearchNode.from_vertex_path(["s", "p8", "p9", "p2"])
@@ -60,6 +62,7 @@ def test_reaches_cheaper_containment_polyhedral_hor_vert_b_graph():
 def test_reaches_cheaper_containment_simple_1d_graph():
     G = create_simple_1d_graph()
     domination_checker = ReachesCheaperContainment(graph=G, containment_condition=-1)
+    domination_checker.set_alg_metrics(AlgMetrics())
     n = SearchNode.from_vertex_path(["s", "t"])
     n_prime = SearchNode.from_vertex_path(["p0", "t"])
 
