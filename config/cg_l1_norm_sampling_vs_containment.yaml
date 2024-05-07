@@ -17,8 +17,8 @@ cost_estimator:
   shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted
 
 # Note: Comment this out if not using sampling domination checkers
-domination_checker:
-  num_samples_per_vertex: 100
+# domination_checker:
+#   num_samples_per_vertex: 100
 
 save_visualization: true
 save_to_wandb: true
@@ -35,6 +35,6 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      domination_checker: reaches_cheaper_sampling, reaches_cheaper_sampling
+      domination_checker: reaches_new_containment, reaches_cheaper_containment
       # domination_checker: reaches_cheaper_sampling, reaches_cheaper_sampling, reaches_new_containment, reaches_cheaper_containment 
-      graph_name: cg_simple_3, cg_trichal4, cg_maze_b1, cg_maze_b3
+      graph_name: cg_simple_3, cg_trichal4, cg_maze_b3, cg_maze_b1,
