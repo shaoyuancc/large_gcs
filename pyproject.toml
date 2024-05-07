@@ -13,7 +13,7 @@ matplotlib = "^3.7.1"
 ipykernel = "^6.23.1"
 scipy = "^1.10.1"
 graphviz = "^0.20.1"
-drake = [{version = "<0.1", source = "drake-repo"}]
+drake = [{version = "^0.0.20240505", source = "drake-repo"}]
 black = "^23.3.0"
 tqdm = "^4.65.0"
 pytest = "^7.4.0"
@@ -24,7 +24,6 @@ autoflake = "^2.2.0"
 isort = "^5.12.0"
 pdbpp = "^0.10.3"
 plotly = "^5.20.0"
-pycddlib = "^2.1.7"
 
 [tool.isort]
 profile = "black"
@@ -36,4 +35,4 @@ build-backend = "poetry.core.masonry.api"
 [[tool.poetry.source]]
 name = "drake-repo"
 url = "https://drake-packages.csail.mit.edu/whl/nightly/"
-secondary = true
+priority = "primary"

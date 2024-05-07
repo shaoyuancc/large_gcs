@@ -4,6 +4,11 @@ Combining ideas from graph search and graph of convex sets
 ## Installation (Linux and MacOS)
 This repo uses Poetry for dependency management. To setup this project, first install [Poetry](https://python-poetry.org/docs/#installation) and, make sure to have Python3.10 installed on your system.
 
+(Optional) Configure poetry to create virtual environment in project
+```
+poetry config virtualenvs.in-project true
+```
+
 Then, configure poetry to setup a virtual environment that uses >= Python 3.10:
 ```
 poetry env use python3.10
@@ -27,7 +32,7 @@ export MOSEKLM_LICENSE_FILE="/path/to/mosek/license/mosek/mosek.lic"
 export GRB_LICENSE_FILE="/path/to/gurobi/license/gurobi.lic"
 ```
 
-Finally, make sure to have graphviz installed on your computer. On MacOS, run the following command:
+Make sure to have graphviz installed on your computer. On MacOS, run the following command:
 ```
 brew install graphviz
 ```
