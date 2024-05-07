@@ -4,9 +4,9 @@ Combining ideas from graph search and graph of convex sets
 ## Installation (Linux and MacOS)
 This repo uses Poetry for dependency management. To setup this project, first install [Poetry](https://python-poetry.org/docs/#installation) and, make sure to have Python3.10 installed on your system.
 
-Then, configure poetry to setup a virtual environment that uses >= Python 3.8:
+Then, configure poetry to setup a virtual environment that uses >= Python 3.10:
 ```
-poetry env use python3.11
+poetry env use python3.10
 ```
 
 Next, install all the required dependencies to the virtual environment with the following command:
@@ -15,10 +15,14 @@ poetry install -vvv
 ```
 (the `-vvv` flag adds verbose output).
 
+Clone this fork of pypolycontain locally.
+https://github.com/shaoyuancc/pypolycontain
+
 Next, add the following lines to `.venv/bin/activate` replacing the paths with your actual paths:
 ```
+PYPOLYCONTAIN="/path/to/pypolycontain"
 export PROJECT_ROOT="/path/to/project/folder/large_gcs"
-export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+export PYTHONPATH="$PROJECT_ROOT:$PYPOLYCONTAIN:$PYTHONPATH"
 export MOSEKLM_LICENSE_FILE="/path/to/mosek/license/mosek/mosek.lic"
 export GRB_LICENSE_FILE="/path/to/gurobi/license/gurobi.lic"
 ```
