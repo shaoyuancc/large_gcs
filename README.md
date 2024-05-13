@@ -44,21 +44,6 @@ poetry shell
 pre-commit install
 ```
 
-## Runing a single experiment
-
-Create a config file specifying the experiment in `config` and run it using the following command:
-
-```
-python3 experiments/run_contact_graph_experiment.py --config-name cg_gcs_astar_conv_res
-```
-
-where `cg_gcs_astar_conv_res` should be replaced with your config name.
-
-## Running multiple experiments
-
-Create a bash script in `scripts` and make it executable with `chmod +x run_multiple_experiments.sh`.
-Then run it with `run_multiple_experiments.sh`
-
 ## Running tests
 
 In typical development, regularly run
@@ -75,6 +60,23 @@ To run a specific test(s) by referring to some part of the test's name, use
 `pytest -k "shortcut_edge_cg_simple_2_inc"`
 
 To make tests verbose and allow print statements to be shown use `-v -s` flags.
+
+## Runing a single experiment
+
+Create a config file specifying the experiment in `config` and run it using the following command:
+
+```
+python3 experiments/run_contact_graph_experiment.py --config-name quickstart
+```
+
+where `quickstart` should be replaced with your config name.
+
+After running quickstart you can compare your results (which should appear in the `multirun/date/time` folder) to the contents of the `quickstart_output` folder
+
+## Running multiple experiments
+
+Create a bash script in `scripts` and make it executable with `chmod +x run_multiple_experiments.sh`.
+Then run it with `run_multiple_experiments.sh`
 
 ## Credits
 This repo references and contains code from: Bernhard Paus Græsdal https://github.com/bernhardpg/planning-through-contact and Tobia Marcucci https://github.com/TobiaMarcucci/shortest-paths-in-graphs-of-convex-sets.

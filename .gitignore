@@ -162,7 +162,7 @@ cython_debug/
 #.idea/
 
 # Output files
-*.mp4
+# *.mp4
 output/
 outputs/
 multirun/
