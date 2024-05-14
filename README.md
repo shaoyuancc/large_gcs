@@ -73,6 +73,11 @@ where `quickstart` should be replaced with your config name.
 
 After running quickstart you can compare your results (which should appear in the `multirun/date/time` folder) to the contents of the `quickstart_output` folder
 
+## Runing WAFR experiments
+```
+python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR_experiments --config-dir config --config-name quickstart 
+```
+
 ## Running multiple experiments
 
 Create a bash script in `scripts` and make it executable with `chmod +x run_multiple_experiments.sh`.
