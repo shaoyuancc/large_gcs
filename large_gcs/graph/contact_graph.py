@@ -412,10 +412,16 @@ class ContactGraph(Graph):
 
     def _post_solve(self, sol: ShortestPathSolution):
         """Post solve hook that is called after solving by the base graph class"""
+        self.make_contact_solution(sol)
+
+    def make_contact_solution(
+        self, sol: ShortestPathSolution
+    ) -> ContactShortestPathSolution:  # type: ignore
         if sol.is_success:
             self.contact_spp_sol = self.create_contact_spp_sol(
                 sol.vertex_path, sol.ambient_path
             )
+            return self.contact_spp_sol
         # else:
         #     logger.debug("No Shortest Path Solution Found")
 

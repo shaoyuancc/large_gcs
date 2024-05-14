@@ -80,7 +80,7 @@ def main() -> None:
         )
         cg = ContactGraph.load_from_file(graph_file)
 
-    # Load all the runs
+    # Iterate through the runs and generate figures
     for path in data_dir.iterdir():
         if not path.is_dir():
             continue
@@ -103,25 +103,11 @@ def main() -> None:
         metric_file = metric_files[0]
         metrics = AlgMetrics.load(metric_file)
 
-    # if sol is not None and cfg.save_visualization:
-    #     if "abstraction_model_generator" in cfg:
-    #         model_name = cfg.abstraction_model_generator["_target_"].split(".")[-1]
-    #         output_base = f"{alg.__class__.__name__}_{
-    #             model_name}_{cfg.graph_name}"
-    #     else:
-    #         output_base = f"{alg.__class__.__name__}_{
-    #             cost_estimator.finger_print}_{cfg.graph_name}"
-    #     vid_file = os.path.join(full_log_dir, f"{output_base}.mp4")
-    #     # graphviz_file = os.path.join(full_log_dir, f"{output_base}_visited_subgraph")
-    #     # gviz = alg._visited.graphviz()
-    #     # gviz.format = "pdf"
-    #     # gviz.render(graphviz_file, view=False)
-    #
-    #     anim = cg.animate_solution()
-    #     anim.save(vid_file)
-    #     if cfg.save_to_wandb:
-    #         wandb.log({"animation": wandb.Video(vid_file)})
-    # wandb.save(graphviz_file + ".pdf")
+        cg.make_contact_solution(sol)
+        vid_file = path / "test.mp4"
+
+        anim = cg.animate_solution()
+        anim.save(vid_file)
 
 
 if __name__ == "__main__":
