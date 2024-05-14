@@ -39,8 +39,8 @@ def plot_trajectory(
     START_COLOR = CRIMSON.diffuse()
     GOAL_COLOR = EMERALDGREEN.diffuse()
 
-    GOAL_TRANSPARENCY = 1.0
-    START_TRANSPARENCY = 1.0
+    START_TRANSPARENCY = 0.0
+    END_TRANSPARENCY = 1.0
 
     fig, axs = plt.subplots(
         1, num_keyframes, figsize=(fig_height * num_keyframes, fig_height)
@@ -74,7 +74,14 @@ def plot_trajectory(
     n_steps = pos_trajs.shape[0]
 
     steps_per_axs = split_numbers_into_sublists(n_steps, len(axs))
+    transparencies = np.concatenate(
+        [
+            np.linspace(START_TRANSPARENCY, END_TRANSPARENCY, len(steps))
+            for steps in steps_per_axs
+        ]
+    )
     for ax, steps in zip(axs, steps_per_axs):
+
         for step_idx in steps:
             for obj_idx in range(n_objects):
                 objects[obj_idx].plot_at_position(
@@ -84,6 +91,7 @@ def plot_trajectory(
                     label_vertices_faces=False,
                     edgecolor=EDGE_COLOR,
                     ax=ax,
+                    alpha=transparencies[step_idx],
                 )
             for obj_idx in range(n_robots):
                 robots[obj_idx].plot_at_position(
@@ -93,6 +101,7 @@ def plot_trajectory(
                     label_vertices_faces=False,
                     edgecolor=EDGE_COLOR,
                     ax=ax,
+                    alpha=transparencies[step_idx],
                 )
 
     if filepath:

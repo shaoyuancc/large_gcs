@@ -541,8 +541,10 @@ class ContactGraph(Graph):
     def plot_solution(
         self, sol: ContactShortestPathSolution, loc: Optional[Path] = None
     ):
+        # Process position trajectories
+        trajs, _ = self._interpolate_positions(sol, max_gap=0.2)
         plot_trajectory(
-            sol.pos_trajs,
+            trajs,
             self.obstacles,
             self.objects,
             self.robots,
