@@ -141,6 +141,9 @@ def main(cfg: OmegaConf) -> None:
     if sol is not None and cfg.save_metrics:
         alg.save_alg_metrics(Path(full_log_dir) / f"{output_base}metrics.json")
 
+    if sol is not None and cfg.save_solution:
+        sol.save(Path(full_log_dir) / f"{output_base}solution.pkl")
+
     if sol is not None and cfg.save_visualization:
         vid_file = os.path.join(full_log_dir, f"{output_base}.mp4")
         # graphviz_file = os.path.join(full_log_dir, f"{output_base}_visited_subgraph")
