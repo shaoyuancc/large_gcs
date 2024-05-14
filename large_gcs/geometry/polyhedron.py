@@ -49,12 +49,12 @@ class Polyhedron(ConvexSet):
                 b = np.delete(b, i)
 
         self._h_polyhedron = HPolyhedron(A, b)
-        
+
         if should_compute_vertices:
             if A.shape[1] == 1 or self._h_polyhedron.IsEmpty():
                 logger.warning("Polyhedron is empty or 1D, skipping compute vertices")
                 return
-            
+
             vertices = VPolytope(HPolyhedron(A, b)).vertices().T
             hull = ConvexHull(vertices)  # orders vertices counterclockwise
             self._vertices = vertices[hull.vertices]
@@ -369,10 +369,11 @@ class Polyhedron(ConvexSet):
         )
 
     def get_samples(self, n_samples=100):
-
         # Check if _has_equality_constraints attribute has been set
         if not hasattr(self, "_has_equality_constraints"):
-            if Polyhedron._check_contains_equality_constraints(self.set.A(), self.set.b()):
+            if Polyhedron._check_contains_equality_constraints(
+                self.set.A(), self.set.b()
+            ):
                 self._has_equality_constraints = True
                 if not self._h_polyhedron.IsEmpty():
                     self._create_null_space_polyhedron()

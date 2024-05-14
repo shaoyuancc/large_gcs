@@ -238,6 +238,7 @@ def test_should_not_create_nullspace_polyhedron_if_infeasible_1():
     P.get_samples(1)
     assert not hasattr(P, "_null_space_polyhedron")
 
+
 @pytest.mark.skip(reason="sdfas")
 def test_removes_near_zero_rows_from_A_and_b():
     """

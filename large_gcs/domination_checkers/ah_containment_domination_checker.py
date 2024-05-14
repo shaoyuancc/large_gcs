@@ -21,11 +21,11 @@ class AHContainmentDominationChecker(DominationChecker):
                 "is_contained_in",
                 "get_feasibility_matrices",
                 "get_epigraph_matrices",
-                ],
+            ],
             "is_contained_in": [
                 "_create_AH_polytopes",
                 "_solve_containment_prog",
-            ]
+            ],
         }
         alg_metrics.update_method_call_structure(call_structure)
 
@@ -39,9 +39,9 @@ class AHContainmentDominationChecker(DominationChecker):
         # -1 for sufficient condition
         # pick `0` for necessary and sufficient encoding (may be too slow) (2019b)
         pp.subset(prog, AH_X, AH_Y, self._containment_condition)
-        
+
         return self._solve_containment_prog(prog)
-    
+
     @profile_method
     def _create_AH_polytopes(self, A_x, b_x, T_x, A_y, b_y, T_y):
         X = pp.H_polytope(A_x, b_x)
@@ -50,7 +50,7 @@ class AHContainmentDominationChecker(DominationChecker):
         AH_X = pp.AH_polytope(np.zeros((T_x.shape[0], 1)), T_x, X)
         AH_Y = pp.AH_polytope(np.zeros((T_y.shape[0], 1)), T_y, Y)
         return AH_X, AH_Y
-    
+
     @profile_method
     def _solve_containment_prog(self, prog: MathematicalProgram):
         result = Solve(prog)

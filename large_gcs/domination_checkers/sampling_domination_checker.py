@@ -291,8 +291,8 @@ class SamplingDominationChecker(DominationChecker):
             "_is_dominated": [
                 "_maybe_add_set_samples",
                 "project_single_gcs",
-                "project_all_gcs"
-                ],
+                "project_all_gcs",
+            ],
         }
         alg_metrics.update_method_call_structure(call_structure)
 

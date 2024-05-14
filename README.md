@@ -75,7 +75,7 @@ After running quickstart you can compare your results (which should appear in th
 
 ## Runing WAFR experiments
 ```
-python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR_experiments --config-dir config --config-name quickstart 
+python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR_experiments --config-dir config --config-name trajectory_figures 
 ```
 
 ## Running multiple experiments
