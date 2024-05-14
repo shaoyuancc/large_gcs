@@ -21,6 +21,8 @@ domination_checker:
   num_samples_per_vertex: 10
 
 save_visualization: true
+save_solution: true
+save_metrics: true
 save_to_wandb: true
 
 hydra:

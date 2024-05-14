@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 
 import hydra
 from hydra.core.hydra_config import HydraConfig
@@ -33,6 +34,13 @@ def main(cfg: OmegaConf) -> None:
     full_log_dir = hydra_config.runtime.output_dir
     with open_dict(cfg):
         cfg.log_dir = os.path.relpath(full_log_dir, get_original_cwd() + "/outputs")
+
+    # Save the configuration to the log directory
+    # for some reason this folder is .../0/
+    run_folder = Path(full_log_dir).parent
+    config_file = run_folder / "config.yaml"
+    with open(config_file, "w") as f:
+        OmegaConf.save(cfg, f)
 
     if cfg.save_to_wandb:
         wandb_config = OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
@@ -117,12 +125,26 @@ def main(cfg: OmegaConf) -> None:
 
     sol: ShortestPathSolution = alg.run()
 
-    if sol is not None and cfg.save_visualization:
+    save_outputs = cfg.save_metrics or cfg.save_visualization or cfg.save_solution
+    if save_outputs:
         if "abstraction_model_generator" in cfg:
             model_name = cfg.abstraction_model_generator["_target_"].split(".")[-1]
-            output_base = f"{alg.__class__.__name__}_{model_name}_{cfg.graph_name}"
+            output_base = (
+                f"{alg.__class__.__name__}_"
+                f"{
+                    model_name}_{cfg.graph_name}"
+            )
         else:
-            output_base = f"{alg.__class__.__name__}_{cost_estimator.finger_print}_{cfg.graph_name}"
+            output_base = f"{alg.__class__.__name__}_"
+            f"{cost_estimator.finger_print}_{cfg.graph_name}"
+
+    if sol is not None and cfg.save_metrics:
+        alg.save_alg_metrics(Path(full_log_dir) / f"{output_base}metrics.json")
+
+    if sol is not None and cfg.save_solution:
+        sol.save(Path(full_log_dir) / f"{output_base}solution.pkl")
+
+    if sol is not None and cfg.save_visualization:
         vid_file = os.path.join(full_log_dir, f"{output_base}.mp4")
         # graphviz_file = os.path.join(full_log_dir, f"{output_base}_visited_subgraph")
         # gviz = alg._visited.graphviz()

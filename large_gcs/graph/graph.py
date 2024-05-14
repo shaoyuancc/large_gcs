@@ -1,6 +1,8 @@
 import logging
+import pickle
 from copy import copy
 from dataclasses import dataclass, fields
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib.patches as patches
@@ -21,6 +23,7 @@ from pydrake.all import (
 from tqdm import tqdm
 
 from large_gcs.geometry.convex_set import ConvexSet
+from large_gcs.utils.utils import dict_to_dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +41,7 @@ class ShortestPathSolution:
     # Flows along the edges (range [0, 1])
     flows: List[float]
     # Result of the optimization
-    result: MathematicalProgramResult
+    result: Optional[MathematicalProgramResult] = None
 
     def __str__(self):
         result = []
@@ -70,6 +73,28 @@ class ShortestPathSolution:
             )
         ambient_path += "]"
         return ambient_path
+
+    def save(self, loc: Path) -> None:
+        """
+        Save solution as a .pkl file. Note that MathematicalProgramResult cannot be
+        serialized, and hence cannot be saved to file.
+        """
+        # Convert to dictionary and save to JSON
+        self_as_dict = self.to_serializable_dict()
+        with open(loc, "wb") as f:
+            pickle.dump(self_as_dict, f)
+
+    @classmethod
+    def load(cls, loc: Path) -> "ShortestPathSolution":
+        """
+        Read a solution from a .pkl file.
+        """
+
+        with open(loc, "rb") as f:
+            loaded_dict = pickle.load(f)
+
+        sol = dict_to_dataclass(ShortestPathSolution, loaded_dict)
+        return sol
 
 
 @dataclass
