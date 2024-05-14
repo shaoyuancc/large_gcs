@@ -36,8 +36,7 @@ def main(cfg: OmegaConf) -> None:
         cfg.log_dir = os.path.relpath(full_log_dir, get_original_cwd() + "/outputs")
 
     # Save the configuration to the log directory
-    # for some reason this folder is .../0/
-    run_folder = Path(full_log_dir).parent
+    run_folder = Path(full_log_dir)
     config_file = run_folder / "config.yaml"
     with open(config_file, "w") as f:
         OmegaConf.save(cfg, f)
@@ -138,11 +137,22 @@ def main(cfg: OmegaConf) -> None:
             output_base = f"{alg.__class__.__name__}_"
             f"{cost_estimator.finger_print}_{cfg.graph_name}"
 
+    additional_data_artifact = wandb.Artifact("additional_data", type="additional_data")
     if sol is not None and cfg.save_metrics:
-        alg.save_alg_metrics(Path(full_log_dir) / f"{output_base}metrics.json")
+        metrics_path = Path(full_log_dir) / f"{output_base}metrics.json"
+        alg.save_alg_metrics(metrics_path)
+
+        if cfg.save_to_wandb:
+            additional_data_artifact.add_file(metrics_path)
 
     if sol is not None and cfg.save_solution:
-        sol.save(Path(full_log_dir) / f"{output_base}solution.pkl")
+        sol_path = Path(full_log_dir) / f"{output_base}solution.pkl"
+        sol.save(sol_path)
+
+        if cfg.save_to_wandb:
+            additional_data_artifact.add_file(sol_path)
+
+    wandb.log_artifact(additional_data_artifact)
 
     if sol is not None and cfg.save_visualization:
         vid_file = os.path.join(full_log_dir, f"{output_base}.mp4")

@@ -55,8 +55,10 @@ class ContactGraph(Graph):
         workspace: np.ndarray = None,
         vertex_exclusion: List[str] = None,
         vertex_inclusion: List[str] = None,
-        contact_pair_modes: List[ContactPairMode] = None,  # For loading a saved graph
-        contact_set_mode_ids: List[List[str]] = None,  # For loading a saved graph
+        # For loading a saved graph
+        contact_pair_modes: List[ContactPairMode] = None,
+        # For loading a saved graph
+        contact_set_mode_ids: List[List[str]] = None,
         edge_keys: List[str] = None,  # For loading a saved graph
         should_use_l1_norm_vertex_cost: bool = False,
     ):
