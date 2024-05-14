@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 
 import hydra
 from hydra.core.hydra_config import HydraConfig
@@ -33,6 +34,13 @@ def main(cfg: OmegaConf) -> None:
     full_log_dir = hydra_config.runtime.output_dir
     with open_dict(cfg):
         cfg.log_dir = os.path.relpath(full_log_dir, get_original_cwd() + "/outputs")
+
+    # Save the configuration to the log directory
+    # for some reason this folder is .../0/
+    config_save_loc = Path(full_log_dir).parent
+    config_file = config_save_loc / "config.yaml"
+    with open(config_file, "w") as f:
+        OmegaConf.save(cfg, f)
 
     if cfg.save_to_wandb:
         wandb_config = OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
