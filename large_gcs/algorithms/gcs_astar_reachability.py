@@ -1,10 +1,8 @@
-from copy import copy, deepcopy
 import itertools
 import logging
 import os
 import time
 from collections import defaultdict
-
 from typing import List, Optional
 
 import matplotlib.pyplot as plt
@@ -12,7 +10,6 @@ import numpy as np
 import plotly.graph_objs as go
 from IPython.display import HTML, display
 from matplotlib.animation import FFMpegWriter
-
 
 import wandb
 from large_gcs.algorithms.search_algorithm import (
@@ -26,7 +23,6 @@ from large_gcs.algorithms.search_algorithm import (
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.domination_checkers.domination_checker import DominationChecker
 from large_gcs.geometry.geometry_utils import unique_rows_with_tolerance_ignore_nan
-
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution, Vertex
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 
@@ -47,6 +43,7 @@ class GcsAstarReachability(SearchAlgorithm):
         domination_checker: DominationChecker,
         tiebreak: TieBreak = TieBreak.FIFO,
         vis_params: Optional[AlgVisParams] = None,
+        should_terminate_early: bool = False,
     ):
         if isinstance(graph, IncrementalContactGraph):
             assert (
@@ -58,6 +55,7 @@ class GcsAstarReachability(SearchAlgorithm):
         self._cost_estimator = cost_estimator
         self._domination_checker = domination_checker
         self._vis_params = vis_params
+        self._should_terminate_early = should_terminate_early
         self._cost_estimator.set_alg_metrics(self._alg_metrics)
         self._domination_checker.set_alg_metrics(self._alg_metrics)
         if tiebreak == TieBreak.FIFO or tiebreak == TieBreak.FIFO.name:
@@ -152,8 +150,13 @@ class GcsAstarReachability(SearchAlgorithm):
                 (self._graph.edges[e].u == edge.v or self._graph.edges[e].v == edge.v)
                 for e in n.edge_path
             )
-            if not neighbor_in_path:
-                self._visit_neighbor(n, edge)
+            if neighbor_in_path:
+                continue
+
+            early_terminate_sol = self._visit_neighbor(n, edge)
+            if early_terminate_sol is not None:
+                logger.info(f"EARLY TERMINATION: Visited path to target.")
+                return early_terminate_sol
 
     @profile_method
     def _generate_neighbors(self, vertex_name: str) -> None:
@@ -164,7 +167,9 @@ class GcsAstarReachability(SearchAlgorithm):
         self._graph.generate_neighbors(vertex_name)
 
     @profile_method
-    def _visit_neighbor(self, n: SearchNode, edge: Edge) -> None:
+    def _visit_neighbor(
+        self, n: SearchNode, edge: Edge
+    ) -> Optional[ShortestPathSolution]:
         neighbor = edge.v
         if neighbor in self._S:
             self._alg_metrics.n_vertices_revisited[0] += 1
@@ -202,6 +207,10 @@ class GcsAstarReachability(SearchAlgorithm):
         logger.debug(f"Added to Q: Path to {n_next.vertex_name} not dominated")
         self._S[neighbor] += [n_next]
         self.push_node_on_Q(n_next)
+
+        # Early Termination
+        if self._should_terminate_early and neighbor == self._target:
+            return n_next.sol
 
     @profile_method
     def _is_dominated(self, n: SearchNode) -> bool:
