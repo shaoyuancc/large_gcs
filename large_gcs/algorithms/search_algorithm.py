@@ -2,10 +2,11 @@ import heapq as heap
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from dataclasses import dataclass, field, fields
+from dataclasses import asdict, dataclass, field, fields
 from enum import Enum
 from functools import wraps
 from math import inf
+from pathlib import Path
 from typing import DefaultDict, Dict, List, Optional
 
 import numpy as np
@@ -13,6 +14,7 @@ import plotly.graph_objects as go
 
 import wandb
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
+from large_gcs.utils.utils import dict_to_dataclass
 
 
 class TieBreak(Enum):
@@ -223,6 +225,36 @@ class AlgMetrics:
 
         return fig
 
+    def save(self, loc: Path) -> None:
+        """
+        Save metrics as a JSON file.
+        """
+        # Convert to dictionary and save to JSON
+        self_as_dict = asdict(self)
+        import json
+
+        with open(loc, "w") as f:
+            json.dump(self_as_dict, f, indent=4)
+
+    @classmethod
+    def load(cls, loc: Path) -> "AlgMetrics":
+        """
+        Reads metrics from a JSON file.
+        """
+
+        raise RuntimeError(
+            "NOTE! This function has not been tested. Feel\
+            free to remove this error message and run it (if it works!)"
+        )
+        # Load from JSON and convert back to dataclass
+        import json
+
+        with open(loc, "r") as f:
+            loaded_dict = json.load(f)
+
+        metrics = dict_to_dataclass(AlgMetrics, loaded_dict)
+        return metrics
+
 
 @dataclass
 class SearchNode:
@@ -309,6 +341,9 @@ class SearchAlgorithm(ABC):
                     "alg_metrics": self.alg_metrics.to_dict(),
                 }
             )
+
+    def save_alg_metrics(self, loc: Path) -> None:
+        self._alg_metrics.save(loc)
 
 
 def profile_method(method):
