@@ -41,7 +41,7 @@ class ShortestPathSolution:
     # Flows along the edges (range [0, 1])
     flows: List[float]
     # Result of the optimization
-    result: MathematicalProgramResult
+    result: Optional[MathematicalProgramResult] = None
 
     def __str__(self):
         result = []
@@ -93,8 +93,8 @@ class ShortestPathSolution:
         with open(loc, "rb") as f:
             loaded_dict = pickle.load(f)
 
-        metrics = dict_to_dataclass(ShortestPathSolution, loaded_dict)
-        return metrics
+        sol = dict_to_dataclass(ShortestPathSolution, loaded_dict)
+        return sol
 
 
 @dataclass

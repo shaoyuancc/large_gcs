@@ -241,11 +241,6 @@ class AlgMetrics:
         """
         Reads metrics from a JSON file.
         """
-
-        raise RuntimeError(
-            "NOTE! This function has not been tested. Feel\
-            free to remove this error message and run it (if it works!)"
-        )
         # Load from JSON and convert back to dataclass
         import json
 
