@@ -101,6 +101,13 @@ def main() -> None:
         sol_file = sol_files[0]
         sol = ShortestPathSolution.load(sol_file)
 
+        # Generate all required neighbours in graph
+        cg.set_target("target")
+        for v in sol.vertex_path:
+            if v == "target":
+                continue
+            cg.generate_neighbors(v)
+
         metric_files = list(path.glob("*_metrics.json"))
         if not len(metric_files) == 1:
             raise RuntimeError(
@@ -110,8 +117,10 @@ def main() -> None:
         metric_file = metric_files[0]
         metrics = AlgMetrics.load(metric_file)
 
-        cg.create_contact_spp_sol(sol.vertex_path, sol.ambient_path)
-        vid_file = path / "test.mp4"
+        cg.contact_spp_sol = cg.create_contact_spp_sol(
+            sol.vertex_path, sol.ambient_path
+        )
+        vid_file = path / "regenerated_video.mp4"
 
         anim = cg.animate_solution()
         anim.save(vid_file)
