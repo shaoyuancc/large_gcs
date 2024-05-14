@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from large_gcs.contact.rigid_body import RigidBody
+from large_gcs.utils.utils import split_numbers_into_sublists
 from large_gcs.visualize.colors import (
     AZURE3,
     BISQUE3,
@@ -26,6 +27,9 @@ def plot_trajectory(
     workspace: np.ndarray,  # (2, 2)
     filepath: Optional[Path] = None,
 ):
+    num_keyframes = 5
+    fig_height = 4
+
     ROBOT_COLOR = DARKSEAGREEN2.diffuse()
     OBSTACLE_COLOR = AZURE3.diffuse()
     OBJECT_COLOR = BISQUE3.diffuse()
@@ -38,39 +42,58 @@ def plot_trajectory(
     GOAL_TRANSPARENCY = 1.0
     START_TRANSPARENCY = 1.0
 
-    fig = plt.figure()
-    ax = plt.axes(xlim=workspace[0], ylim=workspace[1])
-    ax.set_aspect("equal")
+    fig, axs = plt.subplots(
+        1, num_keyframes, figsize=(fig_height * num_keyframes, fig_height)
+    )
+
+    for ax in axs:
+        ax.set_aspect("equal")
+
+        x_min, x_max = workspace[0]
+        ax.set_xlim(x_min, x_max)
+
+        y_min, y_max = workspace[1]
+        ax.set_ylim(y_min, y_max)
+
+        # Hide the axes, including the spines, ticks, labels, and title
+        ax.set_axis_off()
 
     n_objects = len(objects)
     n_robots = len(robots)
 
-    for obs in obstacles:
-        obs.plot_at_com(
-            facecolor=OBSTACLE_COLOR,
-            label_body=False,
-            label_vertices_faces=False,
-            edgecolor=EDGE_COLOR,
-        )
+    for ax in axs:
+        for obs in obstacles:
+            obs.plot_at_com(
+                facecolor=OBSTACLE_COLOR,
+                label_body=False,
+                label_vertices_faces=False,
+                edgecolor=EDGE_COLOR,
+                ax=ax,
+            )
 
     n_steps = pos_trajs.shape[0]
-    for step_idx in range(n_steps):
-        for obj_idx in range(n_objects):
-            objects[obj_idx].plot_at_position(
-                pos_trajs[step_idx, obj_idx],
-                facecolor=OBJECT_COLOR,
-                label_body=False,
-                label_vertices_faces=False,
-                edgecolor=EDGE_COLOR,
-            )
-        for obj_idx in range(n_robots):
-            robots[obj_idx].plot_at_position(
-                pos_trajs[step_idx, obj_idx + n_objects],
-                label_body=False,
-                facecolor=ROBOT_COLOR,
-                label_vertices_faces=False,
-                edgecolor=EDGE_COLOR,
-            )
+
+    steps_per_axs = split_numbers_into_sublists(n_steps, len(axs))
+    for ax, steps in zip(axs, steps_per_axs):
+        for step_idx in steps:
+            for obj_idx in range(n_objects):
+                objects[obj_idx].plot_at_position(
+                    pos_trajs[step_idx, obj_idx],
+                    facecolor=OBJECT_COLOR,
+                    label_body=False,
+                    label_vertices_faces=False,
+                    edgecolor=EDGE_COLOR,
+                    ax=ax,
+                )
+            for obj_idx in range(n_robots):
+                robots[obj_idx].plot_at_position(
+                    pos_trajs[step_idx, obj_idx + n_objects],
+                    label_body=False,
+                    facecolor=ROBOT_COLOR,
+                    label_vertices_faces=False,
+                    edgecolor=EDGE_COLOR,
+                    ax=ax,
+                )
 
     if filepath:
         fig.savefig(filepath, format="pdf")

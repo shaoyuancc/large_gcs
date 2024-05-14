@@ -1,3 +1,4 @@
+import itertools
 import pickle
 from dataclasses import fields
 
@@ -25,3 +26,18 @@ def dict_to_dataclass(klass, dikt):
     field_names = {f.name for f in fields(klass) if f.init}
     filtered_arg_dict = {k: v for k, v in dikt.items() if k in field_names}
     return klass(**filtered_arg_dict)
+
+
+def split_numbers_into_sublists(N, M):
+    # Create a list of numbers from 0 to N (excluding N)
+    numbers = list(range(N))
+
+    # Calculate the size of each sublist
+    k, m = divmod(len(numbers), M)
+
+    # Use list comprehension and itertools to split the list into M sublists
+    sublists = [
+        numbers[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(M)
+    ]
+
+    return sublists
