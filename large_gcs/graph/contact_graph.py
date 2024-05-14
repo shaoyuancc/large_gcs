@@ -55,8 +55,10 @@ class ContactGraph(Graph):
         workspace: np.ndarray = None,
         vertex_exclusion: List[str] = None,
         vertex_inclusion: List[str] = None,
-        contact_pair_modes: List[ContactPairMode] = None,  # For loading a saved graph
-        contact_set_mode_ids: List[List[str]] = None,  # For loading a saved graph
+        # For loading a saved graph
+        contact_pair_modes: List[ContactPairMode] = None,
+        # For loading a saved graph
+        contact_set_mode_ids: List[List[str]] = None,
         edge_keys: List[str] = None,  # For loading a saved graph
         should_use_l1_norm_vertex_cost: bool = False,
     ):
@@ -412,16 +414,10 @@ class ContactGraph(Graph):
 
     def _post_solve(self, sol: ShortestPathSolution):
         """Post solve hook that is called after solving by the base graph class"""
-        self.make_contact_solution(sol)
-
-    def make_contact_solution(
-        self, sol: ShortestPathSolution
-    ) -> ContactShortestPathSolution:  # type: ignore
         if sol.is_success:
             self.contact_spp_sol = self.create_contact_spp_sol(
                 sol.vertex_path, sol.ambient_path
             )
-            return self.contact_spp_sol
         # else:
         #     logger.debug("No Shortest Path Solution Found")
 

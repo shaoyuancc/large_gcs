@@ -36,8 +36,7 @@ def main(cfg: OmegaConf) -> None:
         cfg.log_dir = os.path.relpath(full_log_dir, get_original_cwd() + "/outputs")
 
     # Save the configuration to the log directory
-    # for some reason this folder is .../0/
-    run_folder = Path(full_log_dir).parent
+    run_folder = Path(full_log_dir)
     config_file = run_folder / "config.yaml"
     with open(config_file, "w") as f:
         OmegaConf.save(cfg, f)

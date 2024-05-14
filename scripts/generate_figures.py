@@ -103,7 +103,7 @@ def main() -> None:
         metric_file = metric_files[0]
         metrics = AlgMetrics.load(metric_file)
 
-        cg.make_contact_solution(sol)
+        cg.create_contact_spp_sol(sol.vertex_path, sol.ambient_path)
         vid_file = path / "test.mp4"
 
         anim = cg.animate_solution()
