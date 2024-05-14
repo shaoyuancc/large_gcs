@@ -3,7 +3,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from itertools import combinations, product
 from multiprocessing import Pool
-from typing import Dict, Iterable, List, Tuple
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
@@ -526,8 +527,8 @@ class ContactGraph(Graph):
     def plot_edges(self):
         raise NotImplementedError("Not sure how to visualize high dimensional sets")
 
-    def _plot_path(self, sol: ContactShortestPathSolution):
-        plt.figure()
+    def _plot_path(self, sol: ContactShortestPathSolution, loc: Optional[Path] = None):
+        fig = plt.figure()
         ax = plt.axes(xlim=self.workspace[0], ylim=self.workspace[1])
         ax.set_aspect("equal")
 
@@ -555,8 +556,14 @@ class ContactGraph(Graph):
             cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=n_steps)
         )
 
-        plt.colorbar(sm)
+        plt.colorbar(sm, ax=ax)
         plt.grid()
+
+        if loc:
+            fig.savefig(loc, format="pdf")
+            plt.close()
+        else:
+            plt.show()
 
     def plot_path(self):
         assert self.contact_spp_sol is not None, "Must solve before plotting"

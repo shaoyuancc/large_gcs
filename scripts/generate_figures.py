@@ -125,6 +125,8 @@ def main() -> None:
         anim = cg.animate_solution()
         anim.save(vid_file)
 
+        cg._plot_path(cg.contact_spp_sol, path / "traj_figure.pdf")
+
 
 if __name__ == "__main__":
     main()
