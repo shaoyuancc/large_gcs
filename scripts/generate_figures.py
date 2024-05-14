@@ -6,7 +6,7 @@ import hydra
 from hydra.core.hydra_config import HydraConfig
 from hydra.types import RunMode
 from hydra.utils import get_original_cwd, instantiate
-from omegaconf import OmegaConf, open_dict
+from omegaconf import DictConfig, OmegaConf, open_dict
 
 import wandb
 from large_gcs.algorithms.gcs_hastar import GcsHAstar
@@ -28,34 +28,8 @@ from large_gcs.graph_generators.contact_graph_generator import (
 logger = logging.getLogger(__name__)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Load data and configuration from a specified directory"
-    )
-    parser.add_argument(
-        "--dir",
-        type=str,
-        help="Path to the directory containing data and config file",
-    )
-
-    # Parse the arguments
-    args = parser.parse_args()
-
-    # Get the directory path
-    data_dir = Path(args.dir)
-
-    # Validate the directory
-    if not data_dir.is_dir():
-        print(f"The directory {data_dir} does not exist.")
-        return
-
-    # Load the config file
-    config_path = data_dir / "config.yaml"
-    if not config_path.is_file():
-        print(f"The config file {config_path} does not exist.")
-        return
-
-    cfg = OmegaConf.load(config_path)
+# TODO: This code is from run_contact_graph_experiment and could be merged.
+def _construct_graph(cfg: DictConfig) -> ContactGraph:
     if cfg.should_use_incremental_graph:
         graph_file = ContactGraphGeneratorParams.inc_graph_file_path_from_name(
             cfg.graph_name
@@ -80,10 +54,43 @@ def main() -> None:
         )
         cg = ContactGraph.load_from_file(graph_file)
 
+    return cg
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Load data and configuration from a specified directory"
+    )
+    parser.add_argument(
+        "--dir",
+        type=str,
+        help="Path to the directory containing data and config file",
+    )
+
+    # Parse the arguments
+    args = parser.parse_args()
+
+    # Get the directory path
+    data_dir = Path(args.dir)
+
+    # Validate the directory
+    if not data_dir.is_dir():
+        print(f"The directory {data_dir} does not exist.")
+        return
+
     # Iterate through the runs and generate figures
     for path in data_dir.iterdir():
+        # We only care about the subfolders (which contain data for a run)
         if not path.is_dir():
             continue
+
+        # Load the config file for this run
+        config_path = path / "config.yaml"
+        if not config_path.is_file():
+            print(f"The config file {config_path} does not exist.")
+            return
+        cfg: DictConfig = OmegaConf.load(config_path)  # type: ignore
+        cg = _construct_graph(cfg)
 
         sol_files = list(path.glob("*_solution.pkl"))
         if not len(sol_files) == 1:
