@@ -186,6 +186,11 @@ class RigidBody:
         offset_hat = offset_dir / np.linalg.norm(offset_dir)
         return pos + offset_hat * 0.15
 
+    def plot_at_com(self, label_body=True, label_vertices_faces=False, **kwargs):
+        self.plot_at_position(
+            self.geometry.center, label_body, label_vertices_faces, **kwargs
+        )
+
     def plot_at_position(
         self, pos, label_body=True, label_vertices_faces=False, **kwargs
     ):
