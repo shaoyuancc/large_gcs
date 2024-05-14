@@ -4,16 +4,14 @@ version = "0.1.0"
 description = ""
 authors = ["Shao Yuan <flossy_lineage.0b@icloud.com>"]
 readme = "README.md"
-packages = [{include = "large_gcs"}]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.12"
+python = ">=3.10,<=3.12.3"
 numpy = "^1.24.3"
 matplotlib = "^3.7.1"
 ipykernel = "^6.23.1"
 scipy = "^1.10.1"
 graphviz = "^0.20.1"
-drake = [{version = "^0.0.20240505", source = "drake-repo"}]
 black = "^23.3.0"
 tqdm = "^4.65.0"
 pytest = "^7.4.0"
@@ -24,6 +22,7 @@ autoflake = "^2.2.0"
 isort = "^5.12.0"
 pdbpp = "^0.10.3"
 plotly = "^5.20.0"
+drake = "^1.28.0"
 
 [tool.isort]
 profile = "black"
