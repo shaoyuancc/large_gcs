@@ -404,9 +404,11 @@ class Graph:
         result = self._gcs.SolveShortestPath(
             self.vertices[self._source_name].gcs_vertex,
             self.vertices[self._target_name].gcs_vertex,
-            self._gcs_options_convex_relaxation
-            if use_convex_relaxation
-            else self._gcs_options_wo_relaxation,
+            (
+                self._gcs_options_convex_relaxation
+                if use_convex_relaxation
+                else self._gcs_options_wo_relaxation
+            ),
         )
 
         sol = self._parse_result(result)
@@ -450,9 +452,11 @@ class Graph:
             self.vertices[self._source_name].gcs_vertex,
             self.vertices[transition].gcs_vertex,
             [self.vertices[target].gcs_vertex for target in targets],
-            self._gcs_options_convex_relaxation
-            if use_convex_relaxation
-            else self._gcs_options_wo_relaxation,
+            (
+                self._gcs_options_convex_relaxation
+                if use_convex_relaxation
+                else self._gcs_options_wo_relaxation
+            ),
         )
 
         sol = self._parse_factored_result(result, transition, targets)

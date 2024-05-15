@@ -144,11 +144,13 @@ class FactoredCollisionFreeGraph(ContactGraph):
     def _create_vertex_costs(self, sets: List[ContactSet]) -> List[List[Cost]]:
         logger.info("Creating vertex costs for factored_collision_free_graph...")
         costs = [
-            [
-                vertex_cost_position_path_length(set.vars, self._cost_scaling),
-            ]
-            if isinstance(set, ContactSet)
-            else []
+            (
+                [
+                    vertex_cost_position_path_length(set.vars, self._cost_scaling),
+                ]
+                if isinstance(set, ContactSet)
+                else []
+            )
             for set in tqdm(sets)
         ]
         return costs

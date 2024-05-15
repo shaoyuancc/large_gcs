@@ -52,9 +52,11 @@ class GcsHAstar(SearchAlgorithm):
             self._reexplore_levels = [ReexploreLevel.NONE] * len(self._graphs)
         else:
             self._reexplore_levels = [
-                ReexploreLevel[reexplore_level]
-                if type(reexplore_level) == str
-                else reexplore_level
+                (
+                    ReexploreLevel[reexplore_level]
+                    if type(reexplore_level) == str
+                    else reexplore_level
+                )
                 for reexplore_level in reexplore_levels
             ]
         self._vis_params = vis_params

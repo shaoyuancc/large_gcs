@@ -40,9 +40,11 @@ class FactoredCollisionFreeCE(CostEstimator):
                     static_obstacles=self._graph.obstacles,
                     source_pos=self._graph.source_pos[i],
                     target_pos=self._graph.target_pos[i],
-                    cost_scaling=1.0
-                    if body.mobility_type == MobilityType.ACTUATED
-                    else self._obj_multiplier,
+                    cost_scaling=(
+                        1.0
+                        if body.mobility_type == MobilityType.ACTUATED
+                        else self._obj_multiplier
+                    ),
                     workspace=self._graph.workspace,
                 )
                 for i, body in tqdm(enumerate(self._graph.objects + self._graph.robots))
@@ -66,9 +68,11 @@ class FactoredCollisionFreeCE(CostEstimator):
                         static_obstacles=self._graph.obstacles,
                         source_pos=self._graph.source_pos[i],
                         target_region_params=region_params,
-                        cost_scaling=1.0
-                        if body.mobility_type == MobilityType.ACTUATED
-                        else self._obj_multiplier,
+                        cost_scaling=(
+                            1.0
+                            if body.mobility_type == MobilityType.ACTUATED
+                            else self._obj_multiplier
+                        ),
                         workspace=self._graph.workspace,
                     )
 

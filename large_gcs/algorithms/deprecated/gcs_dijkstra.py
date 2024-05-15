@@ -165,9 +165,11 @@ class GcsDijkstra(SearchAlgorithm):
             else:
                 self._graph.plot_edge(edge_key, color=self._vis_params.edge_color)
         dist_labels = [
-            round(self._node_dists[v], 1)
-            if self._node_dists[v] != float("inf")
-            else "∞"
+            (
+                round(self._node_dists[v], 1)
+                if self._node_dists[v] != float("inf")
+                else "∞"
+            )
             for v in self._graph.vertex_names
         ]
         self._graph.plot_set_labels(dist_labels)
