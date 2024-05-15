@@ -27,7 +27,9 @@ def plot_trajectory(
     obstacles: List[RigidBody],
     objects: List[RigidBody],
     robots: List[RigidBody],
-    workspace: np.ndarray,  # (2, 2)
+    workspace: Optional[np.ndarray] = None,  # (2, 2)
+    x_buffer: Optional[float] = 1.7,
+    y_buffer: Optional[float] = 1.7,
     filepath: Optional[Path] = None,
     target_regions: Optional[List[Polyhedron]] = None,
     add_legend: bool = False,
@@ -77,10 +79,24 @@ def plot_trajectory(
     for ax in axs:
         ax.set_aspect("equal")
 
-        x_min, x_max = workspace[0]
-        ax.set_xlim(x_min, x_max)
+        if workspace is not None:
+            x_min, x_max = workspace[0]
+            y_min, y_max = workspace[1]
+        else:
+            x_min = np.min(pos_trajs[:, :, 0])
+            x_max = np.max(pos_trajs[:, :, 0])
+            y_min = np.min(pos_trajs[:, :, 1])
+            y_max = np.max(pos_trajs[:, :, 1])
 
-        y_min, y_max = workspace[1]
+        if x_buffer is not None:
+            x_min -= x_buffer
+            x_max += x_buffer
+
+        if y_buffer is not None:
+            y_min -= y_buffer
+            y_max += y_buffer
+
+        ax.set_xlim(x_min, x_max)
         ax.set_ylim(y_min, y_max)
 
         # Hide the axes, including the spines, ticks, labels, and title
@@ -127,7 +143,6 @@ def plot_trajectory(
         ]
     )
     for ax, steps in zip(axs, steps_per_axs):
-
         for step_idx in steps:
             for obj_idx in range(n_objects):
                 objects[obj_idx].plot_at_position(
@@ -172,6 +187,8 @@ def plot_trajectory(
             fontsize=12,
             loc="lower left",
         )
+
+    fig.tight_layout()
 
     if filepath:
         fig.savefig(filepath, format="pdf")

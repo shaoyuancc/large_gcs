@@ -548,9 +548,9 @@ class ContactGraph(Graph):
             self.obstacles,
             self.objects,
             self.robots,
-            self.workspace,
-            loc,
-            self.target_regions,
+            workspace=None,
+            filepath=loc,
+            target_regions=self.target_regions,
         )
 
     def plot_current_solution(self, loc: Optional[Path] = None):
