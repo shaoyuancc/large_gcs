@@ -32,6 +32,7 @@ def plot_trajectory(
     target_regions: Optional[List[Polyhedron]] = None,
     add_legend: bool = False,
     use_type_1_font: bool = True,
+    keyframe_idxs: Optional[List[int]] = None,
 ):
     if use_type_1_font:
         plt.rcParams["font.family"] = "Times"
@@ -39,9 +40,19 @@ def plot_trajectory(
         plt.rcParams["pdf.use14corefonts"] = True
         plt.rcParams["text.usetex"] = False
 
-    # TODO
-    add_legend = True
-    num_keyframes = 3
+    n_steps = pos_trajs.shape[0]
+
+    if keyframe_idxs is not None:
+        if max(keyframe_idxs) >= n_steps:
+            raise RuntimeError("Last keyframe is after end of trajectory.")
+
+        num_keyframes = len(keyframe_idxs)
+
+        # Make sure we plot until the end
+        keyframe_idxs.append(n_steps)
+    else:
+        num_keyframes = int(np.ceil(n_steps / 30))
+
     fig_height = 4
 
     ROBOT_COLOR = DARKSEAGREEN2.diffuse()
@@ -58,6 +69,10 @@ def plot_trajectory(
     fig, axs = plt.subplots(
         1, num_keyframes, figsize=(fig_height * num_keyframes, fig_height)
     )
+
+    # ensure we can still iterate through the "axes" even if we only have one
+    if num_keyframes == 1:
+        axs = [axs]
 
     for ax in axs:
         ax.set_aspect("equal")
@@ -97,9 +112,14 @@ def plot_trajectory(
                 ax=ax,
             )
 
-    n_steps = pos_trajs.shape[0]
+    if keyframe_idxs:
+        steps_per_axs = [
+            list(range(idx_curr, idx_next))
+            for idx_curr, idx_next in zip(keyframe_idxs[:-1], keyframe_idxs[1:])
+        ]
+    else:
+        steps_per_axs = split_numbers_into_sublists(n_steps, len(axs))
 
-    steps_per_axs = split_numbers_into_sublists(n_steps, len(axs))
     transparencies = np.concatenate(
         [
             np.linspace(START_TRANSPARENCY, END_TRANSPARENCY, len(steps))

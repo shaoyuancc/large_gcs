@@ -1,6 +1,7 @@
 import itertools
 import pickle
 from dataclasses import fields
+from typing import List
 
 import numpy as np
 
@@ -28,7 +29,7 @@ def dict_to_dataclass(klass, dikt):
     return klass(**filtered_arg_dict)
 
 
-def split_numbers_into_sublists(N, M):
+def split_numbers_into_sublists(N: int, M: int) -> List[List[int]]:
     # Create a list of numbers from 0 to N (excluding N)
     numbers = list(range(N))
 

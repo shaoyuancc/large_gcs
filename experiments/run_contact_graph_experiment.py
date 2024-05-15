@@ -164,7 +164,7 @@ def main(cfg: OmegaConf) -> None:
             wandb.log({"animation": wandb.Video(vid_file)})
             # wandb.save(graphviz_file + ".pdf")
 
-        traj_figure_file = Path(full_log_dir) / f"{output_base}.pdf"
+        traj_figure_file = Path(full_log_dir) / f"{output_base}_trajectory.pdf"
         cg.plot_current_solution(traj_figure_file)
         if cfg.save_to_wandb:
             wandb.log({"trajectory": wandb.Image(str(traj_figure_file))})
