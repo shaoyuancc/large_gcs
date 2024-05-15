@@ -137,22 +137,19 @@ def main(cfg: OmegaConf) -> None:
             output_base = f"{alg.__class__.__name__}_"
             f"{cost_estimator.finger_print}_{cfg.graph_name}"
 
-    additional_data_artifact = wandb.Artifact("additional_data", type="additional_data")
     if sol is not None and cfg.save_metrics:
         metrics_path = Path(full_log_dir) / f"{output_base}metrics.json"
         alg.save_alg_metrics(metrics_path)
 
         if cfg.save_to_wandb:
-            additional_data_artifact.add_file(metrics_path)
+            wandb.save(str(metrics_path))  # type: ignore
 
     if sol is not None and cfg.save_solution:
         sol_path = Path(full_log_dir) / f"{output_base}solution.pkl"
         sol.save(sol_path)
 
         if cfg.save_to_wandb:
-            additional_data_artifact.add_file(sol_path)
-
-    wandb.log_artifact(additional_data_artifact)
+            wandb.save(str(sol_path))  # type: ignore
 
     if sol is not None and cfg.save_visualization:
         vid_file = os.path.join(full_log_dir, f"{output_base}.mp4")
