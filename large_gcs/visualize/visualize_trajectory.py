@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import matplotlib.cm as cm
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -29,8 +30,18 @@ def plot_trajectory(
     workspace: np.ndarray,  # (2, 2)
     filepath: Optional[Path] = None,
     target_regions: Optional[List[Polyhedron]] = None,
+    add_legend: bool = False,
+    use_type_1_font: bool = True,
 ):
-    num_keyframes = 5
+    if use_type_1_font:
+        plt.rcParams["font.family"] = "Times"
+        plt.rcParams["ps.useafm"] = True
+        plt.rcParams["pdf.use14corefonts"] = True
+        plt.rcParams["text.usetex"] = False
+
+    # TODO
+    add_legend = True
+    num_keyframes = 3
     fig_height = 4
 
     ROBOT_COLOR = DARKSEAGREEN2.diffuse()
@@ -39,10 +50,9 @@ def plot_trajectory(
 
     EDGE_COLOR = BLACK.diffuse()
 
-    START_COLOR = CRIMSON.diffuse()
     GOAL_COLOR = EMERALDGREEN.diffuse()
 
-    START_TRANSPARENCY = 0.0
+    START_TRANSPARENCY = 0.3
     END_TRANSPARENCY = 1.0
 
     fig, axs = plt.subplots(
@@ -66,16 +76,16 @@ def plot_trajectory(
 
     # Plot goal regions
     if target_regions is not None:
+        goal_kwargs = {
+            "edgecolor": "green",
+            "facecolor": "none",
+            "hatch": "///",
+            "linewidth": 1,
+            "alpha": 0.6,
+        }
         for ax in axs:
             for region in target_regions:
-                region.plot(
-                    edgecolor="green",
-                    facecolor="none",
-                    hatch="///",
-                    linewidth=1,
-                    ax=ax,
-                    alpha=0.6,
-                )
+                region.plot(**goal_kwargs, ax=ax)
 
     for ax in axs:
         for obs in obstacles:
@@ -119,6 +129,29 @@ def plot_trajectory(
                     ax=ax,
                     alpha=transparencies[step_idx],
                 )
+
+    if add_legend:
+        # Create a list of patches to use as legend handles
+        custom_patches = [
+            mpatches.Patch(color=color, label=label)
+            for label, color in zip(
+                ["Static obstacles", "Unactuated object", "Actuated robot"],
+                [OBSTACLE_COLOR, OBJECT_COLOR, ROBOT_COLOR],
+            )
+        ]
+        if target_regions is not None:
+            goal_patch = mpatches.Patch(
+                **goal_kwargs, label="Object target region"
+            )  # type: ignore
+            custom_patches += [goal_patch]
+
+        # Creating the custom legend
+        axs[0].legend(
+            handles=custom_patches,
+            handlelength=2.5,
+            fontsize=12,
+            loc="lower left",
+        )
 
     if filepath:
         fig.savefig(filepath, format="pdf")
