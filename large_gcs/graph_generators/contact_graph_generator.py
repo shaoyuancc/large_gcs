@@ -28,21 +28,24 @@ class ContactGraphGeneratorParams:
     target_region_params: List[ContactRegionParams] = None
 
     def __post_init__(self):
-        self.obs_vertices = np.array(self.obs_vertices)
-        self.obj_vertices = np.array(self.obj_vertices)
-        self.rob_vertices = np.array(self.rob_vertices)
         self.source_obj_pos = np.array(self.source_obj_pos)
         self.source_rob_pos = np.array(self.source_rob_pos)
 
         self.workspace = np.array(self.workspace)
 
         body_dims = set()
-        if self.obs_vertices.size > 0:
-            body_dims.add(self.obs_vertices.shape[2])
-        if self.obj_vertices.size > 0:
-            body_dims.add(self.obj_vertices.shape[2])
-        if self.rob_vertices.size > 0:
-            body_dims.add(self.rob_vertices.shape[2])
+        if len(self.obs_vertices) > 0:
+            for vertices in self.obs_vertices:
+                vertices = np.array(vertices)
+                body_dims.add(vertices.shape[1])
+        if len(self.obj_vertices) > 0:
+            for vertices in self.obj_vertices:
+                vertices = np.array(vertices)
+                body_dims.add(vertices.shape[1])
+        if len(self.rob_vertices) > 0:
+            for vertices in self.rob_vertices:
+                vertices = np.array(vertices)
+                body_dims.add(vertices.shape[1])
         assert len(body_dims) == 1, "All bodies must have same dimension"
         n_dim = body_dims.pop()
         if self.target_obj_pos is not None:

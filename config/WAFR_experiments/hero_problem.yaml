@@ -4,7 +4,7 @@ defaults:
   - domination_checker: reaches_new_sampling
   - hydra: hydra
 
-graph_name: "cg_maze_c1" # Candidates: cg_maze_a3, cg_maze_c1
+graph_name: "cg_maze_c2" # Candidates: cg_maze_a3, cg_maze_c1, cg_maze_c2
 should_use_incremental_graph: true
 should_incl_simul_mode_switches: false
 should_add_const_edge_cost: true
@@ -23,8 +23,11 @@ domination_checker:
 algorithm:
   should_terminate_early: true
 
+save_solution: true
+save_metrics: true
 save_visualization: true
 save_to_wandb: true
+
 
 hydra:
   job_logging:
