@@ -19,6 +19,9 @@ class ConvexSet(ABC):
     def __init__(self):
         pass
 
+    def _plot(self) -> None:
+        raise NotImplementedError("_plot not implemented for" + self.__class__.__name__)
+
     def plot(self, mark_center: bool = False, **kwargs):
         """
         Plots the convex set using matplotlib.
