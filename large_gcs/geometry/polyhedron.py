@@ -3,10 +3,10 @@ import logging
 from typing import List
 
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-import plotly.graph_objects as go
 import numpy as np
+import plotly.graph_objects as go
 import scipy
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from pydrake.all import (
     DecomposeAffineExpressions,
     Formula,
@@ -135,17 +135,21 @@ class Polyhedron(ConvexSet):
 
         return polyhedron
 
-    def _plot(self, **kwargs):
+    def _plot(self, ax=None, **kwargs):
+        if ax is None:
+            ax = plt.gca()
+
         if self.dim == 1:
             # Add extra dimension to vertices for plotting
             vertices = np.hstack((self.vertices, np.zeros((self.vertices.shape[0], 1))))
         else:
             vertices = self.vertices
-        plt.fill(*vertices.T, **kwargs)
+        ax.fill(*vertices.T, **kwargs)
 
     def plot_transformation(self, T, **kwargs):
         transformed_vertices = self.vertices @ T.T
-        hull = ConvexHull(transformed_vertices)  # orders vertices counterclockwise
+        # orders vertices counterclockwise
+        hull = ConvexHull(transformed_vertices)
 
         if transformed_vertices.shape[1] == 2:
             transformed_vertices = transformed_vertices[hull.vertices]

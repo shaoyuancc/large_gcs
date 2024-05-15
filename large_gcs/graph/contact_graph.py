@@ -3,7 +3,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from itertools import combinations, product
 from multiprocessing import Pool
-from typing import Dict, Iterable, List, Tuple
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
@@ -28,6 +29,7 @@ from large_gcs.graph.contact_cost_constraint_factory import (
     vertex_cost_position_path_length,
 )
 from large_gcs.graph.graph import Graph, ShortestPathSolution
+from large_gcs.visualize.visualize_trajectory import plot_trajectory
 
 logger = logging.getLogger(__name__)
 
@@ -272,7 +274,8 @@ class ContactGraph(Graph):
             set_ids = list(product(*self._body_pair_to_mode_ids.values()))
         else:
             logger.info(
-                f"Loading {len(contact_pair_modes)} contact pair modes for {self.n_obstacles + self.n_objects + self.n_robots} bodies..."
+                f"Loading {len(contact_pair_modes)} contact pair modes for {
+                    self.n_obstacles + self.n_objects + self.n_robots} bodies..."
             )
             mode_ids_to_mode = contact_pair_modes
             self._contact_pair_modes = mode_ids_to_mode
@@ -294,13 +297,17 @@ class ContactGraph(Graph):
             ]
 
             logger.info(
-                f"{len(sets_to_keep)} sets remain after removing {len(all_contact_sets) - len(sets_to_keep)} empty sets"
+                f"{len(sets_to_keep)} sets remain after removing {
+                    len(all_contact_sets) - len(sets_to_keep)} empty sets"
             )
         else:
             sets_to_keep = all_contact_sets
 
         if vertex_exlcusion is not None:
-            logger.info(f"Removing sets matching exclusion strings {vertex_exlcusion}")
+            logger.info(
+                f"Removing sets matching exclusion strings {
+                    vertex_exlcusion}"
+            )
             sets_to_keep = [
                 contact_set
                 for contact_set in tqdm(sets_to_keep)
@@ -312,7 +319,10 @@ class ContactGraph(Graph):
             logger.info(f"{len(sets_to_keep)} sets remain after removing excluded sets")
 
         if vertex_inclusion is not None:
-            logger.info(f"Filtering sets for inclusion strings {vertex_inclusion}")
+            logger.info(
+                f"Filtering sets for inclusion strings {
+                    vertex_inclusion}"
+            )
             sets_to_keep = [
                 contact_set
                 for contact_set in tqdm(sets_to_keep)
@@ -351,7 +361,8 @@ class ContactGraph(Graph):
         rigid_body_pairs = static_movable_pairs + movable_pairs
 
         logger.info(
-            f"Generating contact pair modes for {len(rigid_body_pairs)} body pairs..."
+            f"Generating contact pair modes for {
+                len(rigid_body_pairs)} body pairs..."
         )
 
         body_pair_to_modes = {
@@ -502,7 +513,8 @@ class ContactGraph(Graph):
         vertex = self.vertices[set_name]
         if isinstance(vertex.convex_set, ContactPointSet):
             logger.info(
-                f"skipping sampling for {set_name} as it is a contact point set"
+                f"skipping sampling for {
+                    set_name} as it is a contact point set"
             )
             return
         samples = vertex.convex_set.get_samples(n_samples)
@@ -514,7 +526,7 @@ class ContactGraph(Graph):
         for sample in samples:
             samples_list.append(sample)
         contact_sol = self.create_contact_spp_sol([set_name] * n_samples, samples_list)
-        self._plot_path(contact_sol)
+        self.plot_solution(contact_sol)
         plt.title(f"Samples in {set_name}")
 
     def plot_sets(self):
@@ -526,46 +538,27 @@ class ContactGraph(Graph):
     def plot_edges(self):
         raise NotImplementedError("Not sure how to visualize high dimensional sets")
 
-    def _plot_path(self, sol: ContactShortestPathSolution):
-        plt.figure()
-        ax = plt.axes(xlim=self.workspace[0], ylim=self.workspace[1])
-        ax.set_aspect("equal")
-
-        for obs in self.obstacles:
-            obs.plot()
-        n_steps = sol.pos_trajs.shape[0]
-        for i in range(n_steps):
-            for j in range(self.n_objects):
-                self.objects[j].plot_at_position(
-                    sol.pos_trajs[i, j],
-                    facecolor="none",
-                    label_body=False,
-                    edgecolor=cm.rainbow(i / n_steps),
-                )
-            for j in range(self.n_robots):
-                self.robots[j].plot_at_position(
-                    sol.pos_trajs[i, j + self.n_objects],
-                    label_body=False,
-                    facecolor="none",
-                    edgecolor=cm.rainbow(i / n_steps),
-                )
-
-        # Add a color bar
-        sm = plt.cm.ScalarMappable(
-            cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=n_steps)
+    def plot_solution(
+        self, sol: ContactShortestPathSolution, loc: Optional[Path] = None
+    ):
+        # Process position trajectories
+        trajs, _ = self._interpolate_positions(sol, max_gap=0.2)
+        plot_trajectory(
+            trajs,
+            self.obstacles,
+            self.objects,
+            self.robots,
+            workspace=None,
+            filepath=loc,
+            target_regions=self.target_regions,
         )
 
-        plt.colorbar(sm)
-        plt.grid()
-
-    def plot_path(self):
+    def plot_current_solution(self, loc: Optional[Path] = None):
         assert self.contact_spp_sol is not None, "Must solve before plotting"
         assert self.base_dim == 2, "Can only plot 2D paths"
-        self._plot_path(self.contact_spp_sol)
+        self.plot_solution(self.contact_spp_sol, loc)
 
     def animate_solution(self):
-        import textwrap
-
         import matplotlib.animation as animation
         import matplotlib.patches as patches
 
@@ -591,12 +584,16 @@ class ContactGraph(Graph):
 
         label_text = [body.name for body in bodies]
 
+        import textwrap
+
         polygons = [
             patches.Polygon(
                 body.geometry.vertices,
-                color=BodyColor["object"]
-                if body.mobility_type == MobilityType.UNACTUATED
-                else BodyColor["robot"],
+                color=(
+                    BodyColor["object"]
+                    if body.mobility_type == MobilityType.UNACTUATED
+                    else BodyColor["robot"]
+                ),
             )
             for body in bodies
         ]

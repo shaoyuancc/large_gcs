@@ -152,7 +152,11 @@ class RigidBody:
         self._plot_vertices()
         self._plot_face_labels()
 
-    def _plot_vertices(self, pos=None, **kwargs):
+    def _plot_vertices(self, pos=None, ax=None, **kwargs):
+        # Use the provided axis or get the current axis
+        if ax is None:
+            ax = plt.gca()
+
         verts = self.geometry.vertices
         center = self.geometry.center
         if pos is not None:
@@ -160,14 +164,18 @@ class RigidBody:
             center = pos
             verts = verts + p_CT
         for i in range(self.n_vertices):
-            plt.text(
+            ax.text(
                 *self._get_offset_pos(verts[i], center),
                 f"v{i}",
                 ha="center",
                 va="center",
             )
 
-    def _plot_face_labels(self, pos=None, **kwargs):
+    def _plot_face_labels(self, pos=None, ax=None, **kwargs):
+        # Use the provided axis or get the current axis
+        if ax is None:
+            ax = plt.gca()
+
         verts = self.geometry.vertices
         center = self.geometry.center
         if pos is not None:
@@ -177,7 +185,7 @@ class RigidBody:
         verts = np.vstack([verts, verts[0]])
         for i in range(self.n_faces):
             mid = (verts[i] + verts[i + 1]) / 2
-            plt.text(
+            ax.text(
                 *self._get_offset_pos(mid, center), f"f{i}", ha="center", va="center"
             )
 
@@ -186,16 +194,27 @@ class RigidBody:
         offset_hat = offset_dir / np.linalg.norm(offset_dir)
         return pos + offset_hat * 0.15
 
+    def plot_at_com(
+        self, label_body=True, label_vertices_faces=False, ax=None, **kwargs
+    ) -> None:
+        self.plot_at_position(
+            self.geometry.center, label_body, label_vertices_faces, ax=ax, **kwargs
+        )
+
     def plot_at_position(
-        self, pos, label_body=True, label_vertices_faces=False, **kwargs
-    ):
+        self, pos, label_body=True, label_vertices_faces=False, ax=None, **kwargs
+    ) -> None:
+        # Use the provided axis or get the current axis
+        if ax is None:
+            ax = plt.gca()
+
         vertices_shifted = self.get_vertices_at_position(pos)
-        plt.fill(*vertices_shifted.T, **kwargs)
+        ax.fill(*vertices_shifted.T, **kwargs)
         if label_body:
-            plt.text(*pos, self.name, ha="center", va="center")
+            ax.text(*pos, self.name, ha="center", va="center")  # type: ignore
         if label_vertices_faces:
-            self._plot_vertices(pos)
-            self._plot_face_labels(pos)
+            self._plot_vertices(pos, ax)
+            self._plot_face_labels(pos, ax)
 
     def get_vertices_at_position(self, pos):
         p_CT = pos - self.geometry.center

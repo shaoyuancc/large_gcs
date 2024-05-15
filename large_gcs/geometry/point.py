@@ -12,8 +12,11 @@ class Point(ConvexSet):
     def __init__(self, x):
         self._point = DrakePoint(x)
 
-    def _plot(self, **kwargs):
-        plt.scatter(*self.center, c="k", s=80)
+    def _plot(self, ax=None, **kwargs):
+        if ax is None:
+            ax = plt.gca()
+
+        ax.scatter(*self.center, c="k", s=80)
 
     @property
     def dim(self):
