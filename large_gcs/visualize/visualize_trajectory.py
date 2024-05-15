@@ -17,6 +17,7 @@ from large_gcs.visualize.colors import (
     DARKSLATEGRAY1,
     EMERALDGREEN,
     FIREBRICK3,
+    WHITE,
 )
 
 
@@ -27,7 +28,6 @@ def plot_trajectory(
     robots: List[RigidBody],
     workspace: np.ndarray,  # (2, 2)
     filepath: Optional[Path] = None,
-    target_pos: Optional[List[np.ndarray]] = None,
     target_regions: Optional[List[Polyhedron]] = None,
 ):
     num_keyframes = 5
@@ -64,17 +64,18 @@ def plot_trajectory(
     n_objects = len(objects)
     n_robots = len(robots)
 
-    # Plot goal positions
-    if target_pos is not None:
-        raise RuntimeError(
-            "This part of the function has not been tested\
-            (if it works, feel free to remove this warning.)"
-        )
-        for i, body in enumerate(bodies):
-            body.plot_at_position(self.target_pos[i], color=BodyColor["target"])
-    elif target_regions is not None:
-        for region in target_regions:
-            region.plot(color=GOAL_COLOR, alpha=0.2)
+    # Plot goal regions
+    if target_regions is not None:
+        for ax in axs:
+            for region in target_regions:
+                region.plot(
+                    edgecolor="green",
+                    facecolor="none",
+                    hatch="///",
+                    linewidth=1,
+                    ax=ax,
+                    alpha=0.6,
+                )
 
     for ax in axs:
         for obs in obstacles:

@@ -550,7 +550,6 @@ class ContactGraph(Graph):
             self.robots,
             self.workspace,
             loc,
-            self.target_pos,
             self.target_regions,
         )
 

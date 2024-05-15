@@ -19,10 +19,10 @@ class ConvexSet(ABC):
     def __init__(self):
         pass
 
-    def _plot(self) -> None:
+    def _plot(self, ax=None) -> None:
         raise NotImplementedError("_plot not implemented for" + self.__class__.__name__)
 
-    def plot(self, mark_center: bool = False, **kwargs):
+    def plot(self, mark_center: bool = False, ax=None, **kwargs):
         """
         Plots the convex set using matplotlib.
         """
@@ -30,10 +30,14 @@ class ConvexSet(ABC):
             raise NotImplementedError
         options = {"facecolor": "mintcream", "edgecolor": "k", "zorder": 1}
         options.update(kwargs)
-        plt.gca().set_aspect("equal")
-        self._plot(**options)
+
+        if ax is None:
+            ax = plt.gca()
+
+        ax.set_aspect("equal")
+        self._plot(ax=ax, **options)
         if mark_center:
-            plt.scatter(*self.center, color="k", zorder=2)
+            ax.scatter(*self.center, color="k", zorder=2)
 
     def get_samples(self, n_samples=100) -> np.ndarray:
         samples = []
@@ -48,7 +52,10 @@ class ConvexSet(ABC):
             for i in range(n_samples - 1):
                 samples.append(
                     self.set.UniformSample(
-                        generator, previous_sample=samples[-1], mixing_steps=100  # 500
+                        # 500
+                        generator,
+                        previous_sample=samples[-1],
+                        mixing_steps=100,
                     )
                 )
                 logger.debug(f"Sampled {i+2} points from convex set")
