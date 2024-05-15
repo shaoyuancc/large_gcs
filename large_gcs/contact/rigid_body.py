@@ -196,14 +196,14 @@ class RigidBody:
 
     def plot_at_com(
         self, label_body=True, label_vertices_faces=False, ax=None, **kwargs
-    ):
+    ) -> None:
         self.plot_at_position(
             self.geometry.center, label_body, label_vertices_faces, ax=ax, **kwargs
         )
 
     def plot_at_position(
         self, pos, label_body=True, label_vertices_faces=False, ax=None, **kwargs
-    ):
+    ) -> None:
         # Use the provided axis or get the current axis
         if ax is None:
             ax = plt.gca()
