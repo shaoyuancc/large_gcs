@@ -58,6 +58,14 @@ def plot_trajectory(
 
     fig_height = 4
 
+    # NOTE: These are specific parameters that we use to get the
+    # figures we want in the paper, and should be removed for
+    # general use.
+    if num_keyframes > 4:
+        num_keyframes = 3
+    if num_keyframes == 1:
+        add_legend = True
+
     ROBOT_COLOR = DARKSEAGREEN2.diffuse()
     OBSTACLE_COLOR = AZURE3.diffuse()
     OBJECT_COLOR = BISQUE3.diffuse()
