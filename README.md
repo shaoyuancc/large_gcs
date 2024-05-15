@@ -2,16 +2,16 @@
 Combining ideas from graph search and graph of convex sets
 
 ## Installation (Linux and MacOS)
-This repo uses Poetry for dependency management. To setup this project, first install [Poetry](https://python-poetry.org/docs/#installation) and, make sure to have Python3.10 installed on your system.
+This repo uses Poetry for dependency management. To setup this project, first install [Poetry](https://python-poetry.org/docs/#installation) and, make sure to have Python3.12 installed on your system.
 
 (Optional) Configure poetry to create virtual environment in project
 ```
 poetry config virtualenvs.in-project true
 ```
 
-Then, configure poetry to setup a virtual environment that uses >= Python 3.10:
+Then, configure poetry to setup a virtual environment that uses >= Python 3.12:
 ```
-poetry env use python3.10
+poetry env use python3.12
 ```
 
 Next, install all the required dependencies to the virtual environment with the following command:
@@ -35,6 +35,11 @@ export GRB_LICENSE_FILE="/path/to/gurobi/license/gurobi.lic"
 Make sure to have graphviz installed on your computer. On MacOS, run the following command:
 ```
 brew install graphviz
+```
+
+Additional packages that I was not able to install using poetry, and had to use pip instead
+```
+pip install kaleido
 ```
 
 ## Running pre-commit hooks
@@ -83,5 +88,20 @@ python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR
 Create a bash script in `scripts` and make it executable with `chmod +x run_multiple_experiments.sh`.
 Then run it with `run_multiple_experiments.sh`
 
+## Generating figures
+On Ubuntu, 'Times' font can be installed via
+```
+sudo apt update
+sudo apt install ttf-mscorefonts-installer
+```
+After installation, you may need to update the font cache:
+
+```
+fc-cache -f -v
+```
+
+On Mac, it already comes in the system
+
 ## Credits
 This repo references and contains code from: Bernhard Paus Græsdal https://github.com/bernhardpg/planning-through-contact and Tobia Marcucci https://github.com/TobiaMarcucci/shortest-paths-in-graphs-of-convex-sets.
+
