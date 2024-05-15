@@ -37,10 +37,11 @@ def plot_trajectory(
     keyframe_idxs: Optional[List[int]] = None,
 ):
     if use_type_1_font:
-        plt.rcParams["font.family"] = "Times"
+        plt.rcParams["font.family"] = "serif"
         plt.rcParams["ps.useafm"] = True
         plt.rcParams["pdf.use14corefonts"] = True
-        plt.rcParams["text.usetex"] = False
+        plt.rcParams["text.usetex"] = True
+        plt.rcParams["font.serif"] = "Computer Modern Roman"
 
     n_steps = pos_trajs.shape[0]
 
