@@ -109,11 +109,11 @@ def plot_trajectory(
     # Plot goal regions
     if target_regions is not None:
         goal_kwargs = {
-            "edgecolor": "green",
+            "edgecolor": BLACK,
             "facecolor": "none",
-            "hatch": "///",
+            "hatch": "....",
             "linewidth": 1,
-            "alpha": 0.6,
+            "alpha": 0.3,
         }
         for ax in axs:
             for region in target_regions:
@@ -186,7 +186,7 @@ def plot_trajectory(
             handles=custom_patches,
             handlelength=2.5,
             fontsize=12,
-            loc="lower left",
+            # loc="lower left",
         )
 
     fig.tight_layout()
