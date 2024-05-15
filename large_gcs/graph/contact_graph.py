@@ -550,16 +550,16 @@ class ContactGraph(Graph):
             self.robots,
             self.workspace,
             loc,
+            self.target_pos,
+            self.target_regions,
         )
 
-    def plot_current_solution(self):
+    def plot_current_solution(self, loc: Optional[Path] = None):
         assert self.contact_spp_sol is not None, "Must solve before plotting"
         assert self.base_dim == 2, "Can only plot 2D paths"
-        self.plot_solution(self.contact_spp_sol)
+        self.plot_solution(self.contact_spp_sol, loc)
 
     def animate_solution(self):
-        import textwrap
-
         import matplotlib.animation as animation
         import matplotlib.patches as patches
 
@@ -584,6 +584,8 @@ class ContactGraph(Graph):
                 region.plot(color=BodyColor["target"], alpha=0.2)
 
         label_text = [body.name for body in bodies]
+
+        import textwrap
 
         polygons = [
             patches.Polygon(
