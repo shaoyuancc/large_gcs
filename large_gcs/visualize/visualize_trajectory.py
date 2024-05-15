@@ -191,7 +191,7 @@ def plot_trajectory(
     fig.tight_layout()
 
     if filepath:
-        fig.savefig(filepath, format="pdf")
+        fig.savefig(filepath)
         plt.close()
     else:
         plt.show()
