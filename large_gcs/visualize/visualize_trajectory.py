@@ -63,8 +63,14 @@ def plot_trajectory(
     # general use.
     if num_keyframes > 4:
         num_keyframes = 3
+        keyframe_idxs = [0, 30, 60]
+        keyframe_idxs.append(n_steps)
     if num_keyframes == 1:
         add_legend = True
+        START_TRANSPARENCY = 0.05
+    if num_keyframes == 2:
+        keyframe_idxs = [0, 17]
+        keyframe_idxs.append(n_steps)
 
     ROBOT_COLOR = DARKSEAGREEN2.diffuse()
     OBSTACLE_COLOR = AZURE3.diffuse()
@@ -117,7 +123,7 @@ def plot_trajectory(
     # Plot goal regions
     if target_regions is not None:
         goal_kwargs = {
-            "edgecolor": BLACK,
+            "edgecolor": "none",
             "facecolor": "none",
             "hatch": "....",
             "linewidth": 1,
