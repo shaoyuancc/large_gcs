@@ -3,6 +3,7 @@ import pickle
 from dataclasses import fields
 from typing import List
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -38,7 +39,15 @@ def split_numbers_into_sublists(N: int, M: int) -> List[List[int]]:
 
     # Use list comprehension and itertools to split the list into M sublists
     sublists = [
-        numbers[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(M)
+        numbers[i * k + min(i, m): (i + 1) * k + min(i + 1, m)] for i in range(M)
     ]
 
     return sublists
+
+
+def use_type_1_fonts_in_plots() -> None:
+    plt.rcParams["font.family"] = "serif"
+    plt.rcParams["ps.useafm"] = True
+    plt.rcParams["pdf.use14corefonts"] = True
+    plt.rcParams["text.usetex"] = True
+    plt.rcParams["font.serif"] = "Computer Modern Roman"

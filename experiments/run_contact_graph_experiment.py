@@ -1,6 +1,5 @@
 import logging
 import os
-from datetime import datetime
 from pathlib import Path
 
 import hydra
@@ -27,8 +26,6 @@ logger = logging.getLogger(__name__)
 
 @hydra.main(version_base=None, config_path="../config", config_name="basic")
 def main(cfg: OmegaConf) -> None:
-    now = datetime.now()
-    now.strftime("%Y-%m-%d_%H-%M-%S")
     # Add log dir to config
     hydra_config = HydraConfig.get()
     full_log_dir = hydra_config.runtime.output_dir
