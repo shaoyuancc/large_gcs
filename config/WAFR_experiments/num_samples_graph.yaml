@@ -1,10 +1,10 @@
 defaults:
   - algorithm: gcs_astar_reachability
   - cost_estimator: shortcut_edge
-  - domination_checker: reaches_new_sampling
+  - domination_checker: reaches_cheaper_sampling
   - hydra: hydra
 
-graph_name: "cg_simple_3"
+graph_name: "cg_trichal4"
 should_use_incremental_graph: true
 should_incl_simul_mode_switches: false
 should_add_const_edge_cost: true
@@ -37,9 +37,7 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      # graph_name: cg_simple_3, cg_trichal4, cg_maze_b1
-      graph_name: cg_simple_3
-      domination_checker.num_samples_per_vertex: 'range(10, 101, 10)'
+      domination_checker.num_samples_per_vertex: 'range(10, 1001, 50)'
   run:
     dir: runs/${now:%Y-%m-%d}/${now:%H-%M-%S}
   sweep:
