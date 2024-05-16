@@ -8,6 +8,7 @@ from omegaconf import OmegaConf, open_dict
 from large_gcs.algorithms.search_algorithm import AlgMetrics
 from large_gcs.graph.graph import ShortestPathSolution
 from large_gcs.utils.utils import use_type_1_fonts_in_plots
+from large_gcs.visualize.colors import DEEPSKYBLUE3, DODGERBLUE1, FLESH
 
 
 class SingleRunData(NamedTuple):
@@ -146,22 +147,29 @@ class SamplingRunData:
             1, num_plots, figsize=(fig_height * num_plots, fig_height)
         )
 
+        sampling_color = DEEPSKYBLUE3.diffuse()
+        comparison_color = FLESH.diffuse()
+
         for ax in axs:
             ax.set_xlabel("Number of samples")
 
-        axs[0].plot(self.num_samples, self.solve_times)
+        axs[0].plot(self.num_samples, self.solve_times, color=sampling_color)
         axs[0].set_title("Solve time [s]")
 
-        axs[1].plot(self.num_samples, self.num_paths_expanded)
+        axs[1].plot(self.num_samples, self.num_paths_expanded,
+                    color=sampling_color)
         axs[1].set_title("Number of paths expanded")
 
-        axs[2].plot(self.num_samples, self.costs)
+        axs[2].plot(self.num_samples, self.costs, color=sampling_color)
         axs[2].set_title("Cost")
 
         if ah_baseline:
-            axs[0].axhline(ah_baseline.wall_clock_time)
-            axs[1].axhline(ah_baseline.num_paths_expanded)
-            axs[2].axhline(ah_baseline.cost)
+            axs[0].axhline(ah_baseline.wall_clock_time, color=comparison_color)
+            axs[1].axhline(ah_baseline.num_paths_expanded,
+                           color=comparison_color)
+            axs[2].axhline(ah_baseline.cost, color=comparison_color)
+
+            axs[2].legend(["Sampling", "AH-containment"])
 
         if output_path:
             fig.savefig(output_path)

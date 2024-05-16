@@ -38,8 +38,14 @@ def main() -> None:
         ah_run_data = SamplingRunData.load_from_folder(ah_comparison_data_dir)
         ah_run_data.save(ah_comparison_data_dir / "aggregated_run_data.json")
 
-        assert len(ah_run_data.data) == 1
-        assert type(ah_run_data.data[0]) is SingleRunData
+        if (
+            not len(ah_run_data.data) == 1
+            or not type(ah_run_data.data[0]) is SingleRunData
+        ):
+            raise RuntimeError(
+                "AH-containment data should contain exactly one run, where\
+                num_samples_per_vertex should not be set in the config."
+            )
         ah_data = ah_run_data.data[0]
 
         run_data.make_plot(ah_data)
