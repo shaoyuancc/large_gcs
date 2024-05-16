@@ -7,6 +7,7 @@ from omegaconf import OmegaConf, open_dict
 
 from large_gcs.algorithms.search_algorithm import AlgMetrics
 from large_gcs.graph.graph import ShortestPathSolution
+from large_gcs.utils.utils import use_type_1_fonts_in_plots
 
 
 class SingleSamplingRunData(NamedTuple):
@@ -88,6 +89,8 @@ class SamplingRunData:
         return [d.num_paths_expanded for d in self.data]
 
     def make_plot(self, output_path: Optional[Path] = None) -> None:
+        use_type_1_fonts_in_plots()
+
         fig_height = 4
         num_plots = 3
         fig, axs = plt.subplots(
