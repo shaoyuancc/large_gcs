@@ -37,10 +37,11 @@ def plot_trajectory(
     keyframe_idxs: Optional[List[int]] = None,
 ):
     if use_type_1_font:
-        plt.rcParams["font.family"] = "Times"
+        plt.rcParams["font.family"] = "serif"
         plt.rcParams["ps.useafm"] = True
         plt.rcParams["pdf.use14corefonts"] = True
-        plt.rcParams["text.usetex"] = False
+        plt.rcParams["text.usetex"] = True
+        plt.rcParams["font.serif"] = "Computer Modern Roman"
 
     n_steps = pos_trajs.shape[0]
 
@@ -56,6 +57,20 @@ def plot_trajectory(
         num_keyframes = int(np.ceil(n_steps / 30))
 
     fig_height = 4
+
+    # NOTE: These are specific parameters that we use to get the
+    # figures we want in the paper, and should be removed for
+    # general use.
+    if num_keyframes > 4:
+        num_keyframes = 3
+        keyframe_idxs = [0, 30, 60]
+        keyframe_idxs.append(n_steps)
+    if num_keyframes == 1:
+        add_legend = True
+        START_TRANSPARENCY = 0.05
+    if num_keyframes == 2:
+        keyframe_idxs = [0, 17]
+        keyframe_idxs.append(n_steps)
 
     ROBOT_COLOR = DARKSEAGREEN2.diffuse()
     OBSTACLE_COLOR = AZURE3.diffuse()
@@ -108,11 +123,11 @@ def plot_trajectory(
     # Plot goal regions
     if target_regions is not None:
         goal_kwargs = {
-            "edgecolor": "green",
+            "edgecolor": "none",
             "facecolor": "none",
-            "hatch": "///",
+            "hatch": "....",
             "linewidth": 1,
-            "alpha": 0.6,
+            "alpha": 0.3,
         }
         for ax in axs:
             for region in target_regions:
@@ -185,7 +200,7 @@ def plot_trajectory(
             handles=custom_patches,
             handlelength=2.5,
             fontsize=12,
-            loc="lower left",
+            # loc="lower left",
         )
 
     fig.tight_layout()
