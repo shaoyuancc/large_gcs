@@ -214,7 +214,7 @@ class Polyhedron(ConvexSet):
                     i=hull.simplices[:, 0],
                     j=hull.simplices[:, 1],
                     k=hull.simplices[:, 2],
-                    **kwargs
+                    **kwargs,
                 )
             )
 
@@ -378,6 +378,9 @@ class Polyhedron(ConvexSet):
             if Polyhedron._check_contains_equality_constraints(
                 self.set.A(), self.set.b()
             ):
+                # logger.debug(
+                #     "Polyhedron has equality constraints, creating null space polyhedron"
+                # )
                 self._has_equality_constraints = True
                 if not self._h_polyhedron.IsEmpty():
                     self._create_null_space_polyhedron()
@@ -388,7 +391,14 @@ class Polyhedron(ConvexSet):
                 self._has_equality_constraints = False
 
         if self._has_equality_constraints:
-            q_samples = self._null_space_polyhedron.get_samples(n_samples)
+            try:
+                q_samples = self._null_space_polyhedron.get_samples(n_samples)
+            except RuntimeError as e:
+                logger.warning(
+                    f"Failed to sample null space polyhedron: {e}, returning chebyshev center as sample"
+                )
+                chebyshev_center = self.set.ChebyshevCenter()
+                return np.array([chebyshev_center])
             assert len(q_samples) > 0
             p_samples = q_samples @ self._V.T + self._x_0
 

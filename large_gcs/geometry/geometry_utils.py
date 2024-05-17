@@ -128,7 +128,7 @@ def HPolyhedronFromConstraints(
     variables: np.ndarray,
     make_bounded: bool = True,
     remove_constraints_not_in_vars: bool = False,
-    BOUND: float = 1000.0,
+    BOUND: float = 50.0,
 ):
     """
     Construct a polyhedron from a list of constraint formulas.
