@@ -102,6 +102,15 @@ fc-cache -f -v
 
 On Mac, it already comes in the system
 
+Additionally, need LaTex on your system
+For Ubuntu,
+```
+sudo apt install texlive-latex-extra
+sudo apt-get install texlive-fonts-recommended
+sudo apt-get install cm-super
+sudo apt-get install dvipng
+```
+
 ## Credits
 This repo references and contains code from: Bernhard Paus Græsdal https://github.com/bernhardpg/planning-through-contact and Tobia Marcucci https://github.com/TobiaMarcucci/shortest-paths-in-graphs-of-convex-sets.
 
