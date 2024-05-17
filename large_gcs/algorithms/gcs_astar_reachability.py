@@ -106,19 +106,15 @@ class GcsAstarReachability(SearchAlgorithm):
         self._cost_estimator.setup_subgraph(self._graph)
 
     def add_node_to_S_left(self, n: SearchNode):
-        logger.info(f"Adding to left of S: {n.vertex_name}")
         self._S[n.vertex_name].appendleft(n)
 
     def add_node_to_S(self, n: SearchNode):
-        logger.info(f"Adding to right of S: {n.vertex_name}")
         self._S[n.vertex_name].append(n)
 
     def remove_node_from_S_left(self, vertex_name: str):
-        logger.info(f"Removing from right of S: {vertex_name}")
         self._S[vertex_name].pop()
 
     def remove_node_from_back_of_S(self, vertex_name: str):
-        logger.info(f"Removing from left of S: {vertex_name}")
         self._S[vertex_name].popleft()
 
     def run(self) -> ShortestPathSolution:
