@@ -28,14 +28,22 @@ def plot_trajectory(
     objects: List[RigidBody],
     robots: List[RigidBody],
     workspace: Optional[np.ndarray] = None,  # (2, 2)
-    x_buffer: Optional[float] = 1.7,
-    y_buffer: Optional[float] = 1.7,
+    x_buffer: Optional[np.ndarray] = None,
+    y_buffer: Optional[np.ndarray] = None,
     filepath: Optional[Path] = None,
     target_regions: Optional[List[Polyhedron]] = None,
     add_legend: bool = False,
     use_type_1_font: bool = True,
     keyframe_idxs: Optional[List[int]] = None,
+    use_paper_params: bool = True,  # TODO(bernhardpg): Set to false
 ):
+
+    if x_buffer is None:
+        x_buffer = np.array([1.4, 1.4])
+
+    if y_buffer is None:
+        y_buffer = np.array([1.4, 1.4])
+
     if use_type_1_font:
         plt.rcParams["font.family"] = "serif"
         plt.rcParams["ps.useafm"] = True
@@ -54,23 +62,33 @@ def plot_trajectory(
         # Make sure we plot until the end
         keyframe_idxs.append(n_steps)
     else:
-        num_keyframes = int(np.ceil(n_steps / 30))
+        num_keyframes = int(np.ceil(n_steps / 15))
 
-    fig_height = 4
+    if use_paper_params:
+        # NOTE: These are specific parameters that we use to get the
+        # figures we want in the paper, and should be removed for
+        # general use.
+        # They are made to match the trajs generated from
+        # WAFR_experiments/trajectory_figures.yaml
+        if num_keyframes > 5:  # cg_maze_b1
+            num_keyframes = 5
+            # keyframe_idxs = [0, 32, 59, 70, 80, 95]
+            keyframe_idxs = [0, 36, 72, 90, 120]
+            keyframe_idxs.append(n_steps)
+            print(n_steps)
+            x_buffer = np.array([0.8, 0.8])
+            y_buffer = np.array([1.0, 1.0])
 
-    # NOTE: These are specific parameters that we use to get the
-    # figures we want in the paper, and should be removed for
-    # general use.
-    if num_keyframes > 4:
-        num_keyframes = 3
-        keyframe_idxs = [0, 30, 60]
-        keyframe_idxs.append(n_steps)
-    if num_keyframes == 1:
-        add_legend = True
-        START_TRANSPARENCY = 0.05
-    if num_keyframes == 2:
-        keyframe_idxs = [0, 17]
-        keyframe_idxs.append(n_steps)
+        elif num_keyframes == 4:  # cg_trichal4
+            # Adjust these numbers to adjust what frames the keyframes start at:
+            keyframe_idxs = [0, 14, 28, 46]
+
+            # this step is needed for downstream code
+            keyframe_idxs.append(n_steps)
+            y_buffer = np.array([1.2, 1.2])
+            x_buffer = np.array([1.5, 1.5])
+
+            add_legend = True
 
     ROBOT_COLOR = DARKSEAGREEN2.diffuse()
     OBSTACLE_COLOR = AZURE3.diffuse()
@@ -83,8 +101,14 @@ def plot_trajectory(
     START_TRANSPARENCY = 0.3
     END_TRANSPARENCY = 1.0
 
+    fig_height = 4
+    if add_legend:
+        fig_height = 5
+
+    subplot_width = 4
+
     fig, axs = plt.subplots(
-        1, num_keyframes, figsize=(fig_height * num_keyframes, fig_height)
+        1, num_keyframes, figsize=(subplot_width * num_keyframes, fig_height)
     )
 
     # ensure we can still iterate through the "axes" even if we only have one
@@ -104,12 +128,12 @@ def plot_trajectory(
             y_max = np.max(pos_trajs[:, :, 1])
 
         if x_buffer is not None:
-            x_min -= x_buffer
-            x_max += x_buffer
+            x_min -= x_buffer[0]
+            x_max += x_buffer[1]
 
         if y_buffer is not None:
-            y_min -= y_buffer
-            y_max += y_buffer
+            y_min -= y_buffer[0]
+            y_max += y_buffer[1]
 
         ax.set_xlim(x_min, x_max)
         ax.set_ylim(y_min, y_max)
@@ -144,21 +168,26 @@ def plot_trajectory(
             )
 
     if keyframe_idxs:
+        # Add one here so we display the last and first frames in a keyframe twice (once per frame)
         steps_per_axs = [
-            list(range(idx_curr, idx_next))
+            list(range(idx_curr, idx_next + 1))
             for idx_curr, idx_next in zip(keyframe_idxs[:-1], keyframe_idxs[1:])
         ]
+        # Remove the last one
+        steps_per_axs[-1].pop()
     else:
         steps_per_axs = split_numbers_into_sublists(n_steps, len(axs))
 
-    transparencies = np.concatenate(
-        [
-            np.linspace(START_TRANSPARENCY, END_TRANSPARENCY, len(steps))
-            for steps in steps_per_axs
-        ]
-    )
-    for ax, steps in zip(axs, steps_per_axs):
-        for step_idx in steps:
+    transparencies = [
+        np.linspace(START_TRANSPARENCY, END_TRANSPARENCY, len(steps)).tolist()
+        # Alternatively, use a logscale:
+        # np.logspace(
+        #     np.log10(START_TRANSPARENCY), np.log10(END_TRANSPARENCY), num=len(steps)
+        # )
+        for steps in steps_per_axs
+    ]
+    for ax, alphas, steps in zip(axs, transparencies, steps_per_axs):
+        for alpha, step_idx in zip(alphas, steps):
             for obj_idx in range(n_objects):
                 objects[obj_idx].plot_at_position(
                     pos_trajs[step_idx, obj_idx],
@@ -167,7 +196,7 @@ def plot_trajectory(
                     label_vertices_faces=False,
                     edgecolor=EDGE_COLOR,
                     ax=ax,
-                    alpha=transparencies[step_idx],
+                    alpha=alpha,
                 )
             for obj_idx in range(n_robots):
                 robots[obj_idx].plot_at_position(
@@ -177,7 +206,7 @@ def plot_trajectory(
                     label_vertices_faces=False,
                     edgecolor=EDGE_COLOR,
                     ax=ax,
-                    alpha=transparencies[step_idx],
+                    alpha=alpha,
                 )
 
     if add_legend:
@@ -196,14 +225,19 @@ def plot_trajectory(
             custom_patches += [goal_patch]
 
         # Creating the custom legend
-        axs[0].legend(
+        fig.legend(
             handles=custom_patches,
             handlelength=2.5,
-            fontsize=12,
-            # loc="lower left",
+            fontsize=28,
+            ncol=2,
+            loc="upper left",
         )
 
-    fig.tight_layout()
+    # Adjust layout to make room for the legend
+    if add_legend:
+        fig.tight_layout(rect=(0, 0, 1, 0.7))
+    else:
+        fig.tight_layout()
 
     if filepath:
         fig.savefig(filepath)
