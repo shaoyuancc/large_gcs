@@ -35,7 +35,7 @@ def plot_trajectory(
     add_legend: bool = False,
     use_type_1_font: bool = True,
     keyframe_idxs: Optional[List[int]] = None,
-    use_paper_params: bool = True,  # TODO(bernhardpg): Set to false
+    use_paper_params: bool = False,  # TODO(bernhardpg): Set to false
 ):
 
     if x_buffer is None:
@@ -96,7 +96,7 @@ def plot_trajectory(
 
     EDGE_COLOR = BLACK.diffuse()
 
-    GOAL_COLOR = EMERALDGREEN.diffuse()
+    EMERALDGREEN.diffuse()
 
     START_TRANSPARENCY = 0.3
     END_TRANSPARENCY = 1.0
