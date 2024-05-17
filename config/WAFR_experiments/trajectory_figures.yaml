@@ -18,7 +18,7 @@ cost_estimator:
 
 # Note: Comment this out if not using sampling domination checkers
 domination_checker:
-  num_samples_per_vertex: 10
+  num_samples_per_vertex: 1
 
 save_visualization: true
 save_solution: true
@@ -37,4 +37,4 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      graph_name: cg_simple_3, cg_trichal4, cg_maze_b1
+      graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1
