@@ -2,7 +2,7 @@ import itertools
 import logging
 import os
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 from typing import List, Optional
 
 import matplotlib.pyplot as plt
@@ -44,6 +44,8 @@ class GcsAstarReachability(SearchAlgorithm):
         tiebreak: TieBreak = TieBreak.FIFO,
         vis_params: Optional[AlgVisParams] = None,
         should_terminate_early: bool = False,
+        should_invert_S: bool = False,
+        max_len_S_per_vertex: int = 0,  # 0 means no limit
     ):
         if isinstance(graph, IncrementalContactGraph):
             assert (
@@ -56,12 +58,18 @@ class GcsAstarReachability(SearchAlgorithm):
         self._domination_checker = domination_checker
         self._vis_params = vis_params
         self._should_terminate_early = should_terminate_early
+        self._should_invert_S = should_invert_S
+        self._max_len_S_per_vertex = max_len_S_per_vertex
         self._cost_estimator.set_alg_metrics(self._alg_metrics)
         self._domination_checker.set_alg_metrics(self._alg_metrics)
         if tiebreak == TieBreak.FIFO or tiebreak == TieBreak.FIFO.name:
             self._counter = itertools.count(start=0, step=1)
         elif tiebreak == TieBreak.LIFO or tiebreak == TieBreak.LIFO.name:
             self._counter = itertools.count(start=0, step=-1)
+
+        if should_invert_S:
+            self.add_node_to_S = self.add_node_to_S_left
+            self.remove_node_from_S = self.remove_node_from_S_left
 
         # For logging/metrics
         # Expanded set
@@ -81,7 +89,7 @@ class GcsAstarReachability(SearchAlgorithm):
         self._step = 0
 
         # Visited dictionary
-        self._S: dict[str, list[SearchNode]] = defaultdict(list)
+        self._S: dict[str, deque[SearchNode]] = defaultdict(deque)
         self._S_pruned_counts: dict[str, int] = defaultdict(int)
         # Priority queue
         self._Q: list[SearchNode] = []
@@ -96,6 +104,22 @@ class GcsAstarReachability(SearchAlgorithm):
         self.push_node_on_Q(start_node)
 
         self._cost_estimator.setup_subgraph(self._graph)
+
+    def add_node_to_S_left(self, n: SearchNode):
+        logger.info(f"Adding to left of S: {n.vertex_name}")
+        self._S[n.vertex_name].appendleft(n)
+
+    def add_node_to_S(self, n: SearchNode):
+        logger.info(f"Adding to right of S: {n.vertex_name}")
+        self._S[n.vertex_name].append(n)
+
+    def remove_node_from_S_left(self, vertex_name: str):
+        logger.info(f"Removing from right of S: {vertex_name}")
+        self._S[vertex_name].pop()
+
+    def remove_node_from_back_of_S(self, vertex_name: str):
+        logger.info(f"Removing from left of S: {vertex_name}")
+        self._S[vertex_name].popleft()
 
     def run(self) -> ShortestPathSolution:
         """
@@ -156,6 +180,7 @@ class GcsAstarReachability(SearchAlgorithm):
             early_terminate_sol = self._visit_neighbor(n, edge)
             if early_terminate_sol is not None:
                 logger.info(f"EARLY TERMINATION: Visited path to target.")
+                self._save_metrics(n, [], override_save=True)
                 return early_terminate_sol
 
     @profile_method
@@ -205,7 +230,13 @@ class GcsAstarReachability(SearchAlgorithm):
             self._S_pruned_counts[n_next.vertex_name] += 1
             return
         logger.debug(f"Added to Q: Path to {n_next.vertex_name} not dominated")
-        self._S[neighbor] += [n_next]
+
+        if (
+            self._max_len_S_per_vertex != 0
+            and len(self._S[n_next.vertex_name]) >= self._max_len_S_per_vertex
+        ):
+            self.remove_node_from_back_of_S(n_next.vertex_name)
+        self.add_node_to_S(n_next)
         self.push_node_on_Q(n_next)
 
         # Early Termination

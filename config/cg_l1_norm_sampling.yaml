@@ -1,0 +1,50 @@
+defaults:
+  - algorithm: gcs_astar_reachability
+  - cost_estimator: shortcut_edge
+  - domination_checker: reaches_new_sampling
+  - hydra: hydra
+
+graph_name: "cg_stackpush_e2"
+should_use_incremental_graph: true
+should_incl_simul_mode_switches: false
+should_add_const_edge_cost: true
+# USE L1 NORM VERTEX COST
+should_use_l1_norm_vertex_cost: true
+
+
+cost_estimator:
+  # USE L1 NORM SHORTCUT EDGE COST
+  shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted
+
+# Note: Comment this out if not using sampling domination checkers
+domination_checker:
+  num_samples_per_vertex: 1
+
+# algorithm:
+#   should_terminate_early: true
+
+save_visualization: true
+save_to_wandb: true
+save_solution: true
+save_metrics: true
+
+hydra:
+  job_logging:
+    loggers:
+      large_gcs:
+        level: INFO
+      large_gcs.algorithms:
+        level: DEBUG
+      large_gcs.cost_estimators:
+        level: INFO
+      large_gcs.domination_checkers:
+        level: DEBUG
+
+  # mode: MULTIRUN
+  # sweeper:
+  #   params:
+  #     graph_name: cg_stackpush_a1, cg_stackpush_a2, cg_stackpush_a3
+  #     algorithm.should_terminate_early: true, false
+  #     domination_checker: reaches_new_sampling, reaches_cheaper_sampling
+      # domination_checker: reaches_cheaper_sampling, reaches_cheaper_sampling, reaches_new_containment, reaches_cheaper_containment 
+      # graph_name: cg_simple_3, cg_trichal4, cg_maze_b3, cg_maze_b1
