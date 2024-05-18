@@ -35,7 +35,7 @@ def plot_trajectory(
     add_legend: bool = False,
     use_type_1_font: bool = True,
     keyframe_idxs: Optional[List[int]] = None,
-    use_paper_params: bool = False,  # TODO(bernhardpg): Set to false
+    use_paper_params: bool = True,  # TODO(bernhardpg): Set to false
 ):
 
     if x_buffer is None:
@@ -70,12 +70,18 @@ def plot_trajectory(
         # general use.
         # They are made to match the trajs generated from
         # WAFR_experiments/trajectory_figures.yaml
-        if num_keyframes > 5:  # cg_maze_b1
-            num_keyframes = 5
-            # keyframe_idxs = [0, 32, 59, 70, 80, 95]
-            keyframe_idxs = [0, 36, 72, 90, 120]
+        if num_keyframes == 9:  # cg_maze_b1
+            num_keyframes = 6
+            keyframe_idxs = [0, 32, 50, 72, 86, 119]
             keyframe_idxs.append(n_steps)
-            print(n_steps)
+            x_buffer = np.array([0.8, 0.8])
+            y_buffer = np.array([1.0, 1.0])
+
+        elif num_keyframes == 7:  # cg_maze_b1
+            num_keyframes = 6
+            # keyframe_idxs = [0, 32, 59, 70, 80, 95]
+            keyframe_idxs = [0, 16, 22, 35, 66, 81]
+            keyframe_idxs.append(n_steps)
             x_buffer = np.array([0.8, 0.8])
             y_buffer = np.array([1.0, 1.0])
 

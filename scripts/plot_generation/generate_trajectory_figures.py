@@ -120,10 +120,10 @@ def main() -> None:
         cg.contact_spp_sol = cg.create_contact_spp_sol(
             sol.vertex_path, sol.ambient_path
         )
-        vid_file = path / "regenerated_video.mp4"
-
-        anim = cg.animate_solution()
-        anim.save(vid_file)
+        # vid_file = path / "regenerated_video.mp4"
+        #
+        # anim = cg.animate_solution()
+        # anim.save(vid_file)
 
         cg.plot_solution(cg.contact_spp_sol, path / "traj_figure.pdf")
 
