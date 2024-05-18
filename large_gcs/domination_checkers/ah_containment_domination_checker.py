@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 import numpy as np
@@ -7,6 +8,8 @@ from pydrake.all import HPolyhedron, L1NormCost, MathematicalProgram, Solve
 from large_gcs.algorithms.search_algorithm import AlgMetrics, SearchNode, profile_method
 from large_gcs.domination_checkers.domination_checker import DominationChecker
 from large_gcs.graph.graph import Graph
+
+logger = logging.getLogger(__name__)
 
 
 class AHContainmentDominationChecker(DominationChecker):
@@ -31,6 +34,7 @@ class AHContainmentDominationChecker(DominationChecker):
 
     @profile_method
     def is_contained_in(self, A_x, b_x, T_x, A_y, b_y, T_y) -> bool:
+        logger.debug(f"Checking containment")
         AH_X, AH_Y = self._create_AH_polytopes(A_x, b_x, T_x, A_y, b_y, T_y)
 
         prog = MathematicalProgram()
@@ -53,6 +57,7 @@ class AHContainmentDominationChecker(DominationChecker):
 
     @profile_method
     def _solve_containment_prog(self, prog: MathematicalProgram):
+        logger.debug(f"Solving containment prog")
         result = Solve(prog)
         return result.is_success()
 
@@ -159,6 +164,7 @@ class AHContainmentDominationChecker(DominationChecker):
 
     @profile_method
     def get_feasibility_matrices(self, node: SearchNode):
+        logger.debug(f"Getting feasibility matrices")
         prog = self.get_path_constraint_mathematical_program(node)
         X = HPolyhedron(prog)
         return X.A(), X.b()
@@ -211,6 +217,7 @@ class AHContainmentDominationChecker(DominationChecker):
             Assumed to be the last decision variable in x.
             - vertex_idx_to_project_to(Optional[int]) : Index of the vertex to project to. If None, will project to the last vertex in the path.
         """
+        logger.debug(f"Getting projection transformation")
         total_dims = A.shape[1]
         if vertex_idx_to_project_to is None:
             vertex_idx_to_project_to = len(node.vertex_path) - 1

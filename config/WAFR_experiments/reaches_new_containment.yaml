@@ -30,10 +30,12 @@ hydra:
       large_gcs:
         level: INFO
       large_gcs.algorithms:
-        level: INFO
+        level: DEBUG
       large_gcs.cost_estimators:
         level: INFO
-  mode: MULTIRUN
-  sweeper:
-    params:
-      graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1
+      large_gcs.domination_checkers:
+        level: DEBUG
+  # mode: MULTIRUN
+  # sweeper:
+  #   params:
+  #     graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1

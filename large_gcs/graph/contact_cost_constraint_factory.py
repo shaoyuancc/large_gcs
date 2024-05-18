@@ -55,7 +55,8 @@ def contact_shortcut_edge_cost_factory_under(
     if add_const_cost:
         # Constant cost for the edge
         a = np.zeros((uv_vars_all.size, 1))
-        constant_cost = 1
+        # We add 2 because if a shortcut is used it minimally replaces 2 edges
+        constant_cost = 2
         costs.append(LinearCost(a, constant_cost))
 
     return costs
@@ -95,7 +96,8 @@ def contact_shortcut_edge_cost_factory_under_obj_weighted(
     if add_const_cost:
         # Constant cost for the edge
         a = np.zeros((uv_vars_all.size, 1))
-        constant_cost = 1
+        # We add 2 because if a shortcut is used it minimally replaces 2 edges
+        constant_cost = 2
         costs.append(LinearCost(a, constant_cost))
 
     return costs
@@ -135,7 +137,8 @@ def contact_shortcut_edge_l1_norm_cost_factory_under_obj_weighted(
     if add_const_cost:
         # Constant cost for the edge
         a = np.zeros((uv_vars_all.size, 1))
-        constant_cost = 1
+        # We add 2 because if a shortcut is used it minimally replaces 2 edges
+        constant_cost = 2
         costs.append(LinearCost(a, constant_cost))
 
     return costs
@@ -164,7 +167,8 @@ def contact_shortcut_edge_cost_factory_over(
     if add_const_cost:
         # Constant cost for the edge
         a = np.zeros((uv_vars_all.size, 1))
-        constant_cost = 1
+        # We add 2 because if a shortcut is used it minimally replaces 2 edges
+        constant_cost = 2
         costs.append(LinearCost(a, constant_cost))
 
     return costs
@@ -195,7 +199,8 @@ def contact_norm_squared_shortcut_edge_cost_factory_over(
     if add_const_cost:
         # Constant cost for the edge
         a = np.zeros((uv_vars_all.size, 1))
-        constant_cost = 1
+        # We add 2 because if a shortcut is used it minimally replaces 2 edges
+        constant_cost = 2
         costs.append(LinearCost(a, constant_cost))
 
     return costs
@@ -235,7 +240,8 @@ def contact_shortcut_edge_cost_factory_over_obj_weighted(
     if add_const_cost:
         # Constant cost for the edge
         a = np.zeros((uv_vars_all.size, 1))
-        constant_cost = 1
+        # We add 2 because if a shortcut is used it minimally replaces 2 edges
+        constant_cost = 2
         costs.append(LinearCost(a, constant_cost))
 
     return costs
@@ -275,7 +281,8 @@ def contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted(
     if add_const_cost:
         # Constant cost for the edge
         a = np.zeros((uv_vars_all.size, 1))
-        constant_cost = 1
+        # We add 2 because if a shortcut is used it minimally replaces 2 edges
+        constant_cost = 2
         costs.append(LinearCost(a, constant_cost))
 
     return costs
@@ -316,7 +323,8 @@ def contact_norm_squared_shortcut_edge_cost_factory_over_obj_weighted(
     if add_const_cost:
         # Constant cost for the edge
         a = np.zeros((uv_vars_all.size, 1))
-        constant_cost = 1
+        # We add 2 because if a shortcut is used it minimally replaces 2 edges
+        constant_cost = 2
         costs.append(LinearCost(a, constant_cost))
 
     return costs

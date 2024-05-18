@@ -16,6 +16,10 @@ class ReachesNewContainment(AHContainmentDominationChecker):
         """
         Checks if a candidate path is dominated completely by any one of the alternate paths.
         """
+        logger.debug(
+            f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"
+            f"\n via path: {candidate_node.vertex_path}"
+        )
         A_n, b_n = self.get_feasibility_matrices(candidate_node)
         T_n = self.get_projection_transformation(
             node=candidate_node,
@@ -23,6 +27,10 @@ class ReachesNewContainment(AHContainmentDominationChecker):
             include_cost_epigraph=False,
         )
         for alt_n in alternate_nodes:
+            logger.debug(
+                f"Checking if candidate node is dominated by alternate node with path:"
+                f"{alt_n.vertex_path}"
+            )
             A_alt, b_alt = self.get_feasibility_matrices(alt_n)
             T_alt = self.get_projection_transformation(
                 node=alt_n,
