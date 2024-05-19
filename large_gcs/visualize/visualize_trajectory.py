@@ -6,7 +6,7 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 
-from large_gcs.contact.rigid_body import RigidBody
+from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.utils.utils import split_numbers_into_sublists
 from large_gcs.visualize.colors import (
@@ -75,7 +75,27 @@ def plot_trajectory(
             keyframe_idxs = [0, 32, 50, 72, 86, 119]
             keyframe_idxs.append(n_steps)
             x_buffer = np.array([0.8, 0.8])
-            y_buffer = np.array([1.0, 1.0])
+            y_buffer = np.array([1.4, 1.0])
+
+            width = 7.0
+            height = 0.5
+            x_pos = -1.20
+            y_min = -5.0
+            box_vertices = np.array(
+                [
+                    [-width / 2 + x_pos, y_min - height],
+                    [-width / 2 + x_pos, y_min],
+                    [width / 2 + x_pos, y_min],
+                    [width / 2 + x_pos, y_min - height],
+                ]
+            )
+
+            wall = RigidBody(
+                name="wall",
+                geometry=Polyhedron.from_vertices(box_vertices),
+                mobility_type=MobilityType.STATIC,
+            )
+            obstacles.append(wall)
 
         elif num_keyframes == 7:  # STACK
             num_keyframes = 6
