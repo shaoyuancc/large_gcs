@@ -154,7 +154,12 @@ if figure_idx == 2:
     use_type_1_fonts_in_plots()
 
     g_vals = _make_values(7, 1, 7, shift=-3, x_vals=x_vals)
-    g_tilde_vals = _make_values(20, 1, 20, shift=-5, x_vals=x_vals)
+    g_tilde_vals = _make_values(20, 1, 13, shift=-4.5, x_vals=x_vals)
+
+    idx = np.where(x_vals > 5)[0][0]
+    asymptote = -1 / (x_vals - 5)
+    asymptote[idx:] = np.inf
+    g_tilde_vals += asymptote
 
     plt.figure(figsize=(4, 2))
     plt.plot(x_vals, g_vals, label=r"$g(v, x)$", zorder=99, color="b")
@@ -264,6 +269,120 @@ if figure_idx == 3:
     g_vals_2 = _make_values(4, 1, 6, shift=-5, x_vals=x_vals)
     g_vals_3 = _make_values(3, 1, 8, shift=-8, x_vals=x_vals)
     g_tilde_vals = _make_values(4, 1, 5, shift=-6.5, x_vals=x_vals)
+
+    plt.figure(figsize=(4, 2))
+    plt.plot(x_vals, g_vals_1, label=r"$g(v, x)$", zorder=99, color="b")
+    plt.plot(x_vals, g_vals_2, label=r"$g(v, x)$", zorder=99, color="b")
+    plt.plot(x_vals, g_vals_3, label=r"$g(v, x)$", zorder=99, color="b")
+    plt.plot(x_vals, g_tilde_vals, label=r"$\tilde{g}(v', x)$", zorder=99, color="pink")
+
+    min_vals = np.array(
+        [
+            np.min([g1, g2, g3, g_tilde])
+            for g1, g2, g3, g_tilde in zip(g_vals_1, g_vals_2, g_vals_3, g_tilde_vals)
+        ]
+    )
+    plt.plot(
+        x_vals,
+        min_vals - 0.5,
+        label=r"$\text{min}(g, \tilde{g}}$",
+        zorder=0,
+        linewidth=3,
+        color="g",
+    )
+
+    # plt.title("Plot of Two Quadratic Functions")
+    # Customize the plot to look like a math textbook
+    ax = plt.gca()
+
+    # Move left y-axis and bottom x-axis to the center, passing through (0,0)
+    ax.spines["left"].set_position("zero")
+    ax.spines["bottom"].set_position("zero")
+
+    # Eliminate top and right axes
+    ax.spines["right"].set_color("none")
+    ax.spines["top"].set_color("none")
+
+    # Show ticks in the left and bottom axes only
+    # ax.xaxis.set_ticks_position("bottom")
+    # ax.yaxis.set_ticks_position("left")
+    #
+    ax.xaxis.set_ticks_position("none")
+    ax.yaxis.set_ticks_position("none")
+
+    # Labels and legend
+    plt.xlabel(r"$x$")
+    # plt.ylabel(r"$y$")
+
+    # Indicate an interval along the x-axis with brackets
+    # interval_start, interval_end = 1, 8
+    # ax.axvline(x=interval_start, color="red", linestyle="--")
+    # ax.axvline(x=interval_end, color="red", linestyle="--")
+    # ax.fill_betweenx(
+    #     y=np.linspace(-10, 10, 400),
+    #     x1=interval_start,
+    #     x2=interval_end,
+    #     color="red",
+    #     alpha=0.1,
+    # )
+
+    # Add brackets to indicate the interval
+    # plt.text(
+    #     interval_start,
+    #     0,
+    #     r"$\left[ \right.$",
+    #     color="black",
+    #     fontsize=20,
+    #     ha="right",
+    #     va="center",
+    # )
+    # plt.text(
+    #     interval_end,
+    #     0,
+    #     r"$\left. \right]$",
+    #     color="black",
+    #     fontsize=20,
+    #     ha="left",
+    #     va="center",
+    # )
+    # # Create the arrows
+    # arrowprops = dict(arrowstyle="->", linewidth=1.5, color="black")
+
+    # # X-axis arrow
+    # ax.annotate("", xy=(1.8, 0), xytext=(-1.8, 0), arrowprops=arrowprops)
+    #
+    # # Y-axis arrow
+    # ax.annotate("", xy=(0, 1.8), xytext=(0, -1.8), arrowprops=arrowprops)
+
+    # Plot the dashed line
+    # x_start = 1.0
+    # x_end = 10
+    # y_start = 0.0
+    # y_end = 3.0
+    # ax.plot(
+    #     [x_start, x_end], [y_start, y_end], linestyle="--", color="black", linewidth=2
+    # )
+
+    plt.ylim([0, 30])
+
+    # plt.legend(
+    #     loc="lower right",
+    #     fontsize=14,
+    # )
+    plt.show()
+
+if figure_idx == 4:
+
+    # Generate x values
+    x_vals = np.linspace(0, 10, 400)
+
+    # Create the plot
+    use_type_1_fonts_in_plots()
+
+    g_vals_1 = _make_values(5, 1, 7, shift=-3, x_vals=x_vals)
+    g_vals_2 = _make_values(4, 1, 6, shift=-5, x_vals=x_vals)
+    g_vals_3 = _make_values(3, 1, 8, shift=-7, x_vals=x_vals)
+    g_tilde_vals = _make_values(1.5, 1, 13, shift=-5, x_vals=x_vals)
 
     plt.figure(figsize=(4, 2))
     plt.plot(x_vals, g_vals_1, label=r"$g(v, x)$", zorder=99, color="b")
