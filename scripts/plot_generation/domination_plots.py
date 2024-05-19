@@ -32,7 +32,7 @@ args = parser.parse_args()
 figure_idx = args.num
 
 G_COLOR = BLUE.diffuse()
-G_TILDE_COLOR = PURPLE.diffuse()
+G_NEXT_COLOR = PURPLE.diffuse()
 MIN_COLOR = GREEN2.diffuse()
 
 
@@ -79,8 +79,16 @@ class Curve:
         _plot_vline(self.x_vals[-1], self.y_vals[-1], self.color)
 
     @classmethod
-    def make_quadratic(cls, a, b, c, shift, x_min, x_max, color, name=None) -> "Curve":
+    def make_quadratic(
+        cls, a, b, c, shift, x_min, x_max, with_dash: bool = False
+    ) -> "Curve":
         x_vals = np.linspace(x_min, x_max, 100)
+        if with_dash:
+            color = G_NEXT_COLOR
+            name = r"$\tilde{G}(v',x)"
+        else:
+            color = G_COLOR
+            name = r"$\tilde{G}(v,x)"
         return cls(x_vals, _make_values(a, b, c, shift, x_vals), color, name)
 
     def at(self, x: float) -> float:
@@ -92,9 +100,9 @@ class Curve:
         return y_mean  # type: ignore
 
 
-def plot_min(curves: List[Curve], x_vals) -> None:
+def plot_min(curves: List[Curve], x_vals, offset=1) -> None:
     min_vals = np.array([np.min([c.at(x) for c in curves]) for x in x_vals])
-    plt.plot(x_vals, min_vals - 1, color=MIN_COLOR, linewidth=2.0)
+    plt.plot(x_vals, min_vals - offset, color=MIN_COLOR, linewidth=2.0)
 
 
 use_type_1_fonts_in_plots()
@@ -114,24 +122,21 @@ if figure_idx == 1:
         shift=-4,
         x_min=2,
         x_max=6,
-        color=G_COLOR,
-        name=r"$g(v,x)",
     )
-    g_tilde = Curve.make_quadratic(
+    g_next = Curve.make_quadratic(
         5,
         1,
         7,
         shift=-6.5,
         x_min=5,
         x_max=8,
-        color=G_TILDE_COLOR,
-        name=r"$\tilde{g}(v', x)$",
+        with_dash=True,
     )
 
     g.plot()
-    g_tilde.plot()
+    g_next.plot()
 
-    plot_min([g, g_tilde], x_vals)
+    plot_min([g, g_next], x_vals)
     y_max = 50
 
 
@@ -140,20 +145,26 @@ elif figure_idx == 2:
     # Generate x values
     x_vals = np.linspace(0, 6, 400)
 
-    g_tilde = Curve.make_quadratic(
-        20, 1, 12, shift=-4, x_min=3.5, x_max=4.5, color=G_TILDE_COLOR
+    g_next = Curve.make_quadratic(
+        20,
+        1,
+        12,
+        shift=-4,
+        x_min=3.5,
+        x_max=4.5,
+        with_dash=True,
     )
 
-    # idx = np.where(g_tilde.x_vals > 5)[0][0]
-    # asymptote = -1 / (g_tilde.x_vals - 5)
+    # idx = np.where(g_next.x_vals > 5)[0][0]
+    # asymptote = -1 / (g_next.x_vals - 5)
     # asymptote[idx:] = np.inf
-    # g_tilde.y_vals += asymptote
-    g_tilde.plot()
+    # g_next.y_vals += asymptote
+    g_next.plot()
 
-    g = Curve.make_quadratic(7, 1, 7, shift=-3, x_min=1, x_max=5, color=G_COLOR)
+    g = Curve.make_quadratic(7, 1, 7, shift=-3, x_min=1, x_max=5, with_dash=False)
     g.plot()
 
-    plot_min([g, g_tilde], x_vals)
+    plot_min([g, g_next], x_vals)
 
     y_max = 50
 
@@ -163,36 +174,17 @@ elif figure_idx == 3:
     # Generate x values
     x_vals = np.linspace(0, 10, 400)
 
-    g_vals_1 = _make_values(5, 1, 7, shift=-3, x_vals=x_vals)
-    g_vals_2 = _make_values(4, 1, 6, shift=-5, x_vals=x_vals)
-    g_vals_3 = _make_values(3, 1, 8, shift=-8, x_vals=x_vals)
-    g_tilde_vals = _make_values(4, 1, 5, shift=-6.5, x_vals=x_vals)
+    g_1 = Curve.make_quadratic(5, 1, 7, shift=-3, x_min=1, x_max=4)
+    g_2 = Curve.make_quadratic(4, 1, 6, shift=-5, x_min=3, x_max=6)
+    g_3 = Curve.make_quadratic(3, 1, 8, shift=-8, x_min=5.5, x_max=9)
+    g_next = Curve.make_quadratic(4, 1, 5, shift=-6.5, x_min=5, x_max=8, with_dash=True)
 
-    plt.plot(x_vals, g_vals_1, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
-    plt.plot(x_vals, g_vals_2, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
-    plt.plot(x_vals, g_vals_3, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
-    plt.plot(
-        x_vals,
-        g_tilde_vals,
-        label=r"$\tilde{g}(v', x)$",
-        zorder=99,
-        color=G_TILDE_COLOR,
-    )
+    g_1.plot()
+    g_2.plot()
+    g_3.plot()
+    g_next.plot()
 
-    min_vals = np.array(
-        [
-            np.min([g1, g2, g3, g_tilde])
-            for g1, g2, g3, g_tilde in zip(g_vals_1, g_vals_2, g_vals_3, g_tilde_vals)
-        ]
-    )
-    plt.plot(
-        x_vals,
-        min_vals - 0.5,
-        label=r"$\text{min}(g, \tilde{g}}$",
-        zorder=0,
-        linewidth=3,
-        color=MIN_COLOR,
-    )
+    plot_min([g_1, g_2, g_3, g_next], x_vals, offset=0.5)
 
     y_max = 30
 
@@ -201,36 +193,20 @@ elif figure_idx == 4:
     # Generate x values
     x_vals = np.linspace(0, 10, 400)
 
-    g_vals_1 = _make_values(5, 1, 7, shift=-3, x_vals=x_vals)
-    g_vals_2 = _make_values(4, 1, 6, shift=-5, x_vals=x_vals)
-    g_vals_3 = _make_values(3, 1, 8, shift=-7, x_vals=x_vals)
-    g_tilde_vals = _make_values(1.5, 1, 13, shift=-5, x_vals=x_vals)
-
-    plt.plot(x_vals, g_vals_1, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
-    plt.plot(x_vals, g_vals_2, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
-    plt.plot(x_vals, g_vals_3, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
-    plt.plot(
-        x_vals,
-        g_tilde_vals,
-        label=r"$\tilde{g}(v', x)$",
-        zorder=99,
-        color=G_TILDE_COLOR,
+    g_1 = Curve.make_quadratic(5, 1, 7, shift=-3, x_min=1, x_max=4)
+    g_2 = Curve.make_quadratic(4, 1, 6, shift=-5, x_min=3, x_max=7)
+    g_3 = Curve.make_quadratic(3, 1, 8, shift=-7, x_min=5.5, x_max=9)
+    g_next = Curve.make_quadratic(
+        1.5, 1, 13, shift=-7, x_min=5, x_max=8, with_dash=True
     )
 
-    min_vals = np.array(
-        [
-            np.min([g1, g2, g3, g_tilde])
-            for g1, g2, g3, g_tilde in zip(g_vals_1, g_vals_2, g_vals_3, g_tilde_vals)
-        ]
-    )
-    plt.plot(
-        x_vals,
-        min_vals - 0.5,
-        label=r"$\text{min}(g, \tilde{g}}$",
-        zorder=0,
-        linewidth=3,
-        color=MIN_COLOR,
-    )
+    g_1.plot()
+    g_2.plot()
+    g_3.plot()
+    g_next.plot()
+
+    plot_min([g_1, g_2, g_3, g_next], x_vals, offset=0.5)
+
     y_max = 30
 
 
@@ -244,11 +220,11 @@ else:  # test figure
 
     # Calculate y values for both quadratic equations
     g_vals = a * x_vals**2 + b * x_vals + c
-    g_tilde_vals = d * x_vals**2 + e * x_vals + f
+    g_next_vals = d * x_vals**2 + e * x_vals + f
 
     plt.figure(figsize=(4, 4))
     plt.plot(x_vals, g_vals, label=r"$y_1 = x^2 - 3x + 2$")
-    plt.plot(x_vals, g_tilde_vals, label=r"$y_2 = -x^2 + 2x + 1$")
+    plt.plot(x_vals, g_next_vals, label=r"$y_2 = -x^2 + 2x + 1$")
     plt.title("Plot of Two Quadratic Functions")
     # Customize the plot to look like a math textbook
     ax = plt.gca()
