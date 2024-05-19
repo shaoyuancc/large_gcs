@@ -1,6 +1,6 @@
 import argparse
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -72,8 +72,7 @@ class Curve:
     name: Optional[str] = None
 
     def plot(self) -> None:
-        plt.plot(self.x_vals, self.y_vals, label=self.name,
-                 zorder=99, color=self.color)
+        plt.plot(self.x_vals, self.y_vals, label=self.name, zorder=99, color=self.color)
 
         # indicate start and end
         _plot_vline(self.x_vals[0], self.y_vals[0], self.color)
@@ -84,11 +83,24 @@ class Curve:
         x_vals = np.linspace(x_min, x_max, 100)
         return cls(x_vals, _make_values(a, b, c, shift, x_vals), color, name)
 
+    def at(self, x: float) -> float:
+        if x < min(self.x_vals) or x > max(self.x_vals):
+            return np.inf
+        idx_before = np.where(self.x_vals < x)[0][-1]
+        idx_after = np.where(self.x_vals > x)[0][0]
+        y_mean = (self.y_vals[idx_before] + self.y_vals[idx_after]) / 2
+        return y_mean  # type: ignore
+
+
+def plot_min(curves: List[Curve], x_vals) -> None:
+    min_vals = np.array([np.min([c.at(x) for c in curves]) for x in x_vals])
+    plt.plot(x_vals, min_vals - 1, color=MIN_COLOR, linewidth=2.0)
+
 
 if figure_idx == 1:
 
     # Generate x values
-    x_vals = np.linspace(0, 10, 400)
+    x_vals = np.linspace(1, 9, 400)
 
     # Create the plot
     use_type_1_fonts_in_plots()
@@ -120,13 +132,15 @@ if figure_idx == 1:
     g.plot()
     g_tilde.plot()
 
+    plot_min([g, g_tilde], x_vals)
+
     # plt.title("Plot of Two Quadratic Functions")
     # Customize the plot to look like a math textbook
     ax = plt.gca()
 
     # Move left y-axis and bottom x-axis to the center, passing through (0,0)
-    ax.spines["left"].set_position("zero")
-    ax.spines["bottom"].set_position("zero")
+    # ax.spines["left"].set_position("zero")
+    # ax.spines["bottom"].set_position("zero")
 
     # Eliminate top and right axes
     ax.spines["right"].set_color("none")
