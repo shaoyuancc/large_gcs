@@ -6,7 +6,7 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 
-from large_gcs.contact.rigid_body import RigidBody
+from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.utils.utils import split_numbers_into_sublists
 from large_gcs.visualize.colors import (
@@ -35,7 +35,7 @@ def plot_trajectory(
     add_legend: bool = False,
     use_type_1_font: bool = True,
     keyframe_idxs: Optional[List[int]] = None,
-    use_paper_params: bool = False,  # TODO(bernhardpg): Set to false
+    use_paper_params: bool = True,  # TODO(bernhardpg): Set to false
 ):
 
     if x_buffer is None:
@@ -70,14 +70,43 @@ def plot_trajectory(
         # general use.
         # They are made to match the trajs generated from
         # WAFR_experiments/trajectory_figures.yaml
-        if num_keyframes > 5:  # cg_maze_b1
-            num_keyframes = 5
-            # keyframe_idxs = [0, 32, 59, 70, 80, 95]
-            keyframe_idxs = [0, 36, 72, 90, 120]
+        if num_keyframes == 9:  # cg_maze_b1
+            num_keyframes = 6
+            keyframe_idxs = [0, 32, 50, 72, 86, 119]
             keyframe_idxs.append(n_steps)
-            print(n_steps)
+            x_buffer = np.array([0.8, 0.8])
+            y_buffer = np.array([1.4, 1.0])
+
+            width = 7.0
+            height = 0.5
+            x_pos = -1.20
+            y_min = -5.0
+            box_vertices = np.array(
+                [
+                    [-width / 2 + x_pos, y_min - height],
+                    [-width / 2 + x_pos, y_min],
+                    [width / 2 + x_pos, y_min],
+                    [width / 2 + x_pos, y_min - height],
+                ]
+            )
+
+            wall = RigidBody(
+                name="wall",
+                geometry=Polyhedron.from_vertices(box_vertices),
+                mobility_type=MobilityType.STATIC,
+            )
+            obstacles.append(wall)
+
+        elif num_keyframes == 7:  # STACK
+            num_keyframes = 6
+            # keyframe_idxs = [0, 32, 59, 70, 80, 95]
+            keyframe_idxs = [0, 16, 22, 35, 66, 81]
+            keyframe_idxs.append(n_steps)
             x_buffer = np.array([0.8, 0.8])
             y_buffer = np.array([1.0, 1.0])
+
+            add_legend = True
+            legend_loc = "upper left"
 
         elif num_keyframes == 4:  # cg_trichal4
             # Adjust these numbers to adjust what frames the keyframes start at:
@@ -89,6 +118,7 @@ def plot_trajectory(
             x_buffer = np.array([1.5, 1.5])
 
             add_legend = True
+            legend_loc = "upper left"
 
     ROBOT_COLOR = DARKSEAGREEN2.diffuse()
     OBSTACLE_COLOR = AZURE3.diffuse()
@@ -228,14 +258,17 @@ def plot_trajectory(
         fig.legend(
             handles=custom_patches,
             handlelength=2.5,
-            fontsize=28,
+            fontsize=42,
             ncol=2,
-            loc="upper left",
+            loc=legend_loc,  # type: ignore
         )
 
     # Adjust layout to make room for the legend
     if add_legend:
-        fig.tight_layout(rect=(0, 0, 1, 0.7))
+        if legend_loc == "upper left":
+            fig.tight_layout(rect=(0, 0, 1, 0.65))
+        elif legend_loc == "lower left":
+            fig.tight_layout(rect=(0, 0.3, 1, 1.0))
     else:
         fig.tight_layout()
 
