@@ -140,22 +140,20 @@ elif figure_idx == 2:
     # Generate x values
     x_vals = np.linspace(0, 6, 400)
 
-    g_vals = _make_values(7, 1, 7, shift=-3, x_vals=x_vals)
-    g_tilde_vals = _make_values(20, 1, 13, shift=-4.5, x_vals=x_vals)
-
-    idx = np.where(x_vals > 5)[0][0]
-    asymptote = -1 / (x_vals - 5)
-    asymptote[idx:] = np.inf
-    g_tilde_vals += asymptote
-
-    plt.plot(x_vals, g_vals, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
-    plt.plot(
-        x_vals,
-        g_tilde_vals,
-        label=r"$\tilde{g}(v', x)$",
-        zorder=99,
-        color=G_TILDE_COLOR,
+    g_tilde = Curve.make_quadratic(
+        20, 1, 12, shift=-4, x_min=3.5, x_max=4.5, color=G_TILDE_COLOR
     )
+
+    # idx = np.where(g_tilde.x_vals > 5)[0][0]
+    # asymptote = -1 / (g_tilde.x_vals - 5)
+    # asymptote[idx:] = np.inf
+    # g_tilde.y_vals += asymptote
+    g_tilde.plot()
+
+    g = Curve.make_quadratic(7, 1, 7, shift=-3, x_min=1, x_max=5, color=G_COLOR)
+    g.plot()
+
+    plot_min([g, g_tilde], x_vals)
 
     y_max = 50
 
