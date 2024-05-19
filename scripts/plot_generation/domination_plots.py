@@ -77,10 +77,10 @@ class Curve:
         x_vals = np.linspace(x_min, x_max, 100)
         if with_dash:
             color = G_NEXT_COLOR
-            name = r"$\tilde{g}(v',x)$"
+            name = r"$\tilde{g}(\mathbf{v},x)$"
         else:
             color = G_COLOR
-            name = r"$\tilde{g}(v,x)$"
+            name = r"$\tilde{g}(\mathbf{v}^{(i)},x)$"
 
         if no_name:
             name = None
@@ -149,8 +149,8 @@ def make_plot(figure_idx, filename=None):
             with_dash=True,
         )
 
-        g.plot()
         g_next.plot()
+        g.plot()
 
         plot_min([g, g_next], x_vals)
         y_max = 50
