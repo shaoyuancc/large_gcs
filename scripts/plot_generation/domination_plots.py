@@ -1,4 +1,6 @@
 import argparse
+from dataclasses import dataclass
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -51,6 +53,38 @@ def _make_values(a, b, c, shift, x_vals) -> np.ndarray:
     return g_vals
 
 
+def _plot_vline(x, y, color):
+    plt.plot(
+        [x, x],
+        [y, 999],
+        linestyle="--",
+        linewidth=1,
+        zorder=99,
+        color=color,
+    )
+
+
+@dataclass
+class Curve:
+    x_vals: np.ndarray
+    y_vals: np.ndarray
+    color: np.ndarray
+    name: Optional[str] = None
+
+    def plot(self) -> None:
+        plt.plot(self.x_vals, self.y_vals, label=self.name,
+                 zorder=99, color=self.color)
+
+        # indicate start and end
+        _plot_vline(self.x_vals[0], self.y_vals[0], self.color)
+        _plot_vline(self.x_vals[-1], self.y_vals[-1], self.color)
+
+    @classmethod
+    def make_quadratic(cls, a, b, c, shift, x_min, x_max, color, name=None) -> "Curve":
+        x_vals = np.linspace(x_min, x_max, 100)
+        return cls(x_vals, _make_values(a, b, c, shift, x_vals), color, name)
+
+
 if figure_idx == 1:
 
     # Generate x values
@@ -59,30 +93,32 @@ if figure_idx == 1:
     # Create the plot
     use_type_1_fonts_in_plots()
 
-    g_vals = _make_values(7, 1, 7, shift=-3, x_vals=x_vals)
-    g_tilde_vals = _make_values(7, 1, 7, shift=-7, x_vals=x_vals)
+    g_vals = _make_values(5, 1, 7, shift=-4, x_vals=x_vals)
 
-    plt.figure(figsize=(4, 2))
-    plt.plot(x_vals, g_vals, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
-    plt.plot(
-        x_vals,
-        g_tilde_vals,
-        label=r"$\tilde{g}(v', x)$",
-        zorder=99,
+    g = Curve.make_quadratic(
+        5,
+        1,
+        7,
+        shift=-4,
+        x_min=2,
+        x_max=6,
+        color=G_COLOR,
+        name=r"$g(v,x)",
+    )
+    g_tilde = Curve.make_quadratic(
+        5,
+        1,
+        7,
+        shift=-6.5,
+        x_min=5,
+        x_max=8,
         color=G_TILDE_COLOR,
+        name=r"$\tilde{g}(v', x)$",
     )
 
-    # min_vals = np.array(
-    #     [np.min([g, g_tilde]) for g, g_tilde in zip(g_vals, g_tilde_vals)]
-    # )
-    # plt.plot(
-    #     x_vals,
-    #     min_vals,
-    #     label=r"$\text{min}(g, \tilde{g}}$",
-    #     zorder=0,
-    #     linewidth=3,
-    #     color=MIN_COLOR,,
-    # )
+    plt.figure(figsize=(4, 2))
+    g.plot()
+    g_tilde.plot()
 
     # plt.title("Plot of Two Quadratic Functions")
     # Customize the plot to look like a math textbook
@@ -157,6 +193,7 @@ if figure_idx == 1:
     # )
 
     plt.ylim([0, 50])
+    plt.xlim([min(x_vals), max(x_vals)])
 
     # plt.legend(
     #     loc="lower right",
