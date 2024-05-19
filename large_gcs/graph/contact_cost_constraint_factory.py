@@ -2,6 +2,7 @@ from typing import List
 
 import numpy as np
 from pydrake.all import (
+    BoundingBoxConstraint,
     Cost,
     DecomposeAffineExpressions,
     DecomposeLinearExpressions,
@@ -398,6 +399,28 @@ def vertex_constraint_force_act_limits(
     """Creates a constraint that limits the magnitude of the force actuation in each dimension."""
     assert vars.force_act.size > 0
     raise NotImplementedError
+
+
+def vertex_constraint_last_pos(
+    vars: ContactSetDecisionVariables, sample: np.ndarray
+) -> LinearEqualityConstraint:
+    """Creates a constraint that enforces the last position of the vertex to be the same as those elements in the sample.
+    Size of vars should be the same as the size of the sample.
+    """
+    exprs = vars.last_pos - vars.last_pos_from_all(sample)
+    A, b = DecomposeAffineExpressions(exprs, vars.all)
+    return LinearEqualityConstraint(A, b)
+
+
+def vertex_constraint_eps_bounding_box(
+    sample: np.ndarray, eps: float = 1e-3
+) -> BoundingBoxConstraint:
+    """Creates a constraint that enforces the last position of the vertex to be within eps of those elements in the sample.
+    Size of vars should be the same as the size of the sample.
+    """
+    lb = sample - eps
+    ub = sample + eps
+    return BoundingBoxConstraint(lb, ub)
 
 
 ### EDGE COST CREATION ###

@@ -3,11 +3,11 @@ from typing import List
 import numpy as np
 from pydrake.all import (
     Cost,
+    L1NormCost,
     L2NormCost,
+    LinearCost,
     LinearEqualityConstraint,
     QuadraticCost,
-    L1NormCost,
-    LinearCost,
 )
 
 
@@ -73,6 +73,13 @@ def create_l2norm_vertex_cost(dim: int):
     b = np.zeros((dim, 1))
     edge_cost = L2NormCost(A, b)
     return edge_cost
+
+
+def create_const_cost(dim: int):
+    a = np.zeros((dim, 1))
+    constant_cost = 1
+    cost = LinearCost(a, constant_cost)
+    return cost
 
 
 # There seems to be a bug where this causes gcs solve convex restrictions to fail sometimes

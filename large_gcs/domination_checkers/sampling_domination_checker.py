@@ -71,12 +71,19 @@ class SetSamples:
     def project_single_gcs(
         self, graph: Graph, node: SearchNode, sample: np.ndarray
     ) -> Optional[np.ndarray]:
-        cost = create_l2norm_squared_vertex_cost_from_point(sample)
+        if len(self.samples) == 1:
+            # HACK: Work around specifically for when using only a single sample.
+            # FIX THIS, see failed_to_project_single_sample_bug.ipynb
+            costs = None
+        else:
+            costs = [create_l2norm_squared_vertex_cost_from_point(sample)]
+        # cost = create_l2norm_vertex_cost_from_point(sample)
+
         ref_vertex = graph.vertices[node.vertex_name]
         vertex = Vertex(
             convex_set=ref_vertex.convex_set,
             constraints=ref_vertex.constraints,
-            costs=[cost],
+            costs=costs,
         )
         self._proj_graph.add_vertex(vertex, node.vertex_name)
 

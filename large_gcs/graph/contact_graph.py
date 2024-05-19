@@ -29,7 +29,10 @@ from large_gcs.graph.contact_cost_constraint_factory import (
     vertex_cost_position_path_length,
 )
 from large_gcs.graph.graph import Graph, ShortestPathSolution
-from large_gcs.visualize.visualize_trajectory import plot_trajectory
+from large_gcs.visualize.visualize_trajectory import (
+    plot_trajectory,
+    plot_trajectory_legacy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -526,8 +529,16 @@ class ContactGraph(Graph):
         for sample in samples:
             samples_list.append(sample)
         contact_sol = self.create_contact_spp_sol([set_name] * n_samples, samples_list)
-        self.plot_solution(contact_sol)
-        plt.title(f"Samples in {set_name}")
+        # self.plot_solution(contact_sol)
+        # plt.title(f"Samples in {set_name}")
+
+        # Process position trajectories
+        # trajs, _ = self._interpolate_positions(contact_sol, max_gap=0.2)
+        plot_trajectory_legacy(contact_sol.pos_trajs,
+                               self.obstacles,
+                              self.objects,
+                              self.robots,
+                              self.workspace)
 
     def plot_sets(self):
         raise NotImplementedError("Not sure how to visualize high dimensional sets")
