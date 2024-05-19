@@ -106,7 +106,7 @@ def plot_trajectory(
             y_buffer = np.array([1.0, 1.0])
 
             add_legend = True
-            legend_loc = "lower left"
+            legend_loc = "upper left"
 
         elif num_keyframes == 4:  # cg_trichal4
             # Adjust these numbers to adjust what frames the keyframes start at:
@@ -258,7 +258,7 @@ def plot_trajectory(
         fig.legend(
             handles=custom_patches,
             handlelength=2.5,
-            fontsize=28,
+            fontsize=42,
             ncol=2,
             loc=legend_loc,  # type: ignore
         )
@@ -266,7 +266,7 @@ def plot_trajectory(
     # Adjust layout to make room for the legend
     if add_legend:
         if legend_loc == "upper left":
-            fig.tight_layout(rect=(0, 0, 1, 0.7))
+            fig.tight_layout(rect=(0, 0, 1, 0.65))
         elif legend_loc == "lower left":
             fig.tight_layout(rect=(0, 0.3, 1, 1.0))
     else:
