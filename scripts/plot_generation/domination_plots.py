@@ -5,6 +5,15 @@ import numpy as np
 from pydrake.symbolic import Monomial, Polynomial, Variable
 
 from large_gcs.utils.utils import use_type_1_fonts_in_plots
+from large_gcs.visualize.colors import (
+    BLUE,
+    GREEN,
+    GREEN2,
+    GREEN3,
+    GREEN4,
+    LIGHTSEAGREEN,
+    PURPLE,
+)
 from large_gcs.visualize.plot_sampling_comparison import SamplingRunData, SingleRunData
 
 parser = argparse.ArgumentParser(description="Figure to generate")
@@ -19,6 +28,10 @@ parser.add_argument(
 # Parse the arguments
 args = parser.parse_args()
 figure_idx = args.num
+
+G_COLOR = BLUE.diffuse()
+G_TILDE_COLOR = PURPLE.diffuse()
+MIN_COLOR = GREEN2.diffuse()
 
 
 def _make_values(a, b, c, shift, x_vals) -> np.ndarray:
@@ -50,8 +63,14 @@ if figure_idx == 1:
     g_tilde_vals = _make_values(7, 1, 7, shift=-7, x_vals=x_vals)
 
     plt.figure(figsize=(4, 2))
-    plt.plot(x_vals, g_vals, label=r"$g(v, x)$", zorder=99, color="b")
-    plt.plot(x_vals, g_tilde_vals, label=r"$\tilde{g}(v', x)$", zorder=99, color="pink")
+    plt.plot(x_vals, g_vals, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
+    plt.plot(
+        x_vals,
+        g_tilde_vals,
+        label=r"$\tilde{g}(v', x)$",
+        zorder=99,
+        color=G_TILDE_COLOR,
+    )
 
     # min_vals = np.array(
     #     [np.min([g, g_tilde]) for g, g_tilde in zip(g_vals, g_tilde_vals)]
@@ -62,7 +81,7 @@ if figure_idx == 1:
     #     label=r"$\text{min}(g, \tilde{g}}$",
     #     zorder=0,
     #     linewidth=3,
-    #     color="g",
+    #     color=MIN_COLOR,,
     # )
 
     # plt.title("Plot of Two Quadratic Functions")
@@ -85,7 +104,7 @@ if figure_idx == 1:
     ax.yaxis.set_ticks_position("none")
 
     # Labels and legend
-    plt.xlabel(r"$x$")
+    plt.xlabel(r"$x$", fontsize=16)
     # plt.ylabel(r"$y$")
 
     # Indicate an interval along the x-axis with brackets
@@ -143,9 +162,8 @@ if figure_idx == 1:
     #     loc="lower right",
     #     fontsize=14,
     # )
-    plt.show()
 
-if figure_idx == 2:
+elif figure_idx == 2:
 
     # Generate x values
     x_vals = np.linspace(0, 6, 400)
@@ -162,8 +180,14 @@ if figure_idx == 2:
     g_tilde_vals += asymptote
 
     plt.figure(figsize=(4, 2))
-    plt.plot(x_vals, g_vals, label=r"$g(v, x)$", zorder=99, color="b")
-    plt.plot(x_vals, g_tilde_vals, label=r"$\tilde{g}(v', x)$", zorder=99, color="pink")
+    plt.plot(x_vals, g_vals, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
+    plt.plot(
+        x_vals,
+        g_tilde_vals,
+        label=r"$\tilde{g}(v', x)$",
+        zorder=99,
+        color=G_TILDE_COLOR,
+    )
 
     # min_vals = np.array(
     #     [np.min([g, g_tilde]) for g, g_tilde in zip(g_vals, g_tilde_vals)]
@@ -174,7 +198,7 @@ if figure_idx == 2:
     #     label=r"$\text{min}(g, \tilde{g}}$",
     #     zorder=0,
     #     linewidth=3,
-    #     color="g",
+    #     color=MIN_COLOR,,
     # )
 
     # plt.title("Plot of Two Quadratic Functions")
@@ -197,7 +221,7 @@ if figure_idx == 2:
     ax.yaxis.set_ticks_position("none")
 
     # Labels and legend
-    plt.xlabel(r"$x$")
+    plt.xlabel(r"$x$", fontsize=16)
     # plt.ylabel(r"$y$")
 
     # Indicate an interval along the x-axis with brackets
@@ -255,9 +279,8 @@ if figure_idx == 2:
     #     loc="lower right",
     #     fontsize=14,
     # )
-    plt.show()
 
-if figure_idx == 3:
+elif figure_idx == 3:
 
     # Generate x values
     x_vals = np.linspace(0, 10, 400)
@@ -271,10 +294,16 @@ if figure_idx == 3:
     g_tilde_vals = _make_values(4, 1, 5, shift=-6.5, x_vals=x_vals)
 
     plt.figure(figsize=(4, 2))
-    plt.plot(x_vals, g_vals_1, label=r"$g(v, x)$", zorder=99, color="b")
-    plt.plot(x_vals, g_vals_2, label=r"$g(v, x)$", zorder=99, color="b")
-    plt.plot(x_vals, g_vals_3, label=r"$g(v, x)$", zorder=99, color="b")
-    plt.plot(x_vals, g_tilde_vals, label=r"$\tilde{g}(v', x)$", zorder=99, color="pink")
+    plt.plot(x_vals, g_vals_1, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
+    plt.plot(x_vals, g_vals_2, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
+    plt.plot(x_vals, g_vals_3, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
+    plt.plot(
+        x_vals,
+        g_tilde_vals,
+        label=r"$\tilde{g}(v', x)$",
+        zorder=99,
+        color=G_TILDE_COLOR,
+    )
 
     min_vals = np.array(
         [
@@ -288,7 +317,7 @@ if figure_idx == 3:
         label=r"$\text{min}(g, \tilde{g}}$",
         zorder=0,
         linewidth=3,
-        color="g",
+        color=MIN_COLOR,
     )
 
     # plt.title("Plot of Two Quadratic Functions")
@@ -311,7 +340,7 @@ if figure_idx == 3:
     ax.yaxis.set_ticks_position("none")
 
     # Labels and legend
-    plt.xlabel(r"$x$")
+    plt.xlabel(r"$x$", fontsize=16)
     # plt.ylabel(r"$y$")
 
     # Indicate an interval along the x-axis with brackets
@@ -369,9 +398,8 @@ if figure_idx == 3:
     #     loc="lower right",
     #     fontsize=14,
     # )
-    plt.show()
 
-if figure_idx == 4:
+elif figure_idx == 4:
 
     # Generate x values
     x_vals = np.linspace(0, 10, 400)
@@ -385,10 +413,16 @@ if figure_idx == 4:
     g_tilde_vals = _make_values(1.5, 1, 13, shift=-5, x_vals=x_vals)
 
     plt.figure(figsize=(4, 2))
-    plt.plot(x_vals, g_vals_1, label=r"$g(v, x)$", zorder=99, color="b")
-    plt.plot(x_vals, g_vals_2, label=r"$g(v, x)$", zorder=99, color="b")
-    plt.plot(x_vals, g_vals_3, label=r"$g(v, x)$", zorder=99, color="b")
-    plt.plot(x_vals, g_tilde_vals, label=r"$\tilde{g}(v', x)$", zorder=99, color="pink")
+    plt.plot(x_vals, g_vals_1, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
+    plt.plot(x_vals, g_vals_2, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
+    plt.plot(x_vals, g_vals_3, label=r"$g(v, x)$", zorder=99, color=G_COLOR)
+    plt.plot(
+        x_vals,
+        g_tilde_vals,
+        label=r"$\tilde{g}(v', x)$",
+        zorder=99,
+        color=G_TILDE_COLOR,
+    )
 
     min_vals = np.array(
         [
@@ -402,7 +436,7 @@ if figure_idx == 4:
         label=r"$\text{min}(g, \tilde{g}}$",
         zorder=0,
         linewidth=3,
-        color="g",
+        color=MIN_COLOR,
     )
 
     # plt.title("Plot of Two Quadratic Functions")
@@ -425,7 +459,7 @@ if figure_idx == 4:
     ax.yaxis.set_ticks_position("none")
 
     # Labels and legend
-    plt.xlabel(r"$x$")
+    plt.xlabel(r"$x$", fontsize=16)
     # plt.ylabel(r"$y$")
 
     # Indicate an interval along the x-axis with brackets
@@ -483,7 +517,6 @@ if figure_idx == 4:
     #     loc="lower right",
     #     fontsize=14,
     # )
-    plt.show()
 
 else:
     # Coefficients for the quadratic equations
@@ -520,7 +553,7 @@ else:
     ax.yaxis.set_ticks_position("left")
 
     # Labels and legend
-    plt.xlabel(r"$x$")
+    plt.xlabel(r"$x$", fontsize=16)
     plt.ylabel(r"$y$")
 
     # Indicate an interval along the x-axis with brackets
@@ -573,4 +606,6 @@ else:
     )
 
     plt.legend()
-    plt.show()
+
+plt.tight_layout()
+plt.show()
