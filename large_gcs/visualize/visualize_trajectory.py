@@ -77,13 +77,16 @@ def plot_trajectory(
             x_buffer = np.array([0.8, 0.8])
             y_buffer = np.array([1.0, 1.0])
 
-        elif num_keyframes == 7:  # cg_maze_b1
+        elif num_keyframes == 7:  # STACK
             num_keyframes = 6
             # keyframe_idxs = [0, 32, 59, 70, 80, 95]
             keyframe_idxs = [0, 16, 22, 35, 66, 81]
             keyframe_idxs.append(n_steps)
             x_buffer = np.array([0.8, 0.8])
             y_buffer = np.array([1.0, 1.0])
+
+            add_legend = True
+            legend_loc = "lower left"
 
         elif num_keyframes == 4:  # cg_trichal4
             # Adjust these numbers to adjust what frames the keyframes start at:
@@ -95,6 +98,7 @@ def plot_trajectory(
             x_buffer = np.array([1.5, 1.5])
 
             add_legend = True
+            legend_loc = "upper left"
 
     ROBOT_COLOR = DARKSEAGREEN2.diffuse()
     OBSTACLE_COLOR = AZURE3.diffuse()
@@ -236,12 +240,15 @@ def plot_trajectory(
             handlelength=2.5,
             fontsize=28,
             ncol=2,
-            loc="upper left",
+            loc=legend_loc,  # type: ignore
         )
 
     # Adjust layout to make room for the legend
     if add_legend:
-        fig.tight_layout(rect=(0, 0, 1, 0.7))
+        if legend_loc == "upper left":
+            fig.tight_layout(rect=(0, 0, 1, 0.7))
+        elif legend_loc == "lower left":
+            fig.tight_layout(rect=(0, 0.3, 1, 1.0))
     else:
         fig.tight_layout()
 
