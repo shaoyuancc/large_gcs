@@ -91,7 +91,7 @@ def contact_shortcut_edge_cost_factory_under_obj_weighted(
 
     costs = [
         create_l2norm_cost(u_pos[:n_objs], v_pos[:n_objs], scaling=1),
-        create_l2norm_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=0.1),
+        create_l2norm_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=0.2),
     ]
 
     if add_const_cost:
@@ -132,7 +132,7 @@ def contact_shortcut_edge_l1_norm_cost_factory_under_obj_weighted(
 
     costs = [
         create_l1norm_cost(u_pos[:n_objs], v_pos[:n_objs], scaling=1),
-        create_l1norm_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=0.1),
+        create_l1norm_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=0.2),
     ]
 
     if add_const_cost:

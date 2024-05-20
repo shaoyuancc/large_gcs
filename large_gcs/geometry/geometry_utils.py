@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 import matplotlib.pyplot as plt
@@ -11,6 +12,7 @@ from pydrake.all import (
     le,
 )
 
+logger = logging.getLogger(__name__)
 
 def is_on_hyperplane(a, b, x):
     """Returns whether x is on the hyperplane defined by ax = b.
@@ -54,12 +56,12 @@ def unique_rows_with_tolerance_ignore_nan(arr, tol=1e-5):
 
     return unique_rows
 
-BOUND_FOR_POLYHEDRON = 50.0
+BOUND_FOR_POLYHEDRON = 10.0
 
 def HPolyhedronAbFromConstraints(
     constraints: List[Formula],
     variables: np.ndarray,
-    make_bounded: bool = True,
+    make_bounded: bool = False,
     remove_constraints_not_in_vars: bool = False,
     BOUND: float = BOUND_FOR_POLYHEDRON,
 ):
@@ -69,16 +71,21 @@ def HPolyhedronAbFromConstraints(
         constraints: array of constraint formulas.
         variables: array of variables.
     """
+    # logger.debug(f"variables: {variables}")
+    # logger.debug(f"constraints len: {len(constraints)}")
+    # for i, constraint in enumerate(constraints):
+    #     logger.debug(f"constraint {i}: {constraint}")
+    
     if make_bounded:
         ub = np.ones(variables.shape) * BOUND
         upper_limits = le(variables, ub)
         lower_limits = le(-ub, variables)
+        # logger.debug(f"ub: {ub}")
+        # logger.debug(f"upper_limits: {upper_limits}")
         limits = np.concatenate((upper_limits, lower_limits))
         constraints = np.append(constraints, limits)
 
     expressions = []
-    # print(f"Constructing polyhedron for set {self.id}")
-    # print(f"variables: {variables}")
     for formula in constraints:
         # print(formula)
         kind = formula.get_kind()

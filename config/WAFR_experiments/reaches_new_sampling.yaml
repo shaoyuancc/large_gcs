@@ -35,8 +35,8 @@ hydra:
         level: INFO
       large_gcs.domination_checkers:
         level: DEBUG
-  # mode: MULTIRUN
-  # sweeper:
-  #   params:
-  #     # domination_checker: reaches_new_sampling, reaches_new_containment
-  #     graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1
+  mode: MULTIRUN
+  sweeper:
+    params:
+      # domination_checker: reaches_new_sampling, reaches_new_containment
+      graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1

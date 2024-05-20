@@ -46,9 +46,12 @@ class RigidBody:
     def __post_init__(self):
         if self.geometry.dim != 2:
             raise NotImplementedError
+        
+        if self.n_pos_points != 2:
+            raise NotImplementedError
 
         self._create_decision_vars()
-        self._create_force_constraints()
+        # self._create_force_constraints()
 
     def from_params(params: RigidBodyParams):
         return RigidBody(
@@ -65,7 +68,7 @@ class RigidBody:
                 self.dim, self.n_pos_points, self.name + "_pos"
             )
             # Expressions for velocities in terms of positions
-            self.vars_vel = self.vars_pos[:, 1:] - self.vars_pos[:, 0:-1]
+            self.vars_vel = (self.vars_pos[:, 1:] - self.vars_pos[:, 0:-1]).flatten()
             """
             Note that the above is a simplified model, where time for each segment is assumed to be 1.
             Before putting this onto the real robot, we will need to add a time variable for each segment.
@@ -74,28 +77,11 @@ class RigidBody:
             self.vars_pos_x = self.vars_pos[0, :]
             self.vars_pos_y = self.vars_pos[1, :]
 
-            # Decision variables for forces
-            # Resultant force on the body
-            self.vars_force_res = MakeVectorContinuousVariable(
-                self.dim, self.name + "_force_res"
-            )
-
             # Actuation force on/of the body
             if self.mobility_type == MobilityType.ACTUATED:
                 self.vars_force_act = MakeVectorContinuousVariable(
                     self.dim, self.name + "_force_act"
                 )
-
-    def _create_force_constraints(self):
-        constraints = []
-        if self.mobility_type != MobilityType.STATIC:
-            # Force constraints
-            for vel in self.vars_vel.T:
-                # Ensures that the resultant force is in the same direction as the velocity,
-                # and that the velocity is 0 if the resultant force is 0
-                constraints.extend(eq(self.vars_force_res, vel).tolist())
-
-        self.force_constraints = constraints
 
     def create_workspace_position_constraints(self, workspace):
         self.base_workspace_constraints = self._create_workspace_position_constraints(

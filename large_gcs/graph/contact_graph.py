@@ -399,22 +399,22 @@ class ContactGraph(Graph):
                     mode.unit_normal * mode.vars_force_mag_AB
                 )
 
-        set_force_constraints = []
+        set_vel_constraints = []
         for body_name in self._movable:
             body = self._body_dict[body_name]
-            set_force_constraints += body.force_constraints
 
             if body.mobility_type == MobilityType.ACTUATED:
                 body_force_sums[body_name] += body.vars_force_act
-            set_force_constraints.extend(
-                eq(body.vars_force_res, body_force_sums[body_name]).tolist()
+
+            set_vel_constraints.extend(
+                eq(body.vars_vel, body_force_sums[body_name]).tolist()
             )
         try:
             contact_set = ContactSet.from_objs_robs(
                 [self._contact_pair_modes[mode_id] for mode_id in mode_ids],
                 self.objects,
                 self.robots,
-                additional_constraints=set_force_constraints
+                additional_constraints=set_vel_constraints
                 + self._workspace_constraints,
                 additional_base_constraints=self._base_workspace_constraints,
             )

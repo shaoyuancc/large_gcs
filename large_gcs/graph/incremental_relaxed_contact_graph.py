@@ -73,18 +73,14 @@ class IncrementalRelaxedContactGraph(IncrementalContactGraph):
         self, mode_ids: Iterable[str]
     ) -> ContactSet:
         # Calculate contact chains with no robots
-        # Objects not in some RIC must have 0 resultant force.
+        # Objects not in some RIC must have 0 velocity.
         no_contact_objs = self._get_no_rob_contact_objs(mode_ids)
         set_force_constraints = []
         for obj_name in no_contact_objs:
-            vars_force_res = self._body_dict[obj_name].vars_force_res
+            vars_vel = self._body_dict[obj_name].vars_vel
             set_force_constraints += eq(
-                vars_force_res, np.zeros_like(vars_force_res)
+                vars_vel, np.zeros_like(vars_vel)
             ).tolist()
-
-        for body_name in self._movable:
-            body = self._body_dict[body_name]
-            set_force_constraints += body.force_constraints
 
         contact_set = ContactSet.from_objs_robs(
             [self._contact_pair_modes[mode_id] for mode_id in mode_ids],

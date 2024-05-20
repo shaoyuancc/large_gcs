@@ -12,7 +12,6 @@ from large_gcs.contact.rigid_body import MobilityType, RigidBody
 @dataclass
 class ContactSetDecisionVariables:
     pos: np.ndarray
-    force_res: np.ndarray
     force_act: np.ndarray
     force_mag_AB: np.ndarray
     all: np.ndarray
@@ -24,7 +23,6 @@ class ContactSetDecisionVariables:
         pos = body.vars_pos[np.newaxis, :]
         return cls(
             pos=pos,
-            force_res=empty,
             force_act=empty,
             force_mag_AB=empty,
             all=pos.flatten(),
@@ -39,7 +37,6 @@ class ContactSetDecisionVariables:
         contact_pair_modes: List[ContactPairMode],
     ):
         pos = np.array([body.vars_pos for body in objects + robots])
-        force_res = np.array([body.vars_force_res for body in objects + robots])
 
         force_act = np.array([body.vars_force_act for body in robots])
         in_contact_pair_modes = [
@@ -53,7 +50,6 @@ class ContactSetDecisionVariables:
         all = np.concatenate(
             (
                 pos.flatten(),
-                force_res.flatten(),
                 force_act.flatten(),
                 force_mag_AB.flatten(),
             )
@@ -61,7 +57,7 @@ class ContactSetDecisionVariables:
         # Extract the first point in n_pos_points_per_set
         base_all = np.array([body.vars_base_pos for body in objects + robots]).flatten()
 
-        return cls(pos, force_res, force_act, force_mag_AB, all, base_all)
+        return cls(pos, force_act, force_mag_AB, all, base_all)
 
     def pos_from_all(self, vars_all):
         """Extracts the vars_pos from vars_all and reshapes it to match the template"""
@@ -75,15 +71,9 @@ class ContactSetDecisionVariables:
         """Extracts the last knot point vars_pos from vars_all"""
         return self.pos_from_all(vars_all)[:, :, -1].flatten()
 
-    def force_res_from_vars(self, vars_all):
-        return np.reshape(
-            vars_all[self.pos.size : self.pos.size + self.force_res.size],
-            self.force_res.shape,
-        )
-
     @classmethod
     def from_objs_robs(cls, objects, robots):
         pos = np.array([body.vars_base_pos for body in objects + robots])
         pos = pos[:, :, np.newaxis]
         empty = np.array([])
-        return cls(pos, empty, empty, empty, pos.flatten(), pos.flatten())
+        return cls(pos, empty, empty, pos.flatten(), pos.flatten())

@@ -212,19 +212,19 @@ class RelaxedInContactPairMode(RelaxedContactPairMode):
             constraints += pos_constraints
             base_constraints += [pos_constraints[0]]
 
-        # Force Constraints
-        # Make all force vectors equal
-        force_constraints = []
+        # Velocity Constraints
+        # Make all velocities equal
+        vel_constraints = []
         for body in [self.body_a, self.body_b]:
             if body.mobility_type == MobilityType.ACTUATED:
-                force_constraints += eq(
-                    body.vars_force_act, body.vars_force_res
+                vel_constraints += eq(
+                    body.vars_vel, body.vars_vel
                 ).tolist()
-        force_constraints += eq(
-            self.body_a.vars_force_res, self.body_b.vars_force_res
+        vel_constraints += eq(
+            self.body_a.vars_vel, self.body_b.vars_vel
         ).tolist()
 
-        constraints += force_constraints
+        constraints += vel_constraints
 
         return constraints, base_constraints
 
