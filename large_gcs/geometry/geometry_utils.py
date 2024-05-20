@@ -54,13 +54,14 @@ def unique_rows_with_tolerance_ignore_nan(arr, tol=1e-5):
 
     return unique_rows
 
+BOUND_FOR_POLYHEDRON = 50.0
 
 def HPolyhedronAbFromConstraints(
     constraints: List[Formula],
     variables: np.ndarray,
     make_bounded: bool = True,
     remove_constraints_not_in_vars: bool = False,
-    BOUND: float = 1000.0,
+    BOUND: float = BOUND_FOR_POLYHEDRON,
 ):
     """
     Construct a polyhedron from a list of constraint formulas.
@@ -128,7 +129,7 @@ def HPolyhedronFromConstraints(
     variables: np.ndarray,
     make_bounded: bool = True,
     remove_constraints_not_in_vars: bool = False,
-    BOUND: float = 50.0,
+    BOUND: float = BOUND_FOR_POLYHEDRON,
 ):
     """
     Construct a polyhedron from a list of constraint formulas.
