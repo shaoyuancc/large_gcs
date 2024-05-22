@@ -1,5 +1,7 @@
 import logging
-from typing import List
+from typing import List, Optional
+
+import numpy as np
 
 from large_gcs.algorithms.search_algorithm import SearchNode
 from large_gcs.domination_checkers.sampling_domination_checker import (
@@ -19,12 +21,19 @@ class ReachesCheaperSampling(SamplingDominationChecker):
     """
 
     def is_dominated(
-        self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
+        self,
+        candidate_node: SearchNode,
+        alternate_nodes: List[SearchNode],  # , sample: np.ndarray
     ) -> bool:
         """
         Checks samples to see if this path reaches any samples cheaper than any previous path.
         Note that if no other path reaches the sample, this path is considered cheaper.
         (Any cost is cheaper than infinity)
+
+        args:
+            candidate_node: The node to check if it is dominated
+            alternate_nodes: The nodes to compare against
+            sample: A first sample from the feasibility solve convex restriction checks
         """
 
         self._maybe_add_set_samples(candidate_node.vertex_name)

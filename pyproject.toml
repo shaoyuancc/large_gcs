@@ -27,6 +27,13 @@ drake = "^1.28.0"
 [tool.isort]
 profile = "black"
 
+[tool.black]
+line-length = 88
+
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "INFO"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

@@ -2,5 +2,9 @@ job_logging:
   loggers:
     large_gcs:
       level: INFO
-    drake:
-      level: WARN
+    large_gcs.algorithms:
+      level: DEBUG
+    large_gcs.cost_estimators:
+      level: INFO
+    large_gcs.domination_checkers:
+      level: DEBUG

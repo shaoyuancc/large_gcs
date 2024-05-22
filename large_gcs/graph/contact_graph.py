@@ -177,7 +177,7 @@ class ContactGraph(Graph):
 
     def _create_single_vertex_costs(self, set: ContactSet) -> List[Cost]:
         if self._should_use_l1_norm_vertex_cost:
-            return [vertex_cost_position_l1_norm]
+            return [vertex_cost_position_l1_norm(set.vars)]
         else:
             return [
                 vertex_cost_position_path_length(set.vars),
@@ -534,11 +534,13 @@ class ContactGraph(Graph):
 
         # Process position trajectories
         # trajs, _ = self._interpolate_positions(contact_sol, max_gap=0.2)
-        plot_trajectory_legacy(contact_sol.pos_trajs,
-                               self.obstacles,
-                              self.objects,
-                              self.robots,
-                              self.workspace)
+        plot_trajectory_legacy(
+            contact_sol.pos_trajs,
+            self.obstacles,
+            self.objects,
+            self.robots,
+            self.workspace,
+        )
 
     def plot_sets(self):
         raise NotImplementedError("Not sure how to visualize high dimensional sets")

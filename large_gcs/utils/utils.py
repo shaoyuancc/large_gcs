@@ -39,7 +39,7 @@ def split_numbers_into_sublists(N: int, M: int) -> List[List[int]]:
 
     # Use list comprehension and itertools to split the list into M sublists
     sublists = [
-        numbers[i * k + min(i, m): (i + 1) * k + min(i + 1, m)] for i in range(M)
+        numbers[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(M)
     ]
 
     return sublists

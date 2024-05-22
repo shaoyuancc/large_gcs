@@ -46,7 +46,7 @@ class RigidBody:
     def __post_init__(self):
         if self.geometry.dim != 2:
             raise NotImplementedError
-        
+
         if self.n_pos_points != 2:
             raise NotImplementedError
 

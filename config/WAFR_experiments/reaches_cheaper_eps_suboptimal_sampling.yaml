@@ -25,14 +25,6 @@ algorithm:
   should_invert_S: true
 
 hydra:
-  job_logging:
-    loggers:
-      large_gcs:
-        level: INFO
-      large_gcs.algorithms:
-        level: INFO
-      large_gcs.cost_estimators:
-        level: INFO
   mode: MULTIRUN
   sweeper:
     params:

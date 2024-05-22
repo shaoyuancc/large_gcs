@@ -1,9 +1,15 @@
 repos:
-# -   repo: https://github.com/psf/black
-#     rev: 24.4.2 #22.10.0
+# -   repo: https://github.com/PyCQA/autoflake
+#     rev: v2.2.0
 #     hooks:
-#       - id: black
-#         language_version: python3
+#       - id: autoflake
+#         args: ["--remove-unused-variables"]  # Only remove unused variables
+
+-   repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        language_version: python3
 
 -   repo: https://github.com/pycqa/isort
     rev: 5.12.0
@@ -11,7 +17,3 @@ repos:
       - id: isort
         args: ["--profile=black", "--filter-files"]
 
--   repo: https://github.com/PyCQA/autoflake
-    rev: v2.2.0
-    hooks:
-      - id: autoflake

@@ -156,8 +156,7 @@ class SamplingRunData:
         axs[0].plot(self.num_samples, self.solve_times, color=sampling_color)
         axs[0].set_title("Solve time [s]")
 
-        axs[1].plot(self.num_samples, self.num_paths_expanded,
-                    color=sampling_color)
+        axs[1].plot(self.num_samples, self.num_paths_expanded, color=sampling_color)
         axs[1].set_title("Number of paths expanded")
 
         axs[2].plot(self.num_samples, self.costs, color=sampling_color)
@@ -165,8 +164,7 @@ class SamplingRunData:
 
         if ah_baseline:
             axs[0].axhline(ah_baseline.wall_clock_time, color=comparison_color)
-            axs[1].axhline(ah_baseline.num_paths_expanded,
-                           color=comparison_color)
+            axs[1].axhline(ah_baseline.num_paths_expanded, color=comparison_color)
             axs[2].axhline(ah_baseline.cost, color=comparison_color)
 
             axs[2].legend(["Sampling", "AH-containment"])
