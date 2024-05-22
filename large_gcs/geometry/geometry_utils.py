@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 def is_on_hyperplane(a, b, x):
     """Returns whether x is on the hyperplane defined by ax = b.
+
     a and x are vectors with the same dimension, b is a scalar.
     """
     return np.isclose(np.dot(a, x), b)
@@ -67,8 +68,8 @@ def HPolyhedronAbFromConstraints(
     make_bounded: bool = False,
     BOUND: float = BOUND_FOR_POLYHEDRON,
 ):
-    """
-    Construct a polyhedron from a list of constraint formulas.
+    """Construct a polyhedron from a list of constraint formulas.
+
     Args:
         constraints: array of constraint formulas.
         variables: array of variables.
@@ -125,8 +126,8 @@ def HPolyhedronFromConstraints(
     make_bounded: bool = False,
     BOUND: float = BOUND_FOR_POLYHEDRON,
 ):
-    """
-    Construct a polyhedron from a list of constraint formulas.
+    """Construct a polyhedron from a list of constraint formulas.
+
     Args:
         constraints: array of constraint formulas.
         variables: array of variables.
@@ -144,8 +145,8 @@ def HPolyhedronFromConstraints(
 
 
 def create_selection_matrix(x_indices, x_length):
-    """
-    Create a selection matrix for a given set of indices in the full vector x.
+    """Create a selection matrix for a given set of indices in the full vector
+    x.
 
     Parameters:
     x_indices (list of int): Indices of the elements of x_i in the full vector x.

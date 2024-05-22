@@ -96,7 +96,8 @@ class FactoredCollisionFreeCE(CostEstimator):
         solve_convex_restriction: bool = False,
         use_convex_relaxation: bool = False,
     ) -> ShortestPathSolution:
-        """Right now this function is unideally coupled because it returns a shortest path solution instead of just the cost."""
+        """Right now this function is unideally coupled because it returns a
+        shortest path solution instead of just the cost."""
         neighbor = edge.v
 
         # Check if this neighbor is the target to see if Cfree subgraphs are needed
@@ -268,7 +269,7 @@ class FactoredCollisionFreeCE(CostEstimator):
 
     @staticmethod
     def convert_to_cfree_vertex_names(vertex_name: str):
-        """Works for full vertex names, and relaxed contact vertex names"""
+        """Works for full vertex names, and relaxed contact vertex names."""
         # Convert string representation of tuple to actual tuple
         tuple_vertex = ast.literal_eval(vertex_name)
 

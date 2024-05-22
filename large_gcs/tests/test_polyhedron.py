@@ -241,10 +241,9 @@ def test_should_not_create_nullspace_polyhedron_if_infeasible_1():
 
 @pytest.mark.skip(reason="sdfas")
 def test_removes_near_zero_rows_from_A_and_b():
-    """
-    Make sure that the near-zero rows are removed from A and b so that we do not create extra
-    layers of null space polyhedrons.
-    This does not test it explicitly, but when the near-zero rows are not removed this test fails
+    """Make sure that the near-zero rows are removed from A and b so that we do
+    not create extra layers of null space polyhedrons. This does not test it
+    explicitly, but when the near-zero rows are not removed this test fails
     because an extra layer of null space polyhedron is created.
 
     This A and b are from the contact set created in the following way:

@@ -2,7 +2,6 @@
 # (Has since been removed but can be found at:
 # https://web.archive.org/web/20230202013406/https://www.webucator.com/article/python-color-constants-module/
 # )
-
 """Provide RGB color constants and a colors dictionary with
 	elements formatted: COLORS[colorname] = CONSTANT"""
 
@@ -17,7 +16,7 @@ COLORS = {}  # dict of colors
 
 class RGB(Color):
     def hex_format(self):
-        """Returns color in hex format"""
+        """Returns color in hex format."""
         return "#{:02X}{:02X}{:02X}".format(self.red, self.green, self.blue)
 
     def diffuse(self, alpha: float = 1.0) -> npt.NDArray[np.float64]:

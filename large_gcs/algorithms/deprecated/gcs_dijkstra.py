@@ -184,8 +184,10 @@ class GcsDijkstra(SearchAlgorithm):
     @property
     def alg_metrics(self):
         """Recompute metrics based on the current state of the algorithm.
-        n_vertices_visited, n_gcs_solves, gcs_solve_time_total/min/max are manually updated.
-        The rest are computed from the manually updated metrics.
+
+        n_vertices_visited, n_gcs_solves, gcs_solve_time_total/min/max
+        are manually updated. The rest are computed from the manually
+        updated metrics.
         """
         m = self._alg_metrics
         if m.n_gcs_solves > 0:

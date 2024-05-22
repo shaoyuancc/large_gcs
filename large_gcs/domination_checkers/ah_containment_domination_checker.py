@@ -47,9 +47,8 @@ class AHContainmentDominationChecker(DominationChecker):
     def is_dominated(
         self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
     ) -> bool:
-        """
-        Checks if a candidate path is dominated completely by any one of the alternate paths.
-        """
+        """Checks if a candidate path is dominated completely by any one of the
+        alternate paths."""
         logger.debug(
             f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"
             f"\n via path: {candidate_node.vertex_path}"
@@ -174,13 +173,14 @@ class AHContainmentDominationChecker(DominationChecker):
     def get_path_A_b_C_d(
         self, node: SearchNode
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Get the A, b, C, d matrices that define the polyhedron that represents the path.
-        Where Ax <= b are the inequality constraints and Cx = d are the equality constraints.
-        A.shape = (m, N) where m is the number of constraints and N is the total number of decision variables.
-        b.shape = (m,)
-        C.shape = (p, N) where p is the number of equality constraints
-        d.shape = (p,)
+        """Get the A, b, C, d matrices that define the polyhedron that
+        represents the path.
+
+        Where Ax <= b are the inequality constraints and Cx = d are the
+        equality constraints. A.shape = (m, N) where m is the number of
+        constraints and N is the total number of decision variables.
+        b.shape = (m,) C.shape = (p, N) where p is the number of
+        equality constraints d.shape = (p,)
         """
         # ASSUMPTION: polyhedral sets for the vertices. Linear costs for the vertices and edges.
         if self.include_cost_epigraph:
@@ -439,9 +439,10 @@ class AHContainmentDominationChecker(DominationChecker):
         A: np.ndarray,
         vertex_idx_to_project_to: Optional[int] = None,
     ):
-        """
-        Get the transformation matrix that will project the polyhedron that defines the whole path
-        down to just the dimensions of the selected vertex. Can either include the epigraph (include the cost) or just the dimensions of the vertex.
+        """Get the transformation matrix that will project the polyhedron that
+        defines the whole path down to just the dimensions of the selected
+        vertex. Can either include the epigraph (include the cost) or just the
+        dimensions of the vertex.
 
         Args:
             - node(SearchNode) : Defines the path which defines the original matrix that will be projected.

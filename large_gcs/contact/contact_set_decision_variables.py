@@ -60,7 +60,8 @@ class ContactSetDecisionVariables:
         return cls(pos, force_act, force_mag_AB, all, base_all)
 
     def pos_from_all(self, vars_all):
-        """Extracts the vars_pos from vars_all and reshapes it to match the template"""
+        """Extracts the vars_pos from vars_all and reshapes it to match the
+        template."""
         return np.reshape(vars_all[: self.pos.size], self.pos.shape)
 
     @property
@@ -68,7 +69,7 @@ class ContactSetDecisionVariables:
         return self.pos[:, :, -1].flatten()
 
     def last_pos_from_all(self, vars_all):
-        """Extracts the last knot point vars_pos from vars_all"""
+        """Extracts the last knot point vars_pos from vars_all."""
         return self.pos_from_all(vars_all)[:, :, -1].flatten()
 
     @classmethod

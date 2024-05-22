@@ -15,8 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 class ReachesCheaperSampling(SamplingDominationChecker):
-    """
-    Checks samples to see if this path reaches any projected sample cheaper than any previous path.
+    """Checks samples to see if this path reaches any projected sample cheaper
+    than any previous path.
+
     Assumes that this path is feasible.
     """
 
@@ -25,10 +26,9 @@ class ReachesCheaperSampling(SamplingDominationChecker):
         candidate_node: SearchNode,
         alternate_nodes: List[SearchNode],  # , sample: np.ndarray
     ) -> bool:
-        """
-        Checks samples to see if this path reaches any samples cheaper than any previous path.
-        Note that if no other path reaches the sample, this path is considered cheaper.
-        (Any cost is cheaper than infinity)
+        """Checks samples to see if this path reaches any samples cheaper than
+        any previous path. Note that if no other path reaches the sample, this
+        path is considered cheaper. (Any cost is cheaper than infinity)
 
         args:
             candidate_node: The node to check if it is dominated

@@ -75,9 +75,10 @@ class ShortestPathSolution:
         return ambient_path
 
     def save(self, loc: Path) -> None:
-        """
-        Save solution as a .pkl file. Note that MathematicalProgramResult cannot be
-        serialized, and hence cannot be saved to file.
+        """Save solution as a .pkl file.
+
+        Note that MathematicalProgramResult cannot be serialized, and
+        hence cannot be saved to file.
         """
         # Convert to dictionary and save to JSON
         self_as_dict = self.to_serializable_dict()
@@ -86,9 +87,7 @@ class ShortestPathSolution:
 
     @classmethod
     def load(cls, loc: Path) -> "ShortestPathSolution":
-        """
-        Read a solution from a .pkl file.
-        """
+        """Read a solution from a .pkl file."""
 
         with open(loc, "rb") as f:
             loaded_dict = pickle.load(f)
@@ -99,9 +98,7 @@ class ShortestPathSolution:
 
 @dataclass
 class DefaultGraphCostsConstraints:
-    """
-    Class to hold default costs and constraints for vertices and edges.
-    """
+    """Class to hold default costs and constraints for vertices and edges."""
 
     vertex_costs: List[Cost] = None
     vertex_constraints: List[Constraint] = None
@@ -161,9 +158,7 @@ class GraphParams:
 
 
 class Graph:
-    """
-    Wrapper for Drake GraphOfConvexSets class.
-    """
+    """Wrapper for Drake GraphOfConvexSets class."""
 
     def __init__(
         self,
@@ -209,9 +204,7 @@ class Graph:
     def add_vertex(
         self, vertex: Vertex, name: str = "", should_add_to_gcs: bool = True
     ):
-        """
-        Add a vertex to the graph.
-        """
+        """Add a vertex to the graph."""
         if name == "":
             name = len(self.vertices)
         assert name not in self.vertices
@@ -250,9 +243,8 @@ class Graph:
         self.vertices[name] = v
 
     def remove_vertex(self, name: str):
-        """
-        Remove a vertex from the graph as well as any edges from or to that vertex.
-        """
+        """Remove a vertex from the graph as well as any edges from or to that
+        vertex."""
         self._gcs.RemoveVertex(self.vertices[name].gcs_vertex)
         self.vertices.pop(name)
         for edge in self.edge_keys:
@@ -264,8 +256,9 @@ class Graph:
     def add_vertices_from_sets(
         self, sets: List[ConvexSet], costs=None, constraints=None, names=None
     ):
-        """
-        Add vertices to the graph. Each vertex is a convex set.
+        """Add vertices to the graph.
+
+        Each vertex is a convex set.
         """
         if names is None:
             names = [None] * len(sets)
@@ -287,9 +280,7 @@ class Graph:
             self.add_vertex(Vertex(set, cost_list, constraint_list), name)
 
     def add_edge(self, edge: Edge, should_add_to_gcs: bool = True):
-        """
-        Add an edge to the graph.
-        """
+        """Add an edge to the graph."""
         e = copy(edge)
         # Set default costs and constraints if necessary
         if self._default_costs_constraints:  # Have defaults
@@ -328,9 +319,7 @@ class Graph:
         return e
 
     def remove_edge(self, edge_key: str, remove_from_gcs: bool = True):
-        """
-        Remove an edge from the graph.
-        """
+        """Remove an edge from the graph."""
         if remove_from_gcs:
             self._gcs.RemoveEdge(self.edges[edge_key].gcs_edge)
 
@@ -343,9 +332,7 @@ class Graph:
         costs: List[List[Cost]] = None,
         constraints: List[List[Constraint]] = None,
     ):
-        """
-        Add edges to the graph.
-        """
+        """Add edges to the graph."""
         assert len(us) == len(vs)
         if costs is None:
             costs = [None] * len(us)
@@ -371,23 +358,17 @@ class Graph:
         self._target_name = vertex_name
 
     def outgoing_edges(self, vertex_name: str) -> List[Edge]:
-        """
-        Get the outgoing edges of a vertex.
-        """
+        """Get the outgoing edges of a vertex."""
         assert vertex_name in self.vertices
         return [edge for edge in self.edges.values() if edge.u == vertex_name]
 
     def incoming_edges(self, vertex_name: str) -> List[Edge]:
-        """
-        Get the incoming edges of a vertex.
-        """
+        """Get the incoming edges of a vertex."""
         assert vertex_name in self.vertices
         return [edge for edge in self.edges.values() if edge.v == vertex_name]
 
     def incident_edges(self, vertex_name: str) -> List[Edge]:
-        """
-        Get the incident edges of a vertex.
-        """
+        """Get the incident edges of a vertex."""
         assert vertex_name in self.vertices
         return [
             edge
@@ -396,9 +377,7 @@ class Graph:
         ]
 
     def solve_shortest_path(self, use_convex_relaxation=False) -> ShortestPathSolution:
-        """
-        Solve the shortest path problem.
-        """
+        """Solve the shortest path problem."""
         assert self._source_name is not None
         assert self._target_name is not None
         result = self._gcs.SolveShortestPath(
@@ -487,7 +466,7 @@ class Graph:
         return sol
 
     def _post_solve(self, sol: ShortestPathSolution):
-        """Optional post solve hook for subclasses"""
+        """Optional post solve hook for subclasses."""
 
     def _parse_factored_result(
         self, result: MathematicalProgramResult, transition_name: str, target_names: str

@@ -7,13 +7,14 @@ from large_gcs.geometry.convex_set import ConvexSet
 
 
 class Ellipsoid(ConvexSet):
-    """
-    Wrapper for the Drake HyperEllipsoid class representing: {x | (x-center)ᵀAᵀA(x-center) ≤ 1}.
-    """
+    """Wrapper for the Drake HyperEllipsoid class representing: {x |
+    (x-center)ᵀAᵀA(x-center) ≤ 1}."""
 
     def __init__(self, center, A):
-        """
-        Default constructor for the ellipsoid {x | (x-center)ᵀAᵀA(x-center) ≤ 1}.
+        """Default constructor for the ellipsoid {x | (x-center)ᵀAᵀA(x-center)
+
+        ≤ 1}.
+
         Args:
             center: (m,1) or (m,) numpy array or list.
             A: (m,n) numpy array or list.

@@ -280,7 +280,7 @@ class GcsHAstarReachability(SearchAlgorithm):
         heap.heappush(self._Q, n_source)
 
     def _execute_up_rule(self, n_conclusion: GCSHANode):
-        """UP rule: visit neighbor"""
+        """UP rule: visit neighbor."""
         logger.debug(f"Executing UP rule for conclusion {n_conclusion.id}")
 
         self._update_vertex_visit_revisit(n_conclusion)
@@ -341,10 +341,12 @@ class GcsHAstarReachability(SearchAlgorithm):
         self.log_metrics_to_wandb(n.priority)
 
     def _reaches_new(self, g: Graph, n: StatementNode) -> bool:
-        """
-        Checks samples to see if this path reaches new previously unreached samples.
-        Assumes that this path is feasible and that the vertex has been expanded before.
-        i.e. there already exists a path that reaches the vertex.
+        """Checks samples to see if this path reaches new previously unreached
+        samples.
+
+        Assumes that this path is feasible and that the vertex has been
+        expanded before. i.e. there already exists a path that reaches
+        the vertex.
         """
         raise NotImplementedError
         # Assume that entire source is already reachable

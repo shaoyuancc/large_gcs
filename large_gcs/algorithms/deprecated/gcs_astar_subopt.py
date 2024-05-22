@@ -21,7 +21,11 @@ logger = logging.getLogger(__name__)
 
 
 class GcsAstarSubOpt(SearchAlgorithm):
-    """Suboptimal version of GCS A*. This algorithm is not complete, a solution is not guaranteed to be found even if it exists."""
+    """Suboptimal version of GCS A*.
+
+    This algorithm is not complete, a solution is not guaranteed to be
+    found even if it exists.
+    """
 
     def __init__(
         self,
@@ -137,10 +141,8 @@ class GcsAstarSubOpt(SearchAlgorithm):
         self._alg_metrics.n_vertices_visited[0] += 1
         neighbor = edge.v
         assert neighbor != self._graph.target_name
-        """
-        Very strange, there is something about using the cost estimator instead of 
-        the code below that changes the numbers very slightly.
-        """
+        """Very strange, there is something about using the cost estimator
+        instead of the code below that changes the numbers very slightly."""
         # # Add neighbor and edge temporarily to the visited subgraph
         # self._visited.add_vertex(self._graph.vertices[neighbor], neighbor)
         # # Check if this neighbor actually has an edge to the target
@@ -283,8 +285,10 @@ class GcsAstarSubOpt(SearchAlgorithm):
     @property
     def alg_metrics(self):
         """Recompute metrics based on the current state of the algorithm.
-        n_vertices_visited, n_gcs_solves, gcs_solve_time_total/min/max are manually updated.
-        The rest are computed from the manually updated metrics.
+
+        n_vertices_visited, n_gcs_solves, gcs_solve_time_total/min/max
+        are manually updated. The rest are computed from the manually
+        updated metrics.
         """
         m = self._alg_metrics
         if m.n_gcs_solves > 0:

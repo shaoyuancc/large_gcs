@@ -21,11 +21,14 @@ logger = logging.getLogger(__name__)
 
 
 class GcsAstar(SearchAlgorithm):
-    """A* search algorithm for GCS. This implementation is very similar to GCS Dijkstra,
-    but the the target node is always added to the visited subgraph, and an edge from the
-    node being explored to the target is also added.
-    Current implementation requires heuristic to be both admissible and consistent.
-    Currently does not handle infeasible edges correctly, thus this algorithm is not complete.
+    """A* search algorithm for GCS.
+
+    This implementation is very similar to GCS Dijkstra, but the the
+    target node is always added to the visited subgraph, and an edge
+    from the node being explored to the target is also added. Current
+    implementation requires heuristic to be both admissible and
+    consistent. Currently does not handle infeasible edges correctly,
+    thus this algorithm is not complete.
     """
 
     def __init__(

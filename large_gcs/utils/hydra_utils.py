@@ -3,6 +3,7 @@ import importlib
 
 def get_function_from_string(function_string):
     """Get function from string.
+
     Args:
         function_string (str): String representation of function.
     Returns:

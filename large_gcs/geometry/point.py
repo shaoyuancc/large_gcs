@@ -5,8 +5,9 @@ from large_gcs.geometry.convex_set import ConvexSet
 
 
 class Point(ConvexSet):
-    """
-    Wrapper for Drake Point Class. Convex set containing exactly one element.
+    """Wrapper for Drake Point Class.
+
+    Convex set containing exactly one element.
     """
 
     def __init__(self, x):

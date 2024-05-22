@@ -30,9 +30,7 @@ class ReexploreLevel(Enum):
 
 @dataclass
 class AlgVisParams:
-    """
-    Parameters for visualizing the algorithm.
-    """
+    """Parameters for visualizing the algorithm."""
 
     log_dir: Optional[str] = None
     vid_output_path: str = "alg_vis_output.mp4"
@@ -53,9 +51,7 @@ class AlgVisParams:
 
 @dataclass
 class AlgMetrics:
-    """
-    Metrics for the algorithm.
-    """
+    """Metrics for the algorithm."""
 
     n_vertices_expanded: Dict[int, int] = field(default_factory=lambda: {0: 0})
     n_vertices_visited: Dict[int, int] = field(default_factory=lambda: {0: 0})
@@ -97,8 +93,10 @@ class AlgMetrics:
         self,
     ):
         """Recompute metrics based on the current state of the algorithself.
-        n_vertices_visited, n_gcs_solves, gcs_solve_time_total/min/max are manually updated.
-        The rest are computed from the manually updated metrics.
+
+        n_vertices_visited, n_gcs_solves, gcs_solve_time_total/min/max
+        are manually updated. The rest are computed from the manually
+        updated metrics.
         """
         if self.n_gcs_solves > 0:
             self.gcs_solve_time_iter_mean = (
@@ -144,7 +142,8 @@ class AlgMetrics:
         return res
 
     def update_method_call_structure(self, call_structure: Dict[str, List[str]]):
-        """Set the call structure of the methods for the method time pie chart."""
+        """Set the call structure of the methods for the method time pie
+        chart."""
         if self._method_call_structure is not None:
             call_structure.update(self._method_call_structure)
 
@@ -226,9 +225,7 @@ class AlgMetrics:
         return fig
 
     def save(self, loc: Path) -> None:
-        """
-        Save metrics as a JSON file.
-        """
+        """Save metrics as a JSON file."""
         # Convert to dictionary and save to JSON
         self_as_dict = asdict(self)
         import json
@@ -238,9 +235,7 @@ class AlgMetrics:
 
     @classmethod
     def load(cls, loc: Path) -> "AlgMetrics":
-        """
-        Reads metrics from a JSON file.
-        """
+        """Reads metrics from a JSON file."""
         # Load from JSON and convert back to dataclass
         import json
 
@@ -253,9 +248,7 @@ class AlgMetrics:
 
 @dataclass
 class SearchNode:
-    """
-    A node in the search tree.
-    """
+    """A node in the search tree."""
 
     priority: float
     vertex_name: str
@@ -302,18 +295,14 @@ class SearchNode:
 
 
 class SearchAlgorithm(ABC):
-    """
-    Abstract base class for search algorithms.
-    """
+    """Abstract base class for search algorithms."""
 
     def __init__(self):
         self._alg_metrics = AlgMetrics()
 
     @abstractmethod
     def run(self):
-        """
-        Searches for a shortest path in the given graph.
-        """
+        """Searches for a shortest path in the given graph."""
 
     def push_node_on_Q(self, node: SearchNode):
         # Abstraction for the priority queue push operation that handles tiebreaks

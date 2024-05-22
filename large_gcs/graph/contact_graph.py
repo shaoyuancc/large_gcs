@@ -269,7 +269,8 @@ class ContactGraph(Graph):
         vertex_exlcusion: List[str] = None,
         vertex_inclusion: List[str] = None,
     ) -> Tuple[List[ContactSet], List[str]]:
-        """Generates all possible contact sets given a set of static obstacles, unactuated objects, and actuated robots."""
+        """Generates all possible contact sets given a set of static obstacles,
+        unactuated objects, and actuated robots."""
         self._initialize_set_generation_variables()
 
         if contact_pair_modes is None or contact_set_mode_ids is None:
@@ -427,7 +428,8 @@ class ContactGraph(Graph):
     ### POST SOLVE ###
 
     def _post_solve(self, sol: ShortestPathSolution):
-        """Post solve hook that is called after solving by the base graph class"""
+        """Post solve hook that is called after solving by the base graph
+        class."""
         if sol.is_success:
             self.contact_spp_sol = self.create_contact_spp_sol(
                 sol.vertex_path, sol.ambient_path
@@ -436,7 +438,8 @@ class ContactGraph(Graph):
         #     logger.debug("No Shortest Path Solution Found")
 
     def create_contact_spp_sol(self, vertex_path, ambient_path, ref_graph=None):
-        """An ambient path is a list of vertices in the higher dimensional space"""
+        """An ambient path is a list of vertices in the higher dimensional
+        space."""
         pos_transition_map = {}
         pos_list = []
         for i, x in enumerate(ambient_path):

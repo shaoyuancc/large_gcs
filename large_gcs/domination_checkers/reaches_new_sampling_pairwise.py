@@ -18,10 +18,11 @@ class ReachesNewSamplingPairwise(SamplingDominationChecker):
     def is_dominated(
         self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
     ) -> bool:
-        """
-        Checks to see if there is a single alternate path that reaches every sample that the candidate path reaches.
-        If so, the candidate path is dominated.
-        This is explictly not checking the candidate against the union of the alternate paths.
+        """Checks to see if there is a single alternate path that reaches every
+        sample that the candidate path reaches.
+
+        If so, the candidate path is dominated. This is explictly not
+        checking the candidate against the union of the alternate paths.
         """
         self._maybe_add_set_samples(candidate_node.vertex_name)
 

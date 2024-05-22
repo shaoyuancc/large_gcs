@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 class GcsAstarTree(SearchAlgorithm):
-    """Tree version of GCS A*, where we only add edges along shortest paths to vertices to the visited subgraph."""
+    """Tree version of GCS A*, where we only add edges along shortest paths to
+    vertices to the visited subgraph."""
 
     def __init__(
         self,
@@ -177,7 +178,8 @@ class GcsAstarTree(SearchAlgorithm):
             )
 
     def _add_vertex_and_edges_to_visited_except_edges_to_target(self, vertex_name):
-        """Also adds source and target regardless of whether they are in edges"""
+        """Also adds source and target regardless of whether they are in
+        edges."""
         self._visited.add_vertex(self._graph.vertices[vertex_name], vertex_name)
         if vertex_name == self._graph.source_name:
             self._visited.set_source(self._graph.source_name)

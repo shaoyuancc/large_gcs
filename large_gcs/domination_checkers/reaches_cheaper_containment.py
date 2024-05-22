@@ -21,9 +21,8 @@ class ReachesCheaperContainment(AHContainmentDominationChecker):
     def is_dominated(
         self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
     ) -> bool:
-        """
-        Checks if a candidate path is dominated completely by any one of the alternate paths.
-        """
+        """Checks if a candidate path is dominated completely by any one of the
+        alternate paths."""
         A_n, b_n = self.get_epigraph_matrices(candidate_node)
         T_n = self.get_H_transformation(
             node=candidate_node,

@@ -124,9 +124,7 @@ class SamplingRunData:
         self,
         output_path: Path,
     ) -> None:
-        """
-        Saves all the datapoints in this run to a JSON file.
-        """
+        """Saves all the datapoints in this run to a JSON file."""
         # Convert to dictionary and save to JSON
         data_dict_list = [data._asdict() for data in self.data]
         import json

@@ -15,17 +15,17 @@ logger = logging.getLogger(__name__)
 
 
 class ReachesNewLastPosSampling(SamplingDominationChecker):
-    """
-    Checks samples to see if this path reaches new previously unreached samples.
+    """Checks samples to see if this path reaches new previously unreached
+    samples.
+
     Assumes that this path is feasible.
     """
 
     def is_dominated(
         self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
     ) -> bool:
-        """
-        A candidate path is dominated if it does not reach any new last position knot points in the set.
-        """
+        """A candidate path is dominated if it does not reach any new last
+        position knot points in the set."""
         self._maybe_add_set_samples(candidate_node.vertex_name)
 
         contact_set: ContactSet = self._graph.vertices[

@@ -96,9 +96,12 @@ def test_shortcut_edge_conv_res_cg_simple_2_inc():
 
 
 def test_shortcut_edge_conv_res_cg_simple_3_inc():
-    """Test the incremental graph for cg_simple_3 with shortcut edge cost estimator.
-    What's different from cg_simple_2 is that this graph has a target region instead of
-    a target position."""
+    """Test the incremental graph for cg_simple_3 with shortcut edge cost
+    estimator.
+
+    What's different from cg_simple_2 is that this graph has a target
+    region instead of a target position.
+    """
     graph_file = ContactGraphGeneratorParams.graph_file_path_from_name("cg_simple_3")
     cg = IncrementalContactGraph.load_from_file(
         graph_file,

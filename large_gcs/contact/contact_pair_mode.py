@@ -21,7 +21,7 @@ from large_gcs.geometry.geometry_utils import HPolyhedronFromConstraints
 
 @dataclass
 class ContactPairMode(ABC):
-    """Contact mode between two contact locations on two rigid bodies"""
+    """Contact mode between two contact locations on two rigid bodies."""
 
     body_a: RigidBody
     body_b: RigidBody
@@ -230,10 +230,11 @@ class RelaxedInContactPairMode(RelaxedContactPairMode):
 
 @dataclass
 class RelaxedNoContactPairMode(RelaxedContactPairMode):
-    """RelaxedNoContactPairMode has no constraints, functions kind of like a placeholder in the contact set"""
+    """RelaxedNoContactPairMode has no constraints, functions kind of like a
+    placeholder in the contact set."""
 
     def _create_constraint_formulas(self):
-        """No constraints"""
+        """No constraints."""
         constraints = []
         base_constraints = []
 
@@ -341,7 +342,7 @@ class InContactPairMode(ContactPairMode):
 
     @property
     def unit_normal(self):
-        """Unit contact normal from body_a to body_b"""
+        """Unit contact normal from body_a to body_b."""
         if isinstance(self.contact_location_a, ContactLocationFace):
             return self.contact_location_a.unit_normal
         elif isinstance(self.contact_location_a, ContactLocationVertex) and isinstance(
@@ -353,7 +354,8 @@ class InContactPairMode(ContactPairMode):
 def create_static_face_movable_face_signed_dist_surrog_exprs(
     static_face: ContactLocationFace, movable_face: ContactLocationFace
 ):
-    """Create an expression for a surrogate of the signed distance between a static face and a movable face."""
+    """Create an expression for a surrogate of the signed distance between a
+    static face and a movable face."""
     assert static_face.body.mobility_type == MobilityType.STATIC
     assert movable_face.body.mobility_type != MobilityType.STATIC
     assert static_face.body.dim == movable_face.body.dim
@@ -450,7 +452,7 @@ def create_movable_face_vert_signed_dist_surrog_exprs(
 
 
 def _plane_to_point_dist_surrog_exprs(normal, p_plane_point, p_target_point):
-    """Point to plane formula surrogate"""
+    """Point to plane formula surrogate."""
     p_PT = p_target_point - p_plane_point
     dist_surrog = np.dot(normal, p_PT) / np.dot(normal, normal)
     # The dist squared would be: (np.dot(normal, p_PT) ** 2) / np.dot(normal, normal)
@@ -559,8 +561,10 @@ def create_movable_face_vert_horizontal_bounds_formulas(
 def _face_horizontal_bounds_formulas(
     p_Refleft, p_Refright, p_Relv, rel_length=0, buffer_ratio=0.0
 ):
-    """Formulas for the horizontal bounds of a face-face contact such that the relative face is within the horizontal bounds
-    (viewing the reference face normal as pointing upwards) of the reference face.
+    """Formulas for the horizontal bounds of a face-face contact such that the
+    relative face is within the horizontal bounds (viewing the reference face
+    normal as pointing upwards) of the reference face.
+
     Note that increasing the buffer_ratio will affect whether the sets intersect. If allowing sets to be revisited multiple
     times is not implemented, this will result in most problems becoming infeasible because you can't transition out of a contact
     mode since you need to go back to the non-contact mode but you already went through that to get to the contact mode in the
@@ -589,7 +593,7 @@ def _face_horizontal_bounds_formulas(
 def generate_contact_pair_modes(
     body_a: RigidBody, body_b: RigidBody, ignore_static_actuated_contact=True
 ):
-    """Generate all possible contact pair modes between two rigid bodies"""
+    """Generate all possible contact pair modes between two rigid bodies."""
     # No contact relative to body_a
     no_contact_pair_modes = generate_no_contact_pair_modes(body_a=body_a, body_b=body_b)
 

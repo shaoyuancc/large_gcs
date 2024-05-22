@@ -100,9 +100,10 @@ class ShortcutEdgeCE(CostEstimator):
         solve_convex_restriction: bool = False,
         use_convex_relaxation: bool = False,
     ) -> ShortestPathSolution:
-        """
-        active_edges does not include the edge argument.
-        Right now this function is unideally coupled because it returns a shortest path solution instead of just the cost.
+        """active_edges does not include the edge argument.
+
+        Right now this function is unideally coupled because it returns
+        a shortest path solution instead of just the cost.
         """
 
         neighbor = edge.v

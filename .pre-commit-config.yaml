@@ -4,6 +4,11 @@ repos:
 #     hooks:
 #       - id: autoflake
 #         args: ["--remove-unused-variables"]  # Only remove unused variables
+-   repo: https://github.com/PyCQA/docformatter
+    rev: v1.4  # Use the latest stable release
+    hooks:
+      - id: docformatter
+        args: ['--in-place', '--recursive']
 
 -   repo: https://github.com/psf/black
     rev: 24.4.2

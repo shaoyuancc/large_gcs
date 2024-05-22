@@ -15,18 +15,20 @@ logger = logging.getLogger(__name__)
 
 
 class ReachesCheaperLastPosSampling(SamplingDominationChecker):
-    """
-    Checks samples to see if this path reaches any projected sample cheaper than any previous path.
+    """Checks samples to see if this path reaches any projected sample cheaper
+    than any previous path.
+
     Assumes that this path is feasible.
     """
 
     def is_dominated(
         self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
     ) -> bool:
-        """
-        Checks samples to see if this path reaches any samples cheaper than any previous path.
-        Note that if no other path reaches the sample, this path is considered cheaper.
-        (Any cost is cheaper than infinity)
+        """Checks samples to see if this path reaches any samples cheaper than
+        any previous path.
+
+        Note that if no other path reaches the sample, this path is
+        considered cheaper. (Any cost is cheaper than infinity)
         """
 
         self._maybe_add_set_samples(candidate_node.vertex_name)

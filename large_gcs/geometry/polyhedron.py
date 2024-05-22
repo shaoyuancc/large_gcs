@@ -25,14 +25,11 @@ logger = logging.getLogger(__name__)
 
 
 class Polyhedron(ConvexSet):
-    """
-    Wrapper for the Drake HPolyhedron class that uses the half-space representation: {x| H x ≤ h}
-    """
+    """Wrapper for the Drake HPolyhedron class that uses the half-space
+    representation: {x| H x ≤ h}"""
 
     def __init__(self, H, h, should_compute_vertices=True):
-        """
-        Default constructor for the polyhedron {x| A x ≤ b}.
-        """
+        """Default constructor for the polyhedron {x| A x ≤ b}."""
         self._vertices = None
         self._center = None
 
@@ -75,8 +72,8 @@ class Polyhedron(ConvexSet):
 
     @classmethod
     def from_vertices(cls, vertices):
-        """
-        Construct a polyhedron from a list of vertices.
+        """Construct a polyhedron from a list of vertices.
+
         Args:
             list of vertices.
         """
@@ -103,8 +100,8 @@ class Polyhedron(ConvexSet):
     def from_constraints(
         cls: Type["Polyhedron"], constraints: List[Formula], variables: np.ndarray
     ):
-        """
-        Construct a polyhedron from a list of constraint formulas.
+        """Construct a polyhedron from a list of constraint formulas.
+
         Args:
             constraints: array of constraint formulas.
             variables: array of variables.
@@ -289,9 +286,11 @@ class Polyhedron(ConvexSet):
 
     @staticmethod
     def _reorder_A_b_by_vertices(A, b, vertices):
-        """
-        Reorders the halfspace representation A x ≤ b so that they follow the same order as the vertices.
-        i.e. the first row of A and the first element of b correspond to the line between the first and second vertices.
+        """Reorders the halfspace representation A x ≤ b so that they follow
+        the same order as the vertices.
+
+        i.e. the first row of A and the first element of b correspond to
+        the line between the first and second vertices.
         """
         # assert len(A) == len(vertices) == len(b)
         new_order = []
@@ -307,8 +306,11 @@ class Polyhedron(ConvexSet):
 
     @staticmethod
     def _check_contains_equality_constraints(A, b, rtol=1e-5, atol=1e-8):
-        """Equality constraints are enforced by having one row in A and b be: ax ≤ b and another row be: -ax ≤ -b.
-        So checking if any pairs of rows add up to 0 tells us whether there are any equality constraints.
+        """Equality constraints are enforced by having one row in A and b be:
+        ax ≤ b and another row be: -ax ≤ -b.
+
+        So checking if any pairs of rows add up to 0 tells us whether
+        there are any equality constraints.
         """
         logger.warn("This method should not be used, it is very slow.")
         for (i, (a1, b1)), (j, (a2, b2)) in itertools.combinations(
@@ -321,8 +323,11 @@ class Polyhedron(ConvexSet):
         return False
 
     def has_equality_constraints(self):
-        """Equality constraints are enforced by having one row in A and b be: ax ≤ b and another row be: -ax ≤ -b.
-        So checking if any pairs of rows add up to 0 tells us whether there are any equality constraints.
+        """Equality constraints are enforced by having one row in A and b be:
+        ax ≤ b and another row be: -ax ≤ -b.
+
+        So checking if any pairs of rows add up to 0 tells us whether
+        there are any equality constraints.
         """
         return self._check_contains_equality_constraints(self.set.A(), self.set.b())
 
@@ -330,7 +335,8 @@ class Polyhedron(ConvexSet):
     def get_separated_inequality_equality_constraints(
         A_original, b_original, rtol=1e-5, atol=1e-8
     ):
-        """Separate and return A, b, C, d where A x ≤ b are inequalities and C x = d are equalities."""
+        """Separate and return A, b, C, d where A x ≤ b are inequalities and C
+        x = d are equalities."""
         logger.warn("This method should not be used, it is very slow.")
         equality_indices = set()
         equality_rows = []

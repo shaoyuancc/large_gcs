@@ -1,7 +1,7 @@
-""" 
-Sample graphs from the paper "Shortest Paths in Graphs of Convex Sets" 
-by Tobia Marcucci, Jack Umenberger, Pablo A. Parrilo, Russ Tedrake.
-https://arxiv.org/abs/2101.11565
+"""Sample graphs from the paper "Shortest Paths in Graphs of Convex Sets" by
+Tobia Marcucci, Jack Umenberger, Pablo A.
+
+Parrilo, Russ Tedrake. https://arxiv.org/abs/2101.11565
 """
 
 from large_gcs.geometry.ellipsoid import Ellipsoid

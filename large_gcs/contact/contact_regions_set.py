@@ -35,7 +35,8 @@ class ContactRegionParams:
 
 
 class ContactRegionsSet(ConvexSet):
-    """A set where the position of each body is specified to be within a polyhedral region."""
+    """A set where the position of each body is specified to be within a
+    polyhedral region."""
 
     def __init__(
         self,

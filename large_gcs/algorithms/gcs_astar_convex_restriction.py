@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 
 
 class GcsAstarConvexRestriction(SearchAlgorithm):
-    """Convex Restriction version of GCS A*, where in the subroutine, the order of vertices is fixed."""
+    """Convex Restriction version of GCS A*, where in the subroutine, the order
+    of vertices is fixed."""
 
     def __init__(
         self,
@@ -219,7 +220,8 @@ class GcsAstarConvexRestriction(SearchAlgorithm):
             return neighbor not in self._expanded
 
     def _set_subgraph_vertices_and_edges(self, vertex_name, edge_keys):
-        """Also adds source and target regardless of whether they are in edges"""
+        """Also adds source and target regardless of whether they are in
+        edges."""
         if not vertex_name in self._expanded:
             self._graph.generate_neighbors(vertex_name)
             self._expanded.add(vertex_name)

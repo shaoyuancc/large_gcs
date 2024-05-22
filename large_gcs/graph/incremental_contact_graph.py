@@ -38,12 +38,14 @@ class IncrementalContactGraph(ContactGraph):
         should_add_const_edge_cost: bool = True,
         should_use_l1_norm_vertex_cost: bool = False,
     ):
-        """
-        Can either specify target_pos or target_region_params, but not both.
-        include_simultaneous_mode_switches determines whether or not to include simultaneous mode switches as neighbors.
-        add_gcs determines whether or not to add the drake gcs vertices and edges to the graph.
-        It is not required if you are only using the incremental graph as a reference but not actually
-        solving any gcs problems on it directly.
+        """Can either specify target_pos or target_region_params, but not both.
+
+        include_simultaneous_mode_switches determines whether or not to
+        include simultaneous mode switches as neighbors. add_gcs
+        determines whether or not to add the drake gcs vertices and
+        edges to the graph. It is not required if you are only using the
+        incremental graph as a reference but not actually solving any
+        gcs problems on it directly.
         """
         Graph.__init__(self, workspace=workspace)
         assert self.workspace is not None, "Workspace must be set"
@@ -322,7 +324,8 @@ class IncrementalContactGraph(ContactGraph):
             )
 
     def generate_neighbors(self, u_vertex_name: str) -> None:
-        """Generates neighbors and adds them to the graph, also adds edges from vertex to neighbors"""
+        """Generates neighbors and adds them to the graph, also adds edges from
+        vertex to neighbors."""
         if u_vertex_name == self.source_name:
             # We already have the neighbors of the source vertex
             return

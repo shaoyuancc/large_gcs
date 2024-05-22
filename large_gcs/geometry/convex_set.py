@@ -9,10 +9,10 @@ logger = logging.getLogger(__name__)
 
 
 class ConvexSet(ABC):
-    """
-    Abstract base class for wrappers of convex sets. Implementations will each
-    wrap be drake implementations,
-    but this allows for other data and methods to the convex set as well.
+    """Abstract base class for wrappers of convex sets.
+
+    Implementations will each wrap be drake implementations, but this
+    allows for other data and methods to the convex set as well.
     """
 
     @abstractmethod
@@ -23,9 +23,7 @@ class ConvexSet(ABC):
         raise NotImplementedError("_plot not implemented for" + self.__class__.__name__)
 
     def plot(self, mark_center: bool = False, ax=None, **kwargs):
-        """
-        Plots the convex set using matplotlib.
-        """
+        """Plots the convex set using matplotlib."""
         if self.dim > 2:
             raise NotImplementedError
         options = {"facecolor": "mintcream", "edgecolor": "k", "zorder": 1}

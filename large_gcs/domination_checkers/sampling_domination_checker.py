@@ -204,10 +204,8 @@ class SetSamples:
         return result.GetSolution(sample_vars)
 
     def project_all(self, graph: Graph, node: SearchNode) -> np.ndarray:
-        """
-        Project the samples into the subspace of the last vertex in the path,
-        such that the projected samples are reachable via the path.
-        """
+        """Project the samples into the subspace of the last vertex in the
+        path, such that the projected samples are reachable via the path."""
         assert node.vertex_name == self.vertex_name
         active_edges = node.edge_path
         vertex_sampled = self.vertex_name

@@ -16,9 +16,7 @@ from large_gcs.graph.factored_collision_free_graph import FactoredCollisionFreeG
 
 class ContactTwo(AbstractionModelGenerator):
     def generate(self, concrete_graph: ContactGraph) -> AbstractionModel:
-        """
-        Generate the abstraction model for the contact two abstraction.
-        """
+        """Generate the abstraction model for the contact two abstraction."""
         # Define level 0 graph
         graphs = []
         graphs.append(concrete_graph)

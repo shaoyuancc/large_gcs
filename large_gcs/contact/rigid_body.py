@@ -69,10 +69,13 @@ class RigidBody:
             )
             # Expressions for velocities in terms of positions
             self.vars_vel = (self.vars_pos[:, 1:] - self.vars_pos[:, 0:-1]).flatten()
-            """
-            Note that the above is a simplified model, where time for each segment is assumed to be 1.
-            Before putting this onto the real robot, we will need to add a time variable for each segment.
-            Also note that the number of columns in vars_pos is one more than the number of columns in vars_vel.
+            """Note that the above is a simplified model, where time for each
+            segment is assumed to be 1.
+
+            Before putting this onto the real robot, we will need to add
+            a time variable for each segment. Also note that the number
+            of columns in vars_pos is one more than the number of
+            columns in vars_vel.
             """
             self.vars_pos_x = self.vars_pos[0, :]
             self.vars_pos_y = self.vars_pos[1, :]
@@ -109,7 +112,8 @@ class RigidBody:
 
     @property
     def dim(self):
-        """Dimension of the underlying geometry of the body, not the dimension of the configuration space"""
+        """Dimension of the underlying geometry of the body, not the dimension
+        of the configuration space."""
         return self.geometry.dim
 
     @property

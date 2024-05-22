@@ -47,7 +47,7 @@ class ContactLocationVertex(ContactLocation):
 
     @property
     def p_CV(self):
-        """Position vector from the center of the body to the vertex"""
+        """Position vector from the center of the body to the vertex."""
         return self.vertex - self.body.geometry.center
 
     @property
@@ -76,8 +76,9 @@ class ContactLocationFace(ContactLocation):
 
     @property
     def adj_vertex_indices(self):
-        """Vertices are ordered counter-clockwise, so index 0 is the vertex before the face AKA 'right',
-        and index 1 is the vertex after the face AKA 'left'."""
+        """Vertices are ordered counter-clockwise, so index 0 is the vertex
+        before the face AKA 'right', and index 1 is the vertex after the face
+        AKA 'left'."""
         if self.body.dim != 2:
             raise NotImplementedError
         return np.array(
@@ -93,8 +94,9 @@ class ContactLocationFace(ContactLocation):
 
     @property
     def p_CF(self):
-        """Vector from the center of the body to the face in the direction of negative normal of the face
-        (normal of the face points outwards, away from the center of the body)"""
+        """Vector from the center of the body to the face in the direction of
+        negative normal of the face (normal of the face points outwards, away
+        from the center of the body)"""
         vec_vertex_center = (
             self.body.geometry.center
             - self.body.geometry.vertices[self.adj_vertex_indices[0]]
@@ -104,17 +106,19 @@ class ContactLocationFace(ContactLocation):
 
     @property
     def p_CVright(self):
-        """Position vector from the center of the body to the vertex before the face"""
+        """Position vector from the center of the body to the vertex before the
+        face."""
         return self.adj_vertices[0] - self.body.geometry.center
 
     @property
     def p_CVleft(self):
-        """Position vector from the center of the body to the vertex after the face"""
+        """Position vector from the center of the body to the vertex after the
+        face."""
         return self.adj_vertices[1] - self.body.geometry.center
 
     @property
     def length(self):
-        """Length of the face"""
+        """Length of the face."""
         return np.linalg.norm(self.adj_vertices[1] - self.adj_vertices[0])
 
     @property
@@ -126,14 +130,14 @@ class ContactLocationFace(ContactLocation):
 def is_possible_face_face_contact(
     face_a: ContactLocationFace, face_b: ContactLocationFace
 ):
-    """Check if two faces can be in contact"""
+    """Check if two faces can be in contact."""
     return np.isclose(np.dot(face_a.unit_normal, face_b.unit_normal), -1)
 
 
 def is_possible_face_vertex_contact(
     face: ContactLocationFace, vertex: ContactLocationVertex
 ):
-    """Check if a face and a vertex can be in contact"""
+    """Check if a face and a vertex can be in contact."""
     adj_face_before, adj_face_after = vertex.adj_faces
 
     before_angle = counter_clockwise_angle_between(

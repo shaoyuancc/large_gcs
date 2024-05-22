@@ -118,9 +118,7 @@ class GcsAstarReachability(SearchAlgorithm):
         self._S[vertex_name].popleft()
 
     def run(self) -> ShortestPathSolution:
-        """
-        Searches for a shortest path in the given graph.
-        """
+        """Searches for a shortest path in the given graph."""
         logger.info(f"Running {self.__class__.__name__}")
         start_time = time.time()
         sol: Optional[ShortestPathSolution] = None
@@ -142,9 +140,7 @@ class GcsAstarReachability(SearchAlgorithm):
 
     @profile_method
     def _run_iteration(self) -> Optional[ShortestPathSolution]:
-        """
-        Runs one iteration of the search algorithm.
-        """
+        """Runs one iteration of the search algorithm."""
         n: SearchNode = self.pop_node_from_Q()
 
         # Check termination condition
@@ -181,8 +177,8 @@ class GcsAstarReachability(SearchAlgorithm):
 
     @profile_method
     def _generate_neighbors(self, vertex_name: str) -> None:
-        """
-        Generates neighbors for the given vertex.
+        """Generates neighbors for the given vertex.
+
         Wrapped to allow for profiling.
         """
         self._graph.generate_neighbors(vertex_name)
@@ -241,9 +237,8 @@ class GcsAstarReachability(SearchAlgorithm):
 
     @profile_method
     def _is_dominated(self, n: SearchNode) -> bool:
-        """
-        Checks if the given node is dominated by any other node in the visited set.
-        """
+        """Checks if the given node is dominated by any other node in the
+        visited set."""
 
         # Check for trivial domination case
         if n.vertex_name not in self._S:
