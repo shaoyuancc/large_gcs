@@ -134,7 +134,6 @@ class ContactPairMode(ABC):
             constraints,
             vars.base_all,
             make_bounded=True,  # Should be bounded by workspace constraints
-            remove_constraints_not_in_vars=False,
         )
 
 
@@ -217,12 +216,8 @@ class RelaxedInContactPairMode(RelaxedContactPairMode):
         vel_constraints = []
         for body in [self.body_a, self.body_b]:
             if body.mobility_type == MobilityType.ACTUATED:
-                vel_constraints += eq(
-                    body.vars_vel, body.vars_vel
-                ).tolist()
-        vel_constraints += eq(
-            self.body_a.vars_vel, self.body_b.vars_vel
-        ).tolist()
+                vel_constraints += eq(body.vars_vel, body.vars_vel).tolist()
+        vel_constraints += eq(self.body_a.vars_vel, self.body_b.vars_vel).tolist()
 
         constraints += vel_constraints
 

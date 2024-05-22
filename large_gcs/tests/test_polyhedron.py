@@ -1,7 +1,7 @@
 import logging
-import pytest
 
 import numpy as np
+import pytest
 
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
@@ -233,7 +233,7 @@ def test_should_not_create_nullspace_polyhedron_if_infeasible_1():
                 1.00000000e+03, 1.00000000e+03, 1.00000000e+03,
                 1.00000000e+03, 1.00000000e+03])
     # fmt: on
-    P = Polyhedron(A=A, b=b)
+    P = Polyhedron(H=A, h=b)
     # Getting samples creates the null space polyhedron if it has equality constraints
     P.get_samples(1)
     assert not hasattr(P, "_null_space_polyhedron")

@@ -1,6 +1,6 @@
 import itertools
 import logging
-from typing import List
+from typing import List, Type
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,41 +26,44 @@ logger = logging.getLogger(__name__)
 
 class Polyhedron(ConvexSet):
     """
-    Wrapper for the Drake HPolyhedron class that uses the half-space representation: {x| A x ≤ b}
+    Wrapper for the Drake HPolyhedron class that uses the half-space representation: {x| H x ≤ h}
     """
 
-    def __init__(self, A, b, should_compute_vertices=True):
+    def __init__(self, H, h, should_compute_vertices=True):
         """
         Default constructor for the polyhedron {x| A x ≤ b}.
         """
         self._vertices = None
         self._center = None
 
-        A = np.array(A)
-        b = np.array(b)
+        H = np.array(H)
+        h = np.array(h)
+        self._H = H
+        self._h = h
 
         # Detect and remove rows with very small A and b, practically zero \leq zero
-        for i, (a1, b1) in enumerate(zip(A, b)):
+        for i, (a1, b1) in enumerate(zip(H, h)):
             if np.allclose(a1, 0) and np.isclose(b1, 0):
+                logger.error(f"row {i} in polyhedron is practically 0.")
                 # logger.debug(
                 #     f"Removing row {i} from A and b, because they are practically zero."
                 # )
-                A = np.delete(A, i, axis=0)
-                b = np.delete(b, i)
+                # H = np.delete(H, i, axis=0)
+                # h = np.delete(h, i)
 
-        self._h_polyhedron = HPolyhedron(A, b)
+        self._h_polyhedron = HPolyhedron(H, h)
 
         if should_compute_vertices:
-            if A.shape[1] == 1 or self._h_polyhedron.IsEmpty():
+            if H.shape[1] == 1 or self._h_polyhedron.IsEmpty():
                 logger.warning("Polyhedron is empty or 1D, skipping compute vertices")
                 return
 
-            vertices = VPolytope(HPolyhedron(A, b)).vertices().T
+            vertices = VPolytope(HPolyhedron(H, h)).vertices().T
             hull = ConvexHull(vertices)  # orders vertices counterclockwise
             self._vertices = vertices[hull.vertices]
-            A, b = Polyhedron._reorder_A_b_by_vertices(A, b, self._vertices)
+            H, h = Polyhedron._reorder_A_b_by_vertices(H, h, self._vertices)
 
-            self._h_polyhedron = HPolyhedron(A, b)
+            self._h_polyhedron = HPolyhedron(H, h)
 
             # Compute center
             try:
@@ -88,50 +91,70 @@ class Polyhedron(ConvexSet):
             polyhedron._vertices = vertices
             # Set center to be the mean of the vertices
             polyhedron._center = np.mean(vertices, axis=0)
+
+        polyhedron._A, polyhedron._b, polyhedron._C, polyhedron._d = (
+            Polyhedron.get_separated_inequality_equality_constraints(
+                h_polyhedron.A(), h_polyhedron.b()
+            )
+        )
         return polyhedron
 
     @classmethod
-    def from_constraints(cls, constraints: List[Formula], variables: List[Variable]):
+    def from_constraints(
+        cls: Type["Polyhedron"], constraints: List[Formula], variables: np.ndarray
+    ):
         """
         Construct a polyhedron from a list of constraint formulas.
         Args:
             constraints: array of constraint formulas.
             variables: array of variables.
         """
-
-        # In case the constraints or variables were multi-dimensional lists
-        constraints = np.concatenate([c.flatten() for c in constraints])
-        variables = np.concatenate([v.flatten() for v in variables])
-
-        expressions = []
+        A, b, C, d = None, None, None, None
+        ineq_expr = []
+        eq_expr = []
         for formula in constraints:
             kind = formula.get_kind()
             lhs, rhs = formula.Unapply()[1]
             if kind == FormulaKind.Eq:
-                # Eq constraint ax = b is
-                # implemented as ax ≤ b, -ax <= -b
-                expressions.append(lhs - rhs)
-                expressions.append(rhs - lhs)
+                # Eq constraint lhs = rhs ==> lhs - rhs = 0
+                eq_expr.append(lhs - rhs)
             elif kind == FormulaKind.Geq:
                 # lhs >= rhs
                 # ==> rhs - lhs ≤ 0
-                expressions.append(rhs - lhs)
+                ineq_expr.append(rhs - lhs)
             elif kind == FormulaKind.Leq:
                 # lhs ≤ rhs
                 # ==> lhs - rhs ≤ 0
-                expressions.append(lhs - rhs)
+                ineq_expr.append(lhs - rhs)
 
-        # We now have expr ≤ 0 for all expressions
+        # We now have expr ≤ 0 for all inequality expressions
         # ==> we get Ax - b ≤ 0
-        A, b_neg = DecomposeAffineExpressions(expressions, variables)
+        if ineq_expr:
+            A, b_neg = DecomposeAffineExpressions(ineq_expr, variables)
+            b = -b_neg
+            logger.debug(f"Decomposed inequality constraints: A = {A}, b = {b}")
+        if eq_expr:
+            C, d_neg = DecomposeAffineExpressions(eq_expr, variables)
+            d = -d_neg
+            logger.debug(f"Decomposed equality constraints: C = {C}, d = {d}")
 
-        # Polyhedrons are of the form: Ax <= b
-        b = -b_neg
-        polyhedron = cls(A, b)
+        if ineq_expr and eq_expr:
+            # Rescaled Matrix H, and vector h
+            H = np.vstack((A, C, -C))
+            h = np.concatenate((b, d, -d))
+            polyhedron = cls(H, h, should_compute_vertices=False)
+        elif ineq_expr:
+            polyhedron = cls(A, b, should_compute_vertices=False)
+        elif eq_expr:
+            polyhedron = cls(C, d, should_compute_vertices=False)
+        else:
+            raise ValueError("No constraints given")
 
-        polyhedron.constraints = constraints
-        polyhedron.variables = variables
-        polyhedron.expressions = expressions
+        # Store the separated inequality and equality constraints
+        polyhedron._A = A
+        polyhedron._b = b
+        polyhedron._C = C
+        polyhedron._d = d
 
         return polyhedron
 
@@ -287,6 +310,7 @@ class Polyhedron(ConvexSet):
         """Equality constraints are enforced by having one row in A and b be: ax ≤ b and another row be: -ax ≤ -b.
         So checking if any pairs of rows add up to 0 tells us whether there are any equality constraints.
         """
+        logger.warn("This method should not be used, it is very slow.")
         for (i, (a1, b1)), (j, (a2, b2)) in itertools.combinations(
             enumerate(zip(A, b)), 2
         ):
@@ -307,7 +331,7 @@ class Polyhedron(ConvexSet):
         A_original, b_original, rtol=1e-5, atol=1e-8
     ):
         """Separate and return A, b, C, d where A x ≤ b are inequalities and C x = d are equalities."""
-
+        logger.warn("This method should not be used, it is very slow.")
         equality_indices = set()
         equality_rows = []
 
@@ -348,9 +372,9 @@ class Polyhedron(ConvexSet):
             self.set.A(), self.set.b()
         )
 
-        # logger.debug(
-        #     f"\n A.shape: {A.shape}, b.shape: {b.shape}, C.shape: {C.shape}, d.shape: {d.shape}"
-        # )
+        logger.debug(
+            f"\n A.shape: {A.shape}, b.shape: {b.shape}, C.shape: {C.shape}, d.shape: {d.shape}"
+        )
         # logger.debug(
         #     f"ranks: A: {np.linalg.matrix_rank(A)}, C: {np.linalg.matrix_rank(C)}"
         # )
@@ -369,7 +393,7 @@ class Polyhedron(ConvexSet):
         b_prime = b - A @ self._x_0
 
         self._null_space_polyhedron = Polyhedron(
-            A=A_prime, b=b_prime, should_compute_vertices=False
+            H=A_prime, h=b_prime, should_compute_vertices=False
         )
 
     def get_samples(self, n_samples=100):
@@ -378,9 +402,9 @@ class Polyhedron(ConvexSet):
             if Polyhedron._check_contains_equality_constraints(
                 self.set.A(), self.set.b()
             ):
-                # logger.debug(
-                #     "Polyhedron has equality constraints, creating null space polyhedron"
-                # )
+                logger.debug(
+                    "Polyhedron has equality constraints, creating null space polyhedron"
+                )
                 self._has_equality_constraints = True
                 if not self._h_polyhedron.IsEmpty():
                     self._create_null_space_polyhedron()
@@ -428,3 +452,27 @@ class Polyhedron(ConvexSet):
     @property
     def center(self):
         return self._center
+
+    @property
+    def H(self):
+        return self._H
+
+    @property
+    def h(self):
+        return self._h
+
+    @property
+    def A(self):
+        return self._A
+
+    @property
+    def b(self):
+        return self._b
+
+    @property
+    def C(self):
+        return self._C
+
+    @property
+    def d(self):
+        return self._d

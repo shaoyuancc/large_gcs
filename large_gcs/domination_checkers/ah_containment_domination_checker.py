@@ -1,12 +1,26 @@
 import logging
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pypolycontain as pp
-from pydrake.all import HPolyhedron, L1NormCost, MathematicalProgram, Solve
+import scipy
+from pydrake.all import (
+    CommonSolverOption,
+    Constraint,
+    HPolyhedron,
+    L1NormCost,
+    LinearConstraint,
+    LinearEqualityConstraint,
+    MathematicalProgram,
+    Solve,
+    SolverOptions,
+)
 
 from large_gcs.algorithms.search_algorithm import AlgMetrics, SearchNode, profile_method
+from large_gcs.contact.contact_set import ContactSet
 from large_gcs.domination_checkers.domination_checker import DominationChecker
+from large_gcs.geometry.geometry_utils import create_selection_matrix
+from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.graph import Graph
 
 logger = logging.getLogger(__name__)
@@ -22,20 +36,40 @@ class AHContainmentDominationChecker(DominationChecker):
         call_structure = {
             "_is_dominated": [
                 "is_contained_in",
-                "get_feasibility_matrices",
-                "get_epigraph_matrices",
+                "_create_path_AH_polytope",
             ],
             "is_contained_in": [
-                "_create_AH_polytopes",
                 "_solve_containment_prog",
             ],
         }
         alg_metrics.update_method_call_structure(call_structure)
 
+    def is_dominated(
+        self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
+    ) -> bool:
+        """
+        Checks if a candidate path is dominated completely by any one of the alternate paths.
+        """
+        logger.debug(
+            f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"
+            f"\n via path: {candidate_node.vertex_path}"
+        )
+        AH_n = self._create_path_AH_polytope(candidate_node)
+        for alt_n in alternate_nodes:
+            logger.debug(
+                f"Checking if candidate node is dominated by alternate node with path:"
+                f"{alt_n.vertex_path}"
+            )
+            AH_alt = self._create_path_AH_polytope(alt_n)
+            if self.is_contained_in(AH_n, AH_alt):
+                return True
+        return False
+
     @profile_method
-    def is_contained_in(self, A_x, b_x, T_x, A_y, b_y, T_y) -> bool:
+    def is_contained_in(
+        self, AH_X: pp.objects.AH_polytope, AH_Y: pp.objects.AH_polytope
+    ) -> bool:
         logger.debug(f"Checking containment")
-        AH_X, AH_Y = self._create_AH_polytopes(A_x, b_x, T_x, A_y, b_y, T_y)
 
         prog = MathematicalProgram()
 
@@ -46,20 +80,204 @@ class AHContainmentDominationChecker(DominationChecker):
 
         return self._solve_containment_prog(prog)
 
+    def is_contained_in_w_AbCd_decomposition(
+        self, A_x, b_x, T_x, A_y, b_y, T_y
+    ) -> bool:
+        logger.debug(f"Checking containment")
+
+        A_x, b_x, C_x, d_x = Polyhedron.get_separated_inequality_equality_constraints(
+            A_x, b_x
+        )
+        K_x, k_x, T_x, t_x = self._nullspace_polyhedron_and_transformation(
+            A_x, b_x, C_x, d_x, T_x
+        )
+        A_y, b_y, C_y, d_y = Polyhedron.get_separated_inequality_equality_constraints(
+            A_y, b_y
+        )
+        K_y, k_y, T_y, t_y = self._nullspace_polyhedron_and_transformation(
+            A_y, b_y, C_y, d_y, T_y
+        )
+
+        AH_X, AH_Y = self._create_AH_polytopes(K_x, k_x, T_x, t_x, K_y, k_y, T_y, t_y)
+
+        prog = MathematicalProgram()
+
+        # https://github.com/sadraddini/pypolycontain/blob/master/pypolycontain/containment.py#L123
+        # -1 for sufficient condition
+        # pick `0` for necessary and sufficient encoding (may be too slow) (2019b)
+        pp.subset(prog, AH_X, AH_Y, self._containment_condition)
+
+        return self._solve_containment_prog(prog)
+
+    def _nullspace_polyhedron_and_transformation(self, A, b, C, d, T):
+        A_invalid = A is None or A.shape[0] == 0
+        C_invalid = C is None or C.shape[0] == 0
+
+        if A_invalid and C_invalid:
+            raise ValueError("A and C cannot both be empty")
+        elif A_invalid:
+            raise NotImplementedError(
+                "The case where A is empty hasn't been implemented yet"
+            )
+        elif C_invalid:
+            # There are no equality constraints
+            return A, b, T, np.zeros((T.shape[0], 1))
+
+        # Compute the basis of the null space of C
+        V = scipy.linalg.null_space(C)
+
+        # Compute a point in the null space of C
+        x_0, residuals, rank, s = np.linalg.lstsq(C, d, rcond=None)
+
+        A_prime = A @ V
+        b_prime = b - A @ x_0
+
+        T_prime = T @ V
+        t_prime = T @ x_0
+
+        return A_prime, b_prime, T_prime, t_prime
+
     @profile_method
-    def _create_AH_polytopes(self, A_x, b_x, T_x, A_y, b_y, T_y):
+    def _create_AH_polytopes(self, A_x, b_x, T_x, t_x, A_y, b_y, T_y, t_y):
         X = pp.H_polytope(A_x, b_x)
         Y = pp.H_polytope(A_y, b_y)
 
-        AH_X = pp.AH_polytope(np.zeros((T_x.shape[0], 1)), T_x, X)
-        AH_Y = pp.AH_polytope(np.zeros((T_y.shape[0], 1)), T_y, Y)
+        AH_X = pp.AH_polytope(t_x, T_x, X)
+        AH_Y = pp.AH_polytope(t_y, T_y, Y)
         return AH_X, AH_Y
+
+    @profile_method
+    def _create_path_AH_polytope(self, node: SearchNode):
+        A, b, C, d = self.get_path_A_b_C_d(node)
+        H = np.vstack([A, C, -C])
+        h = np.hstack([b, d, -d])
+        T_H = self.get_H_transformation(node, H)
+        K, k, T, t = self._nullspace_polyhedron_and_transformation(A, b, C, d, T_H)
+        X = pp.H_polytope(K, k)
+        return pp.AH_polytope(t, T, X)
 
     @profile_method
     def _solve_containment_prog(self, prog: MathematicalProgram):
         logger.debug(f"Solving containment prog")
-        result = Solve(prog)
+        solver_options = SolverOptions()
+        # solver_options.SetOption(
+        #     CommonSolverOption.kPrintFileName, str("mosek_log.txt")
+        # )
+        # solver_options.SetOption(
+        #     CommonSolverOption.kPrintToConsole, 1
+        # )
+
+        result = Solve(prog, solver_options=solver_options)
         return result.is_success()
+
+    @profile_method
+    def get_path_A_b_C_d(
+        self, node: SearchNode
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Get the A, b, C, d matrices that define the polyhedron that represents the path.
+        Where Ax <= b are the inequality constraints and Cx = d are the equality constraints.
+        A.shape = (m, N) where m is the number of constraints and N is the total number of decision variables.
+        b.shape = (m,)
+        C.shape = (p, N) where p is the number of equality constraints
+        d.shape = (p,)
+        """
+        # ASSUMPTION: polyhedral sets for the vertices. Linear costs for the vertices and edges.
+        if self.include_cost_epigraph:
+            raise NotImplementedError()
+
+        # First, collect all the decision variables
+        vertices = [self._graph.vertices[name].gcs_vertex for name in node.vertex_path]
+        edges = [self._graph.edges[edge].gcs_edge for edge in node.edge_path]
+
+        v_dims = [v.ambient_dimension() for v in vertices]
+        current_index = 0
+        # Collect the indices of the decision variables for each vertex
+        x = []
+        for i, dim in enumerate(v_dims):
+            x.append(list(range(current_index, current_index + dim)))
+            current_index += dim
+        # Total number of decision variables
+        N = current_index
+        logger.debug(
+            f"Total number of decision variables {N}, sum of v_dims {sum(v_dims)}"
+        )
+        assert N == sum(v_dims)
+        # Collect all the inequality and equality constraints
+        ASs, bs, CSs, ds = (
+            [np.empty((0, N))],
+            [np.empty((0))],
+            [np.empty((0, N))],
+            [np.empty((0))],
+        )
+        # A_i @ S_i will give the constraints for all the variables so can be vstacked to big_A
+        # (m x n) (n x N) = (m x N)
+
+        def process_constraint(constraint: Constraint, S_i):
+            logger.debug(f"constraint {constraint}")
+            # logger.debug(f"lower bound {constraint.lower_bound()}")
+            # logger.debug(f"upper bound {constraint.upper_bound()}")
+            # Note: It is important that this branch comes first since LinearEqualityConstraint is a subclass of LinearConstraint
+            if isinstance(constraint, LinearEqualityConstraint):
+                logger.debug(f"Adding linear equality constraint")
+                # Add to the equality constraints
+                CSs.append(constraint.GetDenseA() @ S_i)
+                # Note for equality constraints, the lower and upper bounds are the same
+                ds.append(constraint.lower_bound())
+                # logger.debug(f"Added to ds, {ds}")
+            elif isinstance(constraint, LinearConstraint):
+                logger.debug(f"Adding linear constraint")
+                # Add to the inequality constraints
+                if not np.all(constraint.lower_bound() == -np.inf):
+                    # -Ax <= -b ==> Ax >= b
+                    ASs.append((-constraint.GetDenseA()) @ S_i)
+                    bs.append(-constraint.lower_bound())
+                if not np.all(constraint.upper_bound() == np.inf):
+                    ASs.append(constraint.GetDenseA() @ S_i)
+                    bs.append(constraint.upper_bound())
+            else:
+                raise ValueError("Unsupported constraint type")
+
+        for i, v_name in enumerate(node.vertex_path):
+            convex_set = self._graph.vertices[v_name].convex_set
+
+            S_i = create_selection_matrix(x[i], N)
+            # logger.debug(f"S_i.shape {S_i.shape}")
+            # Point In Set Constraints
+            if convex_set.A is not None and convex_set.A.shape[0] != 0:
+                ASs.append(convex_set.A @ S_i)
+                bs.append(convex_set.b)
+                # logger.debug(f"Point in set {i} added to bs, {bs}")
+            if convex_set.C is not None and convex_set.C.shape[0] != 0:
+                logger.debug(f"C.shape {convex_set.C.shape}")
+                CSs.append(convex_set.C @ S_i)
+                ds.append(convex_set.d)
+                # logger.debug(f"Point in set {i} added to ds, {ds}")
+
+            # Vertex Constraints
+            logger.debug(f"processing vertex constraint vertices[{i}]")
+            for binding in vertices[i].GetConstraints():
+                process_constraint(binding.evaluator(), S_i)
+
+        for i, e in enumerate(edges):
+            # Edges will be two adjacent vertices in the path.
+            S_i = create_selection_matrix(x[i] + x[i + 1], N)
+            # Edge constraints
+            logger.debug(f"processing edge constraint edge[{i}]")
+            for binding in e.GetConstraints():
+                process_constraint(binding.evaluator(), S_i)
+
+        # Stack all the ASs, bs, CSs, ds
+        # logger.debug(f"ASs {ASs}")
+        # logger.debug(f"bs {bs}")
+        # logger.debug(f"CSs {CSs}")
+        # logger.debug(f"ds {ds}")
+        big_A = np.vstack(ASs)
+        big_b = np.concatenate(bs)
+        big_C = np.vstack(CSs)
+        big_d = np.concatenate(ds)
+
+        return big_A, big_b, big_C, big_d
 
     def get_path_constraint_mathematical_program(
         self, node: SearchNode
@@ -119,6 +337,24 @@ class AHContainmentDominationChecker(DominationChecker):
                 prog.AddConstraint(constraint, x)
 
             # Vertex Costs
+            for binding in v.GetCosts():
+                cost = binding.evaluator()
+                if isinstance(cost, L1NormCost):
+                    A = cost.A()
+                    t = prog.NewContinuousVariables(
+                        A.shape[0], name=f"{v_name}_l1norm_cost"
+                    )
+                    prog.AddLinearCost(np.sum(t))
+                    prog.AddLinearConstraint(
+                        A @ x - t, np.ones(A.shape[0]) * (-np.inf), np.zeros(A.shape[0])
+                    )
+                    prog.AddLinearConstraint(
+                        -A @ x - t,
+                        np.ones(A.shape[0]) * (-np.inf),
+                        np.zeros(A.shape[0]),
+                    )
+                else:
+                    prog.AddCost(cost, variables)
 
         for e, e_name in zip(edges, node.edge_path):
             u_name, v_name = self._graph.edges[e_name].u, self._graph.edges[e_name].v
@@ -142,7 +378,6 @@ class AHContainmentDominationChecker(DominationChecker):
                 variables[-len(vertex_vars[v_idx]) :] = vertex_vars[v_idx]
                 if isinstance(cost, L1NormCost):
                     A = cost.A()
-                    # For now assume that u and v are of the same dimension
                     t = prog.NewContinuousVariables(
                         A.shape[0], name=f"{e_name}_l1norm_cost"
                     )
@@ -162,9 +397,8 @@ class AHContainmentDominationChecker(DominationChecker):
 
         return prog
 
-    @profile_method
-    def get_feasibility_matrices(self, node: SearchNode):
-        logger.debug(f"Getting feasibility matrices")
+    def get_feasibility_matrices_via_prog(self, node: SearchNode):
+        logger.debug(f"get_feasibility_matrices_via_prog")
         prog = self.get_path_constraint_mathematical_program(node)
         X = HPolyhedron(prog)
         return X.A(), X.b()
@@ -199,11 +433,10 @@ class AHContainmentDominationChecker(DominationChecker):
 
         return A_x, b_x
 
-    def get_projection_transformation(
+    def get_H_transformation(
         self,
         node: SearchNode,
         A: np.ndarray,
-        include_cost_epigraph: bool,
         vertex_idx_to_project_to: Optional[int] = None,
     ):
         """
@@ -213,11 +446,11 @@ class AHContainmentDominationChecker(DominationChecker):
         Args:
             - node(SearchNode) : Defines the path which defines the original matrix that will be projected.
             - A(np.ndarray) : The A matrix of the polyhedron (Ax <= b) that will get transformed.
-            - include_cost_epigraph(bool) : Whether to include the cost epigraph in the projection.
-            Assumed to be the last decision variable in x.
             - vertex_idx_to_project_to(Optional[int]) : Index of the vertex to project to. If None, will project to the last vertex in the path.
+
+        Note: Cost epigraph variable assumed to be the last decision variable in x.
         """
-        logger.debug(f"Getting projection transformation")
+        logger.debug(f"Getting H projection transformation")
         total_dims = A.shape[1]
         if vertex_idx_to_project_to is None:
             vertex_idx_to_project_to = len(node.vertex_path) - 1
@@ -226,14 +459,14 @@ class AHContainmentDominationChecker(DominationChecker):
             self._graph.vertices[name].convex_set.dim for name in node.vertex_path
         ]
         proj_dims = v_dims[vertex_idx_to_project_to]
-        if include_cost_epigraph:
+        if self.include_cost_epigraph:
             proj_dims += 1
         matrices_to_stack = []
         cols_count = 0
         for i in range(len(node.vertex_path)):
             if i == vertex_idx_to_project_to:
                 M = np.eye(v_dims[i])
-                if include_cost_epigraph:
+                if self.include_cost_epigraph:
                     M = np.vstack([M, np.zeros((1, v_dims[i]))])
                 matrices_to_stack.append(M)
             else:
@@ -241,7 +474,7 @@ class AHContainmentDominationChecker(DominationChecker):
             cols_count += v_dims[i]
         if cols_count < total_dims:
             M = np.zeros((proj_dims, total_dims - cols_count))
-            if include_cost_epigraph:
+            if self.include_cost_epigraph:
                 M[-1, -1] = 1
             matrices_to_stack.append(M)
 
@@ -253,3 +486,7 @@ class AHContainmentDominationChecker(DominationChecker):
             if list[i].get_id() == el.get_id():
                 return i
         return -1
+
+    @property
+    def include_cost_epigraph(self):
+        raise NotImplementedError("Subclasses must implement this property")

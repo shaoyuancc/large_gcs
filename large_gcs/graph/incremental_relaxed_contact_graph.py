@@ -78,9 +78,7 @@ class IncrementalRelaxedContactGraph(IncrementalContactGraph):
         set_force_constraints = []
         for obj_name in no_contact_objs:
             vars_vel = self._body_dict[obj_name].vars_vel
-            set_force_constraints += eq(
-                vars_vel, np.zeros_like(vars_vel)
-            ).tolist()
+            set_force_constraints += eq(vars_vel, np.zeros_like(vars_vel)).tolist()
 
         contact_set = ContactSet.from_objs_robs(
             [self._contact_pair_modes[mode_id] for mode_id in mode_ids],

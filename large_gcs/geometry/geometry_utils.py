@@ -14,6 +14,7 @@ from pydrake.all import (
 
 logger = logging.getLogger(__name__)
 
+
 def is_on_hyperplane(a, b, x):
     """Returns whether x is on the hyperplane defined by ax = b.
     a and x are vectors with the same dimension, b is a scalar.
@@ -56,13 +57,14 @@ def unique_rows_with_tolerance_ignore_nan(arr, tol=1e-5):
 
     return unique_rows
 
+
 BOUND_FOR_POLYHEDRON = 10.0
+
 
 def HPolyhedronAbFromConstraints(
     constraints: List[Formula],
     variables: np.ndarray,
     make_bounded: bool = False,
-    remove_constraints_not_in_vars: bool = False,
     BOUND: float = BOUND_FOR_POLYHEDRON,
 ):
     """
@@ -75,7 +77,7 @@ def HPolyhedronAbFromConstraints(
     # logger.debug(f"constraints len: {len(constraints)}")
     # for i, constraint in enumerate(constraints):
     #     logger.debug(f"constraint {i}: {constraint}")
-    
+
     if make_bounded:
         ub = np.ones(variables.shape) * BOUND
         upper_limits = le(variables, ub)
@@ -85,57 +87,42 @@ def HPolyhedronAbFromConstraints(
         limits = np.concatenate((upper_limits, lower_limits))
         constraints = np.append(constraints, limits)
 
-    expressions = []
+    ineq_expr = []
+    eq_expr = []
     for formula in constraints:
-        # print(formula)
         kind = formula.get_kind()
         lhs, rhs = formula.Unapply()[1]
         if kind == FormulaKind.Eq:
             # Eq constraint ax = b is
-            # implemented as ax ≤ b, -ax <= -b
-            expressions.append(lhs - rhs)
-            expressions.append(rhs - lhs)
+            eq_expr.append(lhs - rhs)
         elif kind == FormulaKind.Geq:
             # lhs >= rhs
             # ==> rhs - lhs ≤ 0
-            expressions.append(rhs - lhs)
+            ineq_expr.append(rhs - lhs)
         elif kind == FormulaKind.Leq:
             # lhs ≤ rhs
             # ==> lhs - rhs ≤ 0
-            expressions.append(lhs - rhs)
-        else:
-            raise NotImplementedError("Type of constraint formula not implemented")
+            ineq_expr.append(lhs - rhs)
 
-    if remove_constraints_not_in_vars:
-
-        def check_all_vars_are_relevant(exp):
-            return all(
-                [
-                    exp_var
-                    in Variables(
-                        variables
-                    )  # Need to convert this to Variables to check contents
-                    for exp_var in exp.GetVariables()
-                ]
-            )
-
-        expressions = list(filter(check_all_vars_are_relevant, expressions))
-
-    # We now have expr ≤ 0 for all expressions
+    # We now have expr ≤ 0 for all inequality expressions
     # ==> we get Ax - b ≤ 0
-    A, b_neg = DecomposeAffineExpressions(expressions, variables)
+    A, b_neg = DecomposeAffineExpressions(ineq_expr, variables)
+    C, d_neg = DecomposeAffineExpressions(eq_expr, variables)
 
-    # Polyhedrons are of the form: Ax <= b
     b = -b_neg
+    d = -d_neg
 
-    return A, b
+    # Rescaled Matrix H, and vector h
+    H = np.vstack((A, C, -C))
+    h = np.concatenate((b, d, -d))
+
+    return H, h
 
 
 def HPolyhedronFromConstraints(
     constraints: List[Formula],
     variables: np.ndarray,
-    make_bounded: bool = True,
-    remove_constraints_not_in_vars: bool = False,
+    make_bounded: bool = False,
     BOUND: float = BOUND_FOR_POLYHEDRON,
 ):
     """
@@ -149,9 +136,40 @@ def HPolyhedronFromConstraints(
         constraints,
         variables,
         make_bounded,
-        remove_constraints_not_in_vars,
         BOUND,
     )
     polyhedron = HPolyhedron(A, b)
 
     return polyhedron
+
+
+def create_selection_matrix(x_indices, x_length):
+    """
+    Create a selection matrix for a given set of indices in the full vector x.
+
+    Parameters:
+    x_indices (list of int): Indices of the elements of x_i in the full vector x.
+    x_length (int): Length of the full vector x.
+
+    Returns:
+    np.ndarray: The selection matrix S_i of shape (len(x_i), len(x)).
+
+    # Example usage:
+    x_length = 5  # Length of the full vector x
+    x1_indices = [0, 1, 2]  # Indices of x1 in x
+    x2_indices = [1, 3, 4]  # Indices of x2 in x
+
+    S1 = create_selection_matrix(x1_indices, x_length)
+    S2 = create_selection_matrix(x2_indices, x_length)
+    """
+    m = len(x_indices)  # Number of elements in x_i
+    n = x_length  # Length of the full vector x
+
+    # Initialize the selection matrix with zeros
+    S = np.zeros((m, n))
+
+    # Set the appropriate elements to 1
+    for row, col in enumerate(x_indices):
+        S[row, col] = 1
+
+    return S

@@ -10,33 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class ReachesNewContainment(AHContainmentDominationChecker):
-    def is_dominated(
-        self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
-    ) -> bool:
-        """
-        Checks if a candidate path is dominated completely by any one of the alternate paths.
-        """
-        logger.debug(
-            f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"
-            f"\n via path: {candidate_node.vertex_path}"
-        )
-        A_n, b_n = self.get_feasibility_matrices(candidate_node)
-        T_n = self.get_projection_transformation(
-            node=candidate_node,
-            A=A_n,
-            include_cost_epigraph=False,
-        )
-        for alt_n in alternate_nodes:
-            logger.debug(
-                f"Checking if candidate node is dominated by alternate node with path:"
-                f"{alt_n.vertex_path}"
-            )
-            A_alt, b_alt = self.get_feasibility_matrices(alt_n)
-            T_alt = self.get_projection_transformation(
-                node=alt_n,
-                A=A_alt,
-                include_cost_epigraph=False,
-            )
-            if self.is_contained_in(A_n, b_n, T_n, A_alt, b_alt, T_alt):
-                return True
+    @property
+    def include_cost_epigraph(self):
         return False

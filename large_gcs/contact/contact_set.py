@@ -52,7 +52,23 @@ class ContactPointSet(ConvexSet):
 
     @property
     def center(self):
+        return self._point.x()
+
+    @property
+    def A(self):
         return None
+
+    @property
+    def b(self):
+        return None
+
+    @property
+    def C(self):
+        return np.eye(self.dim)
+
+    @property
+    def d(self):
+        return self._point.x()
 
 
 class ContactSet(ConvexSet):
@@ -62,7 +78,6 @@ class ContactSet(ConvexSet):
         contact_pair_modes: List[ContactPairMode],
         additional_constraints: List[Formula] = None,
         additional_base_constraints: List[Formula] = None,
-        remove_constraints_not_in_vars=False,
     ):
         self.vars = vars
 
@@ -83,16 +98,13 @@ class ContactSet(ConvexSet):
             self.constraint_formulas.extend(additional_constraints)
         if additional_base_constraints is not None:
             self.base_constraint_formulas.extend(additional_base_constraints)
-        A, b = HPolyhedronAbFromConstraints(
-            self.constraint_formulas,
-            self.vars.all,
-            remove_constraints_not_in_vars=remove_constraints_not_in_vars,
+
+        self._polyhedron = Polyhedron.from_constraints(
+            self.constraint_formulas, self.vars.all
         )
-        self._polyhedron = Polyhedron(A, b, should_compute_vertices=False)
         self._base_polyhedron = HPolyhedronFromConstraints(
             self.base_constraint_formulas,
             self.vars.base_all,
-            remove_constraints_not_in_vars=remove_constraints_not_in_vars,
         )
 
     @classmethod
@@ -117,7 +129,6 @@ class ContactSet(ConvexSet):
             contact_pair_modes,
             additional_constraints,
             additional_base_constraints,
-            False,
         )
 
     @classmethod
@@ -134,7 +145,6 @@ class ContactSet(ConvexSet):
             contact_pair_modes,
             additional_constraints,
             additional_base_constraints,
-            True,
         )
 
     # def plot_base_set(self):
@@ -174,3 +184,27 @@ class ContactSet(ConvexSet):
     @property
     def center(self):
         return None
+
+    @property
+    def H(self):
+        return self._polyhedron.H
+
+    @property
+    def h(self):
+        return self._polyhedron.h
+
+    @property
+    def A(self):
+        return self._polyhedron.A
+
+    @property
+    def b(self):
+        return self._polyhedron.b
+
+    @property
+    def C(self):
+        return self._polyhedron.C
+
+    @property
+    def d(self):
+        return self._polyhedron.d

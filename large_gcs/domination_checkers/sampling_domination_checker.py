@@ -283,11 +283,16 @@ class SetSamples:
 
 
 class SamplingDominationChecker(DominationChecker):
-    def __init__(self, graph: Graph, num_samples_per_vertex: int):
+    def __init__(
+        self,
+        graph: Graph,
+        num_samples_per_vertex: int,
+        should_use_precomputed_sample: bool = False,
+    ):
         super().__init__(graph)
 
         self._num_samples_per_vertex = num_samples_per_vertex
-
+        self._should_use_precomputed_sample = should_use_precomputed_sample
         # Keeps track of samples for each vertex(set) in the graph.
         # These samples are not used directly but first projected into the feasible subspace of a particular path.
         self._set_samples: dict[str, SetSamples] = {}
@@ -305,12 +310,19 @@ class SamplingDominationChecker(DominationChecker):
 
     @profile_method
     def _maybe_add_set_samples(self, vertex_name: str) -> None:
-        if vertex_name not in self._set_samples:
+        # Subtract 1 from the number of samples needed if we should use the provided sample is provided
+        n_samples_needed = (
+            self._num_samples_per_vertex - 1
+            if self._should_use_precomputed_sample
+            else self._num_samples_per_vertex
+        )
+
+        if vertex_name not in self._set_samples and n_samples_needed > 0:
             logger.debug(f"Adding samples for {vertex_name}")
             self._set_samples[vertex_name] = SetSamples.from_vertex(
                 vertex_name,
                 self._graph.vertices[vertex_name],
-                self._num_samples_per_vertex,
+                n_samples_needed,
             )
 
     def _solve_conv_res_to_sample(

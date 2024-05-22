@@ -67,14 +67,14 @@ class ContactRegionsSet(ConvexSet):
                 for rob_index in region_params.rob_indices:
                     add_constraint_formulas(region, robots[rob_index])
 
+        self._polyhedron = Polyhedron.from_constraints(
+            self.constraint_formulas, self.vars.base_all
+        )
         self._base_polyhedron = HPolyhedronFromConstraints(
             self.constraint_formulas,
             self.vars.base_all,
             make_bounded=False,
-            remove_constraints_not_in_vars=False,
         )
-        self._polyhedron = self._base_polyhedron
-
         self._name = name
 
     @staticmethod
@@ -100,7 +100,7 @@ class ContactRegionsSet(ConvexSet):
 
     @property
     def set(self):
-        return self._polyhedron
+        return self._base_polyhedron
 
     @property
     def base_set(self):
@@ -109,3 +109,27 @@ class ContactRegionsSet(ConvexSet):
     @property
     def center(self):
         return None
+
+    @property
+    def H(self):
+        return self._polyhedron.H
+
+    @property
+    def h(self):
+        return self._polyhedron.h
+
+    @property
+    def A(self):
+        return self._polyhedron.A
+
+    @property
+    def b(self):
+        return self._polyhedron.b
+
+    @property
+    def C(self):
+        return self._polyhedron.C
+
+    @property
+    def d(self):
+        return self._polyhedron.d

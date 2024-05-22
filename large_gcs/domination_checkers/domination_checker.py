@@ -12,7 +12,7 @@ class DominationChecker(ABC):
 
     @abstractmethod
     def is_dominated(
-        self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
+        self, candidate_node: SearchNode, alternate_nodes: List[SearchNode], **kwargs
     ) -> bool:
         pass
 
