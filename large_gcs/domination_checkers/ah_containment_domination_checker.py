@@ -199,6 +199,75 @@ class AHContainmentDominationChecker(DominationChecker):
             current_index += dim
         # Total number of decision variables
         N = current_index
+
+        if self.include_cost_epigraph:
+            # Use a mathematical prog to collate the costs
+            prog = MathematicalProgram()
+            vertex_vars = [
+                prog.NewContinuousVariables(
+                    v.ambient_dimension(), name=f"{v_name}_vars"
+                )
+                for v, v_name in zip(vertices, node.vertex_path)
+            ]
+            # Vertex Costs:
+            for v, v_name, x in zip(vertices, node.vertex_path, vertex_vars):
+                for binding in v.GetCosts():
+                    cost = binding.evaluator()
+                    if isinstance(cost, L1NormCost):
+                        A = cost.A()
+                        t = prog.NewContinuousVariables(
+                            A.shape[0], name=f"{v_name}_l1norm_cost"
+                        )
+                        prog.AddLinearCost(np.sum(t))
+                        prog.AddLinearConstraint(
+                            A @ x - t,
+                            np.ones(A.shape[0]) * (-np.inf),
+                            np.zeros(A.shape[0]),
+                        )
+                        prog.AddLinearConstraint(
+                            -A @ x - t,
+                            np.ones(A.shape[0]) * (-np.inf),
+                            np.zeros(A.shape[0]),
+                        )
+                    else:
+                        prog.AddCost(cost, x)
+            # Edge Costs:
+            for e, e_name in zip(edges, node.edge_path):
+                edge = self._graph.edges[e_name]
+                u_name, v_name = edge.u, edge.v
+                u_idx, v_idx = node.vertex_path.index(u_name), node.vertex_path.index(
+                    v_name
+                )
+                for binding in e.GetCosts():
+                    cost = binding.evaluator()
+                    variables = binding.variables()
+                    variables[: len(vertex_vars[u_idx])] = vertex_vars[u_idx]
+                    variables[-len(vertex_vars[v_idx]) :] = vertex_vars[v_idx]
+                    if isinstance(cost, L1NormCost):
+                        A = cost.A()
+                        t = prog.NewContinuousVariables(
+                            A.shape[0], name=f"{e_name}_l1norm_cost"
+                        )
+                        prog.AddLinearCost(np.sum(t))
+                        prog.AddLinearConstraint(
+                            A @ variables - t,
+                            np.ones(A.shape[0]) * (-np.inf),
+                            np.zeros(A.shape[0]),
+                        )
+                        prog.AddLinearConstraint(
+                            -A @ variables - t,
+                            np.ones(A.shape[0]) * (-np.inf),
+                            np.zeros(A.shape[0]),
+                        )
+                    else:
+                        prog.AddCost(cost, variables)
+
+            N = len(prog.decision_variables())
+
+            # Process the extra constraints introduced by the costs
+
+            # later add the epigraph cost as the final row
+
         logger.debug(
             f"Total number of decision variables {N}, sum of v_dims {sum(v_dims)}"
         )
@@ -354,7 +423,7 @@ class AHContainmentDominationChecker(DominationChecker):
                         np.zeros(A.shape[0]),
                     )
                 else:
-                    prog.AddCost(cost, variables)
+                    prog.AddCost(cost, x)
 
         for e, e_name in zip(edges, node.edge_path):
             u_name, v_name = self._graph.edges[e_name].u, self._graph.edges[e_name].v
