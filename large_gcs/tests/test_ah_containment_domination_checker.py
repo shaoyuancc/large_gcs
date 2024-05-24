@@ -119,6 +119,7 @@ def test_reaches_new_containment_cg_stackpush_d2():
         )
 
 
+@pytest.mark.slow_test
 def test_reaches_new_containment_get_path_A_b_C_d_on_cg():
     graph_file = ContactGraphGeneratorParams.inc_graph_file_path_from_name(
         "cg_stackpush_d2"

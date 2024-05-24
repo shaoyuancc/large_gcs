@@ -10,6 +10,7 @@ from pydrake.all import (
     HPolyhedron,
     L1NormCost,
     LinearConstraint,
+    LinearCost,
     LinearEqualityConstraint,
     MathematicalProgram,
     Solve,
@@ -183,8 +184,6 @@ class AHContainmentDominationChecker(DominationChecker):
         equality constraints d.shape = (p,)
         """
         # ASSUMPTION: polyhedral sets for the vertices. Linear costs for the vertices and edges.
-        if self.include_cost_epigraph:
-            raise NotImplementedError()
 
         # First, collect all the decision variables
         vertices = [self._graph.vertices[name].gcs_vertex for name in node.vertex_path]
@@ -210,27 +209,27 @@ class AHContainmentDominationChecker(DominationChecker):
                 for v, v_name in zip(vertices, node.vertex_path)
             ]
             # Vertex Costs:
-            for v, v_name, x in zip(vertices, node.vertex_path, vertex_vars):
+            for v, v_name, v_vars in zip(vertices, node.vertex_path, vertex_vars):
                 for binding in v.GetCosts():
                     cost = binding.evaluator()
                     if isinstance(cost, L1NormCost):
                         A = cost.A()
                         t = prog.NewContinuousVariables(
-                            A.shape[0], name=f"{v_name}_l1norm_cost"
+                            A.shape[0], name=f"{v_name}_vertex_l1norm_cost"
                         )
-                        prog.AddLinearCost(np.sum(t))
+                        prog.AddLinearCost(np.ones(t.shape), t)
                         prog.AddLinearConstraint(
-                            A @ x - t,
+                            A @ v_vars - t,
                             np.ones(A.shape[0]) * (-np.inf),
                             np.zeros(A.shape[0]),
                         )
                         prog.AddLinearConstraint(
-                            -A @ x - t,
+                            -A @ v_vars - t,
                             np.ones(A.shape[0]) * (-np.inf),
                             np.zeros(A.shape[0]),
                         )
                     else:
-                        prog.AddCost(cost, x)
+                        prog.AddCost(cost, v_vars)
             # Edge Costs:
             for e, e_name in zip(edges, node.edge_path):
                 edge = self._graph.edges[e_name]
@@ -240,38 +239,34 @@ class AHContainmentDominationChecker(DominationChecker):
                 )
                 for binding in e.GetCosts():
                     cost = binding.evaluator()
-                    variables = binding.variables()
-                    variables[: len(vertex_vars[u_idx])] = vertex_vars[u_idx]
-                    variables[-len(vertex_vars[v_idx]) :] = vertex_vars[v_idx]
+                    e_vars = np.concatenate((vertex_vars[u_idx], vertex_vars[v_idx]))
                     if isinstance(cost, L1NormCost):
                         A = cost.A()
                         t = prog.NewContinuousVariables(
-                            A.shape[0], name=f"{e_name}_l1norm_cost"
+                            A.shape[0], name=f"{e_name}_edge_l1norm_cost"
                         )
                         prog.AddLinearCost(np.sum(t))
                         prog.AddLinearConstraint(
-                            A @ variables - t,
+                            A @ e_vars - t,
                             np.ones(A.shape[0]) * (-np.inf),
                             np.zeros(A.shape[0]),
                         )
                         prog.AddLinearConstraint(
-                            -A @ variables - t,
+                            -A @ e_vars - t,
                             np.ones(A.shape[0]) * (-np.inf),
                             np.zeros(A.shape[0]),
                         )
                     else:
-                        prog.AddCost(cost, variables)
+                        prog.AddCost(cost, e_vars)
+
+            # Add variable for the total cost
+            prog.NewContinuousVariables(1, name="cost")
 
             N = len(prog.decision_variables())
-
-            # Process the extra constraints introduced by the costs
-
-            # later add the epigraph cost as the final row
 
         logger.debug(
             f"Total number of decision variables {N}, sum of v_dims {sum(v_dims)}"
         )
-        assert N == sum(v_dims)
         # Collect all the inequality and equality constraints
         ASs, bs, CSs, ds = (
             [np.empty((0, N))],
@@ -305,8 +300,9 @@ class AHContainmentDominationChecker(DominationChecker):
                     ASs.append(constraint.GetDenseA() @ S_i)
                     bs.append(constraint.upper_bound())
             else:
-                raise ValueError("Unsupported constraint type")
+                raise ValueError(f"Unsupported constraint type {type(constraint)}")
 
+        # Process Vertex Constraints
         for i, v_name in enumerate(node.vertex_path):
             convex_set = self._graph.vertices[v_name].convex_set
 
@@ -318,7 +314,7 @@ class AHContainmentDominationChecker(DominationChecker):
                 bs.append(convex_set.b)
                 # logger.debug(f"Point in set {i} added to bs, {bs}")
             if convex_set.C is not None and convex_set.C.shape[0] != 0:
-                logger.debug(f"C.shape {convex_set.C.shape}")
+                # logger.debug(f"C.shape {convex_set.C.shape}")
                 CSs.append(convex_set.C @ S_i)
                 ds.append(convex_set.d)
                 # logger.debug(f"Point in set {i} added to ds, {ds}")
@@ -328,6 +324,7 @@ class AHContainmentDominationChecker(DominationChecker):
             for binding in vertices[i].GetConstraints():
                 process_constraint(binding.evaluator(), S_i)
 
+        # Process Edge Constraints
         for i, e in enumerate(edges):
             # Edges will be two adjacent vertices in the path.
             S_i = create_selection_matrix(x[i] + x[i + 1], N)
@@ -336,11 +333,36 @@ class AHContainmentDominationChecker(DominationChecker):
             for binding in e.GetConstraints():
                 process_constraint(binding.evaluator(), S_i)
 
+        if self.include_cost_epigraph:
+            # Process the extra constraints introduced by the costs
+            for binding in prog.GetAllConstraints():
+                con_var_indices = prog.FindDecisionVariableIndices(binding.variables())
+                S = create_selection_matrix(con_var_indices, N)
+                process_constraint(binding.evaluator(), S)
+
+            # Add the epigraph cost as the final row
+            cost_coeff_row = np.zeros((1, N))
+            # Assumes the cost variable is the last variable
+            cost_coeff_row[0, -1] = -1
+            cost_b = 0
+            for binding in prog.GetAllCosts():
+                cost = binding.evaluator()
+                if not isinstance(cost, LinearCost):
+                    raise NotImplementedError("Only linear costs are supported for now")
+                cost_var_indices = prog.FindDecisionVariableIndices(binding.variables())
+                S = create_selection_matrix(cost_var_indices, N)
+                # Linear cost is of the form a^T x + b
+                # Transforming it to cost_coeff_row x <=  - cost_b
+                # (1, N) (N, 1) = scalar
+                # which then becomes: cost in terms of all other variables + cost_b <= cost_var
+                a_T = cost.a().reshape(1, -1)
+                cost_b += cost.b()
+                cost_coeff_row += a_T @ S
+
+            ASs.append(cost_coeff_row)
+            bs.append(np.array([-cost_b]))
+
         # Stack all the ASs, bs, CSs, ds
-        # logger.debug(f"ASs {ASs}")
-        # logger.debug(f"bs {bs}")
-        # logger.debug(f"CSs {CSs}")
-        # logger.debug(f"ds {ds}")
         big_A = np.vstack(ASs)
         big_b = np.concatenate(bs)
         big_C = np.vstack(CSs)
@@ -411,7 +433,7 @@ class AHContainmentDominationChecker(DominationChecker):
                 if isinstance(cost, L1NormCost):
                     A = cost.A()
                     t = prog.NewContinuousVariables(
-                        A.shape[0], name=f"{v_name}_l1norm_cost"
+                        A.shape[0], name=f"{v_name}_vertex_l1norm_cost"
                     )
                     prog.AddLinearCost(np.sum(t))
                     prog.AddLinearConstraint(
@@ -448,7 +470,7 @@ class AHContainmentDominationChecker(DominationChecker):
                 if isinstance(cost, L1NormCost):
                     A = cost.A()
                     t = prog.NewContinuousVariables(
-                        A.shape[0], name=f"{e_name}_l1norm_cost"
+                        A.shape[0], name=f"{e_name}_edge_l1norm_cost"
                     )
                     prog.AddLinearCost(np.sum(t))
                     prog.AddLinearConstraint(
@@ -481,9 +503,11 @@ class AHContainmentDominationChecker(DominationChecker):
         vars = list(prog.decision_variables())
         cs = prog.GetAllCosts()
         c_coeff_vec = np.zeros(len(vars))
+        b = 0
         for c in cs:
             c_vars = c.variables()
             c_coeff = c.evaluator().a()
+            b += c.evaluator().b()
             for i_c_var, c_var in enumerate(c_vars):
                 c_var_ind = self.find_index(vars, c_var)
 
@@ -492,7 +516,7 @@ class AHContainmentDominationChecker(DominationChecker):
         col = np.zeros(X.A().shape[0] + 1)
         col[-1] = -1
         A_x = np.hstack((np.vstack([X.A(), c_coeff_vec]), col.reshape(-1, 1)))
-        b_x = np.hstack([X.b(), 0])
+        b_x = np.hstack([X.b(), -b])
 
         if add_upper_bound:
             # Add upper bound constraint

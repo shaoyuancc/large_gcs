@@ -18,31 +18,31 @@ class ReachesCheaperContainment(AHContainmentDominationChecker):
     def include_cost_epigraph(self):
         return True
 
-    def is_dominated(
-        self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
-    ) -> bool:
-        """Checks if a candidate path is dominated completely by any one of the
-        alternate paths."""
-        A_n, b_n = self.get_epigraph_matrices(candidate_node)
-        T_n = self.get_H_transformation(
-            node=candidate_node,
-            A=A_n,
-        )
-        t_n = np.zeros((T_n.shape[0], 1))
+    # def is_dominated(
+    #     self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
+    # ) -> bool:
+    #     """Checks if a candidate path is dominated completely by any one of the
+    #     alternate paths."""
+    #     A_n, b_n = self.get_epigraph_matrices(candidate_node)
+    #     T_n = self.get_H_transformation(
+    #         node=candidate_node,
+    #         A=A_n,
+    #     )
+    #     t_n = np.zeros((T_n.shape[0], 1))
 
-        for alt_n in alternate_nodes:
-            A_alt, b_alt = self.get_epigraph_matrices(alt_n)
-            T_alt = self.get_H_transformation(
-                node=alt_n,
-                A=A_alt,
-            )
-            t_alt = np.zeros((T_alt.shape[0], 1))
-            AH_n, AH_alt = self._create_AH_polytopes(
-                A_n, b_n, T_n, t_n, A_alt, b_alt, T_alt, t_alt
-            )
-            if self.is_contained_in(AH_n, AH_alt):
-                return True
-        return False
+    #     for alt_n in alternate_nodes:
+    #         A_alt, b_alt = self.get_epigraph_matrices(alt_n)
+    #         T_alt = self.get_H_transformation(
+    #             node=alt_n,
+    #             A=A_alt,
+    #         )
+    #         t_alt = np.zeros((T_alt.shape[0], 1))
+    #         AH_n, AH_alt = self._create_AH_polytopes(
+    #             A_n, b_n, T_n, t_n, A_alt, b_alt, T_alt, t_alt
+    #         )
+    #         if self.is_contained_in(AH_n, AH_alt):
+    #             return True
+    #     return False
 
     def plot_containment(
         self,

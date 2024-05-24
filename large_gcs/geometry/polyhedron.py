@@ -129,11 +129,11 @@ class Polyhedron(ConvexSet):
         if ineq_expr:
             A, b_neg = DecomposeAffineExpressions(ineq_expr, variables)
             b = -b_neg
-            logger.debug(f"Decomposed inequality constraints: A = {A}, b = {b}")
+            # logger.debug(f"Decomposed inequality constraints: A = {A}, b = {b}")
         if eq_expr:
             C, d_neg = DecomposeAffineExpressions(eq_expr, variables)
             d = -d_neg
-            logger.debug(f"Decomposed equality constraints: C = {C}, d = {d}")
+            # logger.debug(f"Decomposed equality constraints: C = {C}, d = {d}")
 
         if ineq_expr and eq_expr:
             # Rescaled Matrix H, and vector h
