@@ -77,6 +77,8 @@ class ContactGraph(Graph):
         Graph.__init__(self, workspace=workspace)
         assert self.workspace is not None, "Must specify workspace"
         self._should_use_l1_norm_vertex_cost = should_use_l1_norm_vertex_cost
+        if not should_use_l1_norm_vertex_cost:
+            raise NotImplementedError("Only L1 norm vertex cost is supported")
         # Note: The order of operations in this constructor is important
         self.vertex_inclusion = vertex_inclusion
         self.vertex_exclusion = vertex_exclusion
@@ -760,6 +762,7 @@ class ContactGraph(Graph):
         path: str,
         vertex_inclusion: List[str] = None,
         vertex_exclusion: List[str] = None,
+        should_use_l1_norm_vertex_cost: bool = False,
     ):
         data = np.load(path, allow_pickle=True).item()
         obs = [RigidBody.from_params(params) for params in data["obs_params"]]
@@ -801,6 +804,7 @@ class ContactGraph(Graph):
             contact_pair_modes=contact_pair_modes,
             contact_set_mode_ids=data["contact_set_mode_ids"],
             edge_keys=data["edge_keys"],
+            should_use_l1_norm_vertex_cost=should_use_l1_norm_vertex_cost,
         )
         return cg
 

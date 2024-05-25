@@ -50,6 +50,8 @@ class IncrementalContactGraph(ContactGraph):
         Graph.__init__(self, workspace=workspace)
         assert self.workspace is not None, "Workspace must be set"
         self._should_use_l1_norm_vertex_cost = should_use_l1_norm_vertex_cost
+        if not should_use_l1_norm_vertex_cost:
+            raise NotImplementedError("Only L1 norm vertex cost is supported")
         # Note: The order of operations in this constructor is important
 
         self.target_pos = None

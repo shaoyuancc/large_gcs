@@ -80,12 +80,16 @@ def main(cfg: OmegaConf) -> None:
                 )
                 else False
             ),
+            should_use_l1_norm_vertex_cost=cfg.should_use_l1_norm_vertex_cost,
         )
     else:
         graph_file = ContactGraphGeneratorParams.graph_file_path_from_name(
-            cfg.graph_name
+            cfg.graph_name,
         )
-        cg = ContactGraph.load_from_file(graph_file)
+        cg = ContactGraph.load_from_file(
+            graph_file,
+            should_use_l1_norm_vertex_cost=cfg.should_use_l1_norm_vertex_cost,
+        )
     if "abstraction_model_generator" in cfg:
         print("Using abstraction model generator")
         abs_model_generator = instantiate(cfg.abstraction_model_generator)
@@ -125,11 +129,7 @@ def main(cfg: OmegaConf) -> None:
     if save_outputs:
         if "abstraction_model_generator" in cfg:
             model_name = cfg.abstraction_model_generator["_target_"].split(".")[-1]
-            output_base = (
-                f"{alg.__class__.__name__}_"
-                f"{
-                    model_name}_{cfg.graph_name}"
-            )
+            output_base = f"{alg.__class__.__name__}_" f"{model_name}_{cfg.graph_name}"
         else:
             output_base = f"{alg.__class__.__name__}_"
             f"{cost_estimator.finger_print}_{cfg.graph_name}"
