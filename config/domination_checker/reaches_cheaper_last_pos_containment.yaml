@@ -1,0 +1,3 @@
+_target_: large_gcs.domination_checkers.ah_containment_last_pos.ReachesNewLastPosContainment
+
+containment_condition: -1

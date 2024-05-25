@@ -55,7 +55,7 @@ class ReachesCheaperContainment(AHContainmentDominationChecker):
         )
         T_n = self.get_H_transformation(
             node=candidate_node,
-            A=A_n,
+            total_dims=A_n.shape[1],
             include_cost_epigraph=True,
         )
         P_n = Polyhedron(A_n, b_n)
@@ -73,7 +73,7 @@ class ReachesCheaperContainment(AHContainmentDominationChecker):
             )
             T_alt = self.get_H_transformation(
                 node=alternate_node,
-                A=A_alt,
+                total_dims=A_alt.shape[1],
                 include_cost_epigraph=True,
             )
             P_alt = Polyhedron(A_alt, b_alt)

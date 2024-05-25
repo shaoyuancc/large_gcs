@@ -151,7 +151,7 @@ class AHContainmentDominationChecker(DominationChecker):
         A, b, C, d = self.get_path_A_b_C_d(node)
         H = np.vstack([A, C, -C])
         h = np.hstack([b, d, -d])
-        T_H = self.get_H_transformation(node, H)
+        T_H = self.get_H_transformation(node, H.shape[1])
         K, k, T, t = self._nullspace_polyhedron_and_transformation(A, b, C, d, T_H)
         X = pp.H_polytope(K, k)
         return pp.AH_polytope(t, T, X)
@@ -264,9 +264,9 @@ class AHContainmentDominationChecker(DominationChecker):
 
             N = len(prog.decision_variables())
 
-        logger.debug(
-            f"Total number of decision variables {N}, sum of v_dims {sum(v_dims)}"
-        )
+        # logger.debug(
+        #     f"Total number of decision variables {N}, sum of v_dims {sum(v_dims)}"
+        # )
         # Collect all the inequality and equality constraints
         ASs, bs, CSs, ds = (
             [np.empty((0, N))],
@@ -278,19 +278,19 @@ class AHContainmentDominationChecker(DominationChecker):
         # (m x n) (n x N) = (m x N)
 
         def process_constraint(constraint: Constraint, S_i):
-            logger.debug(f"constraint {constraint}")
+            # logger.debug(f"constraint {constraint}")
             # logger.debug(f"lower bound {constraint.lower_bound()}")
             # logger.debug(f"upper bound {constraint.upper_bound()}")
             # Note: It is important that this branch comes first since LinearEqualityConstraint is a subclass of LinearConstraint
             if isinstance(constraint, LinearEqualityConstraint):
-                logger.debug(f"Adding linear equality constraint")
+                # logger.debug(f"Adding linear equality constraint")
                 # Add to the equality constraints
                 CSs.append(constraint.GetDenseA() @ S_i)
                 # Note for equality constraints, the lower and upper bounds are the same
                 ds.append(constraint.lower_bound())
                 # logger.debug(f"Added to ds, {ds}")
             elif isinstance(constraint, LinearConstraint):
-                logger.debug(f"Adding linear constraint")
+                # logger.debug(f"Adding linear constraint")
                 # Add to the inequality constraints
                 if not np.all(constraint.lower_bound() == -np.inf):
                     # -Ax <= -b ==> Ax >= b
@@ -320,7 +320,7 @@ class AHContainmentDominationChecker(DominationChecker):
                 # logger.debug(f"Point in set {i} added to ds, {ds}")
 
             # Vertex Constraints
-            logger.debug(f"processing vertex constraint vertices[{i}]")
+            # logger.debug(f"processing vertex constraint vertices[{i}]")
             for binding in vertices[i].GetConstraints():
                 process_constraint(binding.evaluator(), S_i)
 
@@ -329,7 +329,7 @@ class AHContainmentDominationChecker(DominationChecker):
             # Edges will be two adjacent vertices in the path.
             S_i = create_selection_matrix(x[i] + x[i + 1], N)
             # Edge constraints
-            logger.debug(f"processing edge constraint edge[{i}]")
+            # logger.debug(f"processing edge constraint edge[{i}]")
             for binding in e.GetConstraints():
                 process_constraint(binding.evaluator(), S_i)
 
@@ -531,50 +531,31 @@ class AHContainmentDominationChecker(DominationChecker):
     def get_H_transformation(
         self,
         node: SearchNode,
-        A: np.ndarray,
-        vertex_idx_to_project_to: Optional[int] = None,
+        total_dims: int,
     ):
         """Get the transformation matrix that will project the polyhedron that
         defines the whole path down to just the dimensions of the selected
-        vertex. Can either include the epigraph (include the cost) or just the
+        vertex.
+
+        Can either include the epigraph (include the cost) or just the
         dimensions of the vertex.
-
-        Args:
-            - node(SearchNode) : Defines the path which defines the original matrix that will be projected.
-            - A(np.ndarray) : The A matrix of the polyhedron (Ax <= b) that will get transformed.
-            - vertex_idx_to_project_to(Optional[int]) : Index of the vertex to project to. If None, will project to the last vertex in the path.
-
         Note: Cost epigraph variable assumed to be the last decision variable in x.
         """
-        logger.debug(f"Getting H projection transformation")
-        total_dims = A.shape[1]
-        if vertex_idx_to_project_to is None:
-            vertex_idx_to_project_to = len(node.vertex_path) - 1
-
+        # First, collect all the decision variables
         v_dims = [
             self._graph.vertices[name].convex_set.dim for name in node.vertex_path
         ]
-        proj_dims = v_dims[vertex_idx_to_project_to]
+        current_index = 0
+        # Collect the indices of the decision variables for each vertex
+        x = []
+        for dim in v_dims:
+            x.append(list(range(current_index, current_index + dim)))
+            current_index += dim
+        selected_indices = x[-1]
         if self.include_cost_epigraph:
-            proj_dims += 1
-        matrices_to_stack = []
-        cols_count = 0
-        for i in range(len(node.vertex_path)):
-            if i == vertex_idx_to_project_to:
-                M = np.eye(v_dims[i])
-                if self.include_cost_epigraph:
-                    M = np.vstack([M, np.zeros((1, v_dims[i]))])
-                matrices_to_stack.append(M)
-            else:
-                matrices_to_stack.append(np.zeros((proj_dims, v_dims[i])))
-            cols_count += v_dims[i]
-        if cols_count < total_dims:
-            M = np.zeros((proj_dims, total_dims - cols_count))
-            if self.include_cost_epigraph:
-                M[-1, -1] = 1
-            matrices_to_stack.append(M)
-
-        return np.hstack(matrices_to_stack)
+            # Assumes the cost variable is the last variable
+            selected_indices.append(total_dims - 1)
+        return create_selection_matrix(selected_indices, total_dims)
 
     @staticmethod
     def find_index(list, el):
