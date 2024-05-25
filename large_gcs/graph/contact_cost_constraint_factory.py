@@ -408,7 +408,7 @@ def vertex_constraint_force_act_limits(
     raise NotImplementedError
 
 
-def vertex_constraint_last_pos(
+def vertex_constraint_last_pos_equality(
     vars: ContactSetDecisionVariables, sample: np.ndarray
 ) -> LinearEqualityConstraint:
     """Creates a constraint that enforces the last position of the vertex to be
@@ -417,8 +417,25 @@ def vertex_constraint_last_pos(
     Size of vars should be the same as the size of the sample.
     """
     exprs = vars.last_pos - vars.last_pos_from_all(sample)
+    # Decompose affine expression into expr = Ax + b
     A, b = DecomposeAffineExpressions(exprs, vars.all)
-    return LinearEqualityConstraint(A, b)
+    # Linear equality constraint of the form: Ax = -b
+    return LinearEqualityConstraint(A, -b)
+
+
+def vertex_constraint_last_pos_eps_equality(
+    vars: ContactSetDecisionVariables, sample: np.ndarray, eps: float = 1e-3
+) -> LinearConstraint:
+    """Creates a constraint that enforces the last position of the vertex to be
+    within eps of those elements in the sample.
+
+    Size of vars should be the same as the size of the sample.
+    """
+    exprs = vars.last_pos - vars.last_pos_from_all(sample)
+    # Decompose affine expression into expr = Ax + b
+    A, b = DecomposeAffineExpressions(exprs, vars.all)
+    # Linear equality constraint of the form: Ax = -b
+    return LinearConstraint(A, -b - eps, -b + eps)
 
 
 def vertex_constraint_eps_bounding_box(
@@ -493,9 +510,10 @@ def edge_constraint_position_continuity(
     v_first_pos = v_pos[:, :, 0].flatten()
     uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
     exprs = (u_last_pos - v_first_pos).flatten()
-    # Linear equality constraint of the form: Ax = b
+    # Decompose affine expression into expr = Ax + b
     A, b = DecomposeAffineExpressions(exprs, uv_vars_all)
-    return LinearEqualityConstraint(A, b)
+    # Linear equality constraint of the form: Ax = -b
+    return LinearEqualityConstraint(A, -b)
 
 
 def edge_constraint_position_continuity_factored(
@@ -515,6 +533,7 @@ def edge_constraint_position_continuity_factored(
     assert u_last_pos.size == v_first_pos.size
     uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
     exprs = (u_last_pos - v_first_pos).flatten()
-    # Linear equality constraint of the form: Ax = b
+    # Decompose affine expression into expr = Ax + b
     A, b = DecomposeAffineExpressions(exprs, uv_vars_all)
-    return LinearEqualityConstraint(A, b)
+    # Linear equality constraint of the form: Ax = -b
+    return LinearEqualityConstraint(A, -b)

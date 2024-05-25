@@ -1,7 +1,7 @@
 defaults:
   - algorithm: gcs_astar_reachability
   - cost_estimator: shortcut_edge
-  - domination_checker: reaches_new_sampling
+  - domination_checker: reaches_cheaper_last_pos_sampling
   - hydra: hydra
 
 graph_name: "cg_maze_b1"
@@ -28,17 +28,10 @@ algorithm:
   should_invert_S: true
 
 hydra:
-  job_logging:
-    loggers:
-      large_gcs:
-        level: INFO
-      large_gcs.algorithms:
-        level: INFO
-      large_gcs.cost_estimators:
-        level: INFO
   mode: MULTIRUN
   sweeper:
     params:
-      domination_checker: reaches_cheaper_last_pos_sampling, reaches_cheaper_sampling
+      domination_checker: reaches_new_last_pos_sampling, reaches_new_sampling
+      # domination_checker: reaches_cheaper_last_pos_sampling, reaches_cheaper_sampling
       # domination_checker: reaches_new_last_pos_sampling, reaches_new_sampling, reaches_cheaper_last_pos_sampling, reaches_cheaper_sampling
-      # graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1
+      graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1

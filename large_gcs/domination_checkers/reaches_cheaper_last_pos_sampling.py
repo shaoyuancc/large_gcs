@@ -8,7 +8,9 @@ from large_gcs.domination_checkers.sampling_domination_checker import (
     SetSamples,
 )
 from large_gcs.geometry.point import Point
-from large_gcs.graph.contact_cost_constraint_factory import vertex_constraint_last_pos
+from large_gcs.graph.contact_cost_constraint_factory import (
+    vertex_constraint_last_pos_equality,
+)
 from large_gcs.graph.graph import Edge, Vertex
 
 logger = logging.getLogger(__name__)
@@ -54,7 +56,7 @@ class ReachesCheaperLastPosSampling(SamplingDominationChecker):
                 )
                 continue
             else:
-                last_pos_sample = contact_set.vars.last_pos_from_all(sample)
+                last_pos_sample = contact_set.vars.last_pos_from_all(proj_sample)
                 if tuple(last_pos_sample) in projected_samples:
                     logger.debug(f"projected sample {idx} same as a previous sample")
                     continue
@@ -65,7 +67,11 @@ class ReachesCheaperLastPosSampling(SamplingDominationChecker):
             self._graph.add_vertex(
                 vertex=Vertex(
                     convex_set=contact_set,
-                    constraints=[vertex_constraint_last_pos(contact_set.vars, sample)],
+                    constraints=[
+                        vertex_constraint_last_pos_equality(
+                            contact_set.vars, proj_sample
+                        )
+                    ],
                 ),
                 name=sample_vertex_name,
             )
@@ -76,7 +82,7 @@ class ReachesCheaperLastPosSampling(SamplingDominationChecker):
                 logger.error(
                     f"Candidate path was not feasible to reach sample {idx}"
                     f"\nnum samples: {len(self._set_samples[candidate_node.vertex_name].samples)}"
-                    f"\nsample: {proj_sample}"
+                    f"\nsample: {sample}"
                     f"\nproj_sample: {proj_sample}"
                     f"\nactive edges: {candidate_node.edge_path}"
                     f"\nvertex_path: {candidate_node.vertex_path}"

@@ -348,7 +348,9 @@ class AHContainmentDominationChecker(DominationChecker):
             for binding in prog.GetAllCosts():
                 cost = binding.evaluator()
                 if not isinstance(cost, LinearCost):
-                    raise NotImplementedError("Only linear costs are supported for now")
+                    raise NotImplementedError(
+                        f"Only linear costs are supported for now, {cost} not supported"
+                    )
                 cost_var_indices = prog.FindDecisionVariableIndices(binding.variables())
                 S = create_selection_matrix(cost_var_indices, N)
                 # Linear cost is of the form a^T x + b

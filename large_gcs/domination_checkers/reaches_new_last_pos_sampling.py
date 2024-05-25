@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Optional
 
 from large_gcs.algorithms.search_algorithm import SearchNode
 from large_gcs.contact.contact_set import ContactSet
@@ -8,8 +8,11 @@ from large_gcs.domination_checkers.sampling_domination_checker import (
     SetSamples,
 )
 from large_gcs.geometry.point import Point
-from large_gcs.graph.contact_cost_constraint_factory import vertex_constraint_last_pos
-from large_gcs.graph.graph import Edge, Graph, Vertex
+from large_gcs.graph.contact_cost_constraint_factory import (
+    vertex_constraint_last_pos_eps_equality,
+    vertex_constraint_last_pos_equality,
+)
+from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution, Vertex
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +62,9 @@ class ReachesNewLastPosSampling(SamplingDominationChecker):
             self._graph.add_vertex(
                 vertex=Vertex(
                     convex_set=contact_set,
-                    constraints=[vertex_constraint_last_pos(contact_set.vars, sample)],
+                    constraints=[
+                        vertex_constraint_last_pos_equality(contact_set.vars, sample)
+                    ],
                 ),
                 name=sample_vertex_name,
             )
