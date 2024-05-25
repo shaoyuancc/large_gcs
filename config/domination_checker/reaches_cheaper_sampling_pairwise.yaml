@@ -1,3 +1,4 @@
 _target_: large_gcs.domination_checkers.reaches_cheaper_sampling_pairwise.ReachesCheaperSamplingPairwise
 
 num_samples_per_vertex: 10
+should_use_candidate_sol: false

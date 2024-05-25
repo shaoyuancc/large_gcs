@@ -1,3 +1,4 @@
-_target_: large_gcs.domination_checkers.reaches_new_last_pos_sampling.ReachesNewLastPosSampling
+_target_: large_gcs.domination_checkers.sampling_last_pos.ReachesNewLastPosSampling
 
 num_samples_per_vertex: 1
+should_use_candidate_sol: false

@@ -46,7 +46,7 @@ class AHContainmentDominationChecker(DominationChecker):
         alg_metrics.update_method_call_structure(call_structure)
 
     def is_dominated(
-        self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
+        self, candidate_node: SearchNode, alternate_nodes: List[SearchNode], **kwargs
     ) -> bool:
         """Checks if a candidate path is dominated completely by any one of the
         alternate paths."""

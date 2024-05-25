@@ -18,6 +18,7 @@ cost_estimator:
 
 domination_checker:
   num_samples_per_vertex: 1
+  should_use_candidate_sol: false
 
 save_visualization: true
 save_solution: true
@@ -31,7 +32,7 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      domination_checker: reaches_new_last_pos_sampling, reaches_new_sampling
-      # domination_checker: reaches_cheaper_last_pos_sampling, reaches_cheaper_sampling
-      # domination_checker: reaches_new_last_pos_sampling, reaches_new_sampling, reaches_cheaper_last_pos_sampling, reaches_cheaper_sampling
       graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1
+      domination_checker: reaches_new_last_pos_sampling, reaches_new_sampling, reaches_cheaper_last_pos_sampling, reaches_cheaper_sampling
+      # domination_checker: reaches_new_last_pos_sampling, reaches_new_sampling
+      # domination_checker: reaches_cheaper_last_pos_sampling, reaches_cheaper_sampling

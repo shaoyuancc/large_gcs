@@ -4,7 +4,7 @@ defaults:
   - domination_checker: reaches_new_sampling
   - hydra: hydra
 
-graph_name: "cg_stackpush_d2"
+graph_name: "cg_trichal4"
 should_use_incremental_graph: true
 should_incl_simul_mode_switches: false
 should_add_const_edge_cost: true
@@ -19,24 +19,18 @@ cost_estimator:
 save_visualization: true
 save_solution: true
 save_metrics: true
-save_to_wandb: true
+save_to_wandb: false
 
 algorithm:
   should_invert_S: true
 
-hydra:
-  job_logging:
-    loggers:
-      large_gcs:
-        level: INFO
-      large_gcs.algorithms:
-        level: DEBUG
-      large_gcs.cost_estimators:
-        level: INFO
-      large_gcs.domination_checkers:
-        level: DEBUG
-  mode: MULTIRUN
-  sweeper:
-    params:
-      # domination_checker: reaches_new_sampling, reaches_new_containment
-      graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1
+domination_checker:
+  num_samples_per_vertex: 10
+  should_use_candidate_sol: false
+
+# hydra:
+#   mode: MULTIRUN
+#   sweeper:
+#     params:
+#       # domination_checker: reaches_new_sampling, reaches_new_containment
+#       graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1

@@ -24,6 +24,7 @@ class ReachesNewSamplingPairwise(SamplingDominationChecker):
         If so, the candidate path is dominated. This is explictly not
         checking the candidate against the union of the alternate paths.
         """
+        raise NotImplementedError("Has not been kept up to date")
         self._maybe_add_set_samples(candidate_node.vertex_name)
 
         is_dominated = False
