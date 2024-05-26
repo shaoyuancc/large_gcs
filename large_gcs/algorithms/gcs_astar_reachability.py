@@ -192,7 +192,7 @@ class GcsAstarReachability(SearchAlgorithm):
             self._alg_metrics.n_vertices_revisited[0] += 1
         else:
             self._alg_metrics.n_vertices_visited[0] += 1
-        # logger.debug(f"exploring edge {edge.key} via path {n.vertex_path}")
+        logger.debug(f"Exploring path (length {len(n.vertex_path)}) {n.vertex_path}")
         sol: ShortestPathSolution = self._cost_estimator.estimate_cost_on_graph(
             self._graph,
             edge,
@@ -201,11 +201,11 @@ class GcsAstarReachability(SearchAlgorithm):
         )
 
         if not sol.is_success:
-            logger.debug(f"edge {n.vertex_name} -> {edge.v} not actually feasible")
+            logger.debug(f"Path not actually feasible")
             # Path invalid, do nothing, don't add to Q
             return
         else:
-            logger.debug(f"edge {n.vertex_name} -> {edge.v} is feasible")
+            logger.debug(f"Path is feasible")
 
         n_next = SearchNode.from_parent(child_vertex_name=edge.v, parent=n)
         n_next.sol = sol
@@ -218,10 +218,10 @@ class GcsAstarReachability(SearchAlgorithm):
             and self._is_dominated(n_next)
         ):
             # Path does not reach new areas, do not add to Q or S
-            logger.debug(f"Not added to Q: Path to {n_next.vertex_name} is dominated")
+            logger.debug(f"Not added to Q: Path to is dominated")
             self._S_pruned_counts[n_next.vertex_name] += 1
             return
-        logger.debug(f"Added to Q: Path to {n_next.vertex_name} not dominated")
+        logger.debug(f"Added to Q: Path not dominated")
 
         if (
             self._max_len_S_per_vertex != 0

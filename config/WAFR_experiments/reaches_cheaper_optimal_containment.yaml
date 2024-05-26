@@ -1,7 +1,7 @@
 defaults:
   - algorithm: gcs_astar_reachability
   - cost_estimator: shortcut_edge
-  - domination_checker: reaches_cheaper_containment
+  - domination_checker: reaches_cheaper_last_pos_sampling_containment
   - hydra: hydra
 
 graph_name: "cg_maze_b1"
@@ -28,4 +28,5 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1
+      graph_name: cg_trichal4
+      # graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1

@@ -1,7 +1,7 @@
 defaults:
   - algorithm: gcs_astar_reachability
   - cost_estimator: shortcut_edge
-  - domination_checker: reaches_cheaper_sampling
+  - domination_checker: reaches_cheaper_last_pos_sampling
   - hydra: hydra
 
 graph_name: "cg_trichal4"
@@ -19,7 +19,7 @@ cost_estimator:
 save_visualization: true
 save_solution: true
 save_metrics: true
-save_to_wandb: false
+save_to_wandb: true
 
 algorithm:
   should_invert_S: true
@@ -28,8 +28,8 @@ domination_checker:
   num_samples_per_vertex: 1
   should_use_candidate_sol: false
 
-# hydra:
-#   mode: MULTIRUN
-#   sweeper:
-#     params:
-#       graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1
+hydra:
+  mode: MULTIRUN
+  sweeper:
+    params:
+      graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1

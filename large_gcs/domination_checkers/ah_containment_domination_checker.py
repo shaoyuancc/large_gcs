@@ -46,14 +46,14 @@ class AHContainmentDominationChecker(DominationChecker):
         alg_metrics.update_method_call_structure(call_structure)
 
     def is_dominated(
-        self, candidate_node: SearchNode, alternate_nodes: List[SearchNode], **kwargs
+        self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
     ) -> bool:
         """Checks if a candidate path is dominated completely by any one of the
         alternate paths."""
-        logger.debug(
-            f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"
-            f"\n via path: {candidate_node.vertex_path}"
-        )
+        # logger.debug(
+        #     f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"
+        #     f"\n via path: {candidate_node.vertex_path}"
+        # )
         AH_n = self._create_path_AH_polytope(candidate_node)
         for alt_n in alternate_nodes:
             logger.debug(

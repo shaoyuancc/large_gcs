@@ -145,7 +145,13 @@ class AlgMetrics:
         """Set the call structure of the methods for the method time pie
         chart."""
         if self._method_call_structure is not None:
-            call_structure.update(self._method_call_structure)
+            for key, value in call_structure.items():
+                if key in self._method_call_structure:
+                    self._method_call_structure[key].extend(value)
+                else:
+                    self._method_call_structure[key] = value
+        else:
+            self._method_call_structure = call_structure
 
         # Note that this calculation will be wrong if a child method is called by two parents
         called_methods = set()
@@ -155,8 +161,6 @@ class AlgMetrics:
                     nested_method not in called_methods
                 ), f"Method {nested_method} is called by multiple parent methods."
                 called_methods.add(nested_method)
-
-        self._method_call_structure = call_structure
 
     @property
     def method_call_structure(self):
