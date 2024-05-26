@@ -312,7 +312,6 @@ class Polyhedron(ConvexSet):
         So checking if any pairs of rows add up to 0 tells us whether
         there are any equality constraints.
         """
-        logger.warn("This method should not be used, it is very slow.")
         for (i, (a1, b1)), (j, (a2, b2)) in itertools.combinations(
             enumerate(zip(A, b)), 2
         ):
@@ -337,7 +336,6 @@ class Polyhedron(ConvexSet):
     ):
         """Separate and return A, b, C, d where A x ≤ b are inequalities and C
         x = d are equalities."""
-        logger.warn("This method should not be used, it is very slow.")
         equality_indices = set()
         equality_rows = []
 
@@ -374,13 +372,20 @@ class Polyhedron(ConvexSet):
         # logger.debug(f"b_original = {print_copy_pastable_np_array(self.set.b())}")
 
         # Separate original A and B into inequality and equality constraints
-        A, b, C, d = self.get_separated_inequality_equality_constraints(
-            self.set.A(), self.set.b()
-        )
+        # A, b, C, d = self.get_separated_inequality_equality_constraints(
+        #     self.set.A(), self.set.b()
+        # )
+        if not hasattr(self, "_A"):
+            self._A, self._b, self._C, self._d = (
+                self.get_separated_inequality_equality_constraints(
+                    self.set.A(), self.set.b()
+                )
+            )
+        A, b, C, d = self._A, self._b, self._C, self._d
 
-        logger.debug(
-            f"\n A.shape: {A.shape}, b.shape: {b.shape}, C.shape: {C.shape}, d.shape: {d.shape}"
-        )
+        # logger.debug(
+        #     f"\n A.shape: {A.shape}, b.shape: {b.shape}, C.shape: {C.shape}, d.shape: {d.shape}"
+        # )
         # logger.debug(
         #     f"ranks: A: {np.linalg.matrix_rank(A)}, C: {np.linalg.matrix_rank(C)}"
         # )

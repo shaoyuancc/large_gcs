@@ -19,7 +19,7 @@ cost_estimator:
 save_visualization: true
 save_solution: true
 save_metrics: true
-save_to_wandb: false
+save_to_wandb: true
 
 algorithm:
   should_invert_S: true
