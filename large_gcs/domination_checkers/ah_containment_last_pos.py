@@ -37,7 +37,7 @@ class AHContainmentLastPos(AHContainmentDominationChecker):
             x.append(list(range(current_index, current_index + dim)))
             current_index += dim
         terminal_set: ContactSet = self._graph.vertices[node.vertex_name].convex_set
-        selected_indices = terminal_set.vars.last_pos_from_all(x[-1])
+        selected_indices = list(terminal_set.vars.last_pos_from_all(x[-1]))
         if self.include_cost_epigraph:
             # Assumes the cost variable is the last variable
             selected_indices.append(total_dims - 1)
