@@ -232,8 +232,8 @@ def make_plot(figure_idx, filename=None):
         # Generate x values
         x_vals = np.linspace(0, 10, 800)
 
-        g_1 = Curve.make_quadratic(8, 1, 7, shift=-3, x_min=1, x_max=4)
-        g_2 = Curve.make_quadratic(4, 1, 6, shift=-5, x_min=3, x_max=6, no_name=True)
+        g_1 = Curve.make_quadratic(5, 1, 7, shift=-3, x_min=1, x_max=4)
+        g_2 = Curve.make_quadratic(4, 1, 6, shift=-5, x_min=3, x_max=7, no_name=True)
         g_3 = Curve.make_quadratic(3, 1, 8, shift=-8, x_min=5.5, x_max=9, no_name=True)
         g_next = Curve.make_quadratic(
             4, 1, 5, shift=-6.5, x_min=5, x_max=8, with_dash=True
@@ -255,9 +255,9 @@ def make_plot(figure_idx, filename=None):
 
         g_1 = Curve.make_quadratic(5, 1, 7, shift=-3, x_min=1, x_max=4)
         g_2 = Curve.make_quadratic(4, 1, 6, shift=-5, x_min=3, x_max=7)
-        g_3 = Curve.make_quadratic(3, 1, 8, shift=-7, x_min=5.5, x_max=9)
+        g_3 = Curve.make_quadratic(3, 1, 8, shift=-8, x_min=5.5, x_max=9)
         g_next = Curve.make_quadratic(
-            1.5, 1, 13, shift=-7, x_min=5, x_max=8, with_dash=True
+            2, 1, 20, shift=-6.5, x_min=5, x_max=8, with_dash=True
         )
 
         g_1.plot()
