@@ -169,7 +169,7 @@ def contact_shortcut_edge_cost_factory_over(
         # Constant cost for the edge
         a = np.zeros((uv_vars_all.size, 1))
         # We add 2 because if a shortcut is used it minimally replaces 2 edges
-        constant_cost = 2
+        constant_cost = 20
         costs.append(LinearCost(a, constant_cost))
 
     return costs
@@ -201,7 +201,7 @@ def contact_norm_squared_shortcut_edge_cost_factory_over(
         # Constant cost for the edge
         a = np.zeros((uv_vars_all.size, 1))
         # We add 2 because if a shortcut is used it minimally replaces 2 edges
-        constant_cost = 2
+        constant_cost = 20
         costs.append(LinearCost(a, constant_cost))
 
     return costs
@@ -242,7 +242,7 @@ def contact_shortcut_edge_cost_factory_over_obj_weighted(
         # Constant cost for the edge
         a = np.zeros((uv_vars_all.size, 1))
         # We add 2 because if a shortcut is used it minimally replaces 2 edges
-        constant_cost = 2
+        constant_cost = 20
         costs.append(LinearCost(a, constant_cost))
 
     return costs
@@ -283,7 +283,7 @@ def contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted(
         # Constant cost for the edge
         a = np.zeros((uv_vars_all.size, 1))
         # We add 2 because if a shortcut is used it minimally replaces 2 edges
-        constant_cost = 2
+        constant_cost = 20
         costs.append(LinearCost(a, constant_cost))
 
     return costs
@@ -318,14 +318,14 @@ def contact_norm_squared_shortcut_edge_cost_factory_over_obj_weighted(
 
     costs = [
         create_quadratic_cost(u_pos[:n_objs], v_pos[:n_objs], scaling=10),
-        create_quadratic_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=1),
+        create_quadratic_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=2),
     ]
 
     if add_const_cost:
         # Constant cost for the edge
         a = np.zeros((uv_vars_all.size, 1))
         # We add 2 because if a shortcut is used it minimally replaces 2 edges
-        constant_cost = 2
+        constant_cost = 20
         costs.append(LinearCost(a, constant_cost))
 
     return costs
