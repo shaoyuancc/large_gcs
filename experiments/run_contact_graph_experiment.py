@@ -48,6 +48,7 @@ def main(cfg: OmegaConf) -> None:
             ][-1]
             wandb.init(
                 project="large_gcs",
+                entity="contact_placement",
                 name=cfg.log_dir,
                 config=wandb_config,
                 group=hydra_config.job.config_name + "_" + folder_name,
