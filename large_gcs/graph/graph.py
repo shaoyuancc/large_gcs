@@ -132,12 +132,15 @@ class Edge:
     # Optional key suffix to distinguish between edges with the same source and target
     key_suffix: Optional[str] = None
 
+    def __post_init__(self):
+        if self.key_suffix:
+            self._key = f'("{self.u}", "{self.v}")_{self.key_suffix}'
+        else:
+            self._key = f'("{self.u}", "{self.v}")'
+
     @property
     def key(self):
-        if self.key_suffix:
-            return f"{str((self.u, self.v))}_{self.key_suffix}"
-        else:
-            return str((self.u, self.v))
+        return self._key
 
 
 @dataclass
