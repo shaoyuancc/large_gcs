@@ -286,21 +286,6 @@ class IncrementalContactGraph(ContactGraph):
                 f"Incremental graph should_add_gcs is False. Must set to True in order to solve."
             )
 
-    def solve_convex_restriction(
-        self,
-        active_edges: List[str],
-        skip_post_solve: bool = False,
-        solver_options: Optional[SolverOptions] = None,
-    ) -> ShortestPathSolution:
-        if self._should_add_gcs:
-            return super().solve_convex_restriction(
-                active_edges, skip_post_solve, solver_options
-            )
-        else:
-            raise ValueError(
-                f"Incremental graph should_add_gcs is False. Must set to True in order to solve."
-            )
-
     def solve_factored_shortest_path(
         self, transition: str, targets: List[str], use_convex_relaxation=False
     ) -> ShortestPathSolution:

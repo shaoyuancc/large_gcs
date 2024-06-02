@@ -56,7 +56,6 @@ class ReachesCheaperSamplingPairwise(SamplingDominationChecker):
                     f"\nnum samples: {len(self._set_samples[candidate_node.vertex_name].samples)}"
                     f"\nsample: {proj_sample}"
                     f"\nproj_sample: {proj_sample}"
-                    f"\nactive edges: {candidate_node.edge_path}"
                     f"\nvertex_path: {candidate_node.vertex_path}"
                     f"\n Skipping to next sample"
                 )

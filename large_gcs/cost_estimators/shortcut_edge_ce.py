@@ -78,8 +78,10 @@ class ShortcutEdgeCE(CostEstimator):
             conv_res_active_edges = active_edges + [edge.key]
 
         if solve_convex_restriction:
-            logger.debug(f"conv_res_active_edges: {conv_res_active_edges}")
-            sol = graph.solve_convex_restriction(conv_res_active_edges)
+            # If used shortcut edge, do not parse the full result since we won't use the solution.
+            sol = graph.solve_convex_restriction(
+                conv_res_active_edges, skip_post_solve=add_shortcut_edge
+            )
         else:
             sol = graph.solve_shortest_path(use_convex_relaxation=use_convex_relaxation)
 
@@ -105,6 +107,10 @@ class ShortcutEdgeCE(CostEstimator):
         Right now this function is unideally coupled because it returns
         a shortest path solution instead of just the cost.
         """
+
+        raise NotImplementedError(
+            "This function is not used in the current implementation"
+        )
 
         neighbor = edge.v
 

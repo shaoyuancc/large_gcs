@@ -400,6 +400,7 @@ class Graph:
         self,
         active_edge_keys: List[str],
         skip_post_solve: bool = False,
+        should_return_result: bool = False,
         solver_options: Optional[SolverOptions] = None,
     ) -> ShortestPathSolution:
         # logger.debug(f"active edge keys: {active_edge_keys}")
@@ -414,9 +415,15 @@ class Graph:
         # logger.debug(f"solver options used: {self._gcs_options_wo_relaxation.solver_options.GetOptions(MosekSolver.id())}")
         self._gcs_options_wo_relaxation.solver_options = SolverOptions()
         # logger.debug(f"is_success: {result.is_success()}")
-        sol = self._parse_convex_restriction_result(result, active_edges)
 
-        if not skip_post_solve:
+        if skip_post_solve:
+            sol = self._parse_partial_convex_restriction_result(
+                result, should_return_result
+            )
+        else:
+            sol = self._parse_convex_restriction_result(
+                result, active_edges, should_return_result
+            )
             # Optional post solve hook for subclasses
             self._post_solve(sol)
 
@@ -496,8 +503,32 @@ class Graph:
             result.is_success(), cost, time, vertex_path, ambient_path, flows, result
         )
 
+    def _parse_partial_convex_restriction_result(
+        self, result: MathematicalProgramResult, should_return_result: bool = False
+    ) -> ShortestPathSolution:
+        """Only return is_success, cost and time.
+
+        Skip the work of processing the vertex, edge, ambient and flow
+        paths.
+        """
+        cost = result.get_optimal_cost()
+        time = result.get_solver_details().optimizer_time
+
+        return ShortestPathSolution(
+            result.is_success(),
+            cost,
+            time,
+            None,
+            None,
+            None,
+            result=result if should_return_result else None,
+        )
+
     def _parse_convex_restriction_result(
-        self, result: MathematicalProgramResult, active_edges: List[Edge]
+        self,
+        result: MathematicalProgramResult,
+        active_edges: List[Edge],
+        should_return_result: bool = False,
     ) -> ShortestPathSolution:
         cost = result.get_optimal_cost()
         time = result.get_solver_details().optimizer_time
@@ -517,7 +548,13 @@ class Graph:
             ]
 
         return ShortestPathSolution(
-            result.is_success(), cost, time, vertex_path, ambient_path, flows, result
+            result.is_success(),
+            cost,
+            time,
+            vertex_path,
+            ambient_path,
+            flows,
+            result=result if should_return_result else None,
         )
 
     def _parse_result(self, result: MathematicalProgramResult) -> ShortestPathSolution:
