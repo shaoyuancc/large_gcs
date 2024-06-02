@@ -32,9 +32,24 @@ export MOSEKLM_LICENSE_FILE="/path/to/mosek/license/mosek/mosek.lic"
 export GRB_LICENSE_FILE="/path/to/gurobi/license/gurobi.lic"
 ```
 
-Make sure to have graphviz installed on your computer. On MacOS, run the following command:
+Make sure to have graphviz installed on your computer. 
+On Ubuntu
+```
+sudo apt install graphviz
+```
+On MacOS, run the following command:
 ```
 brew install graphviz
+```
+
+Install ffmpeg (for saving animation videos)
+On Ubuntu
+```
+sudo apt install ffmpeg
+```
+On MacOS
+```
+brew install ffmpeg
 ```
 
 Additional packages that I was not able to install using poetry, and had to use pip instead

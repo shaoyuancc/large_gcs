@@ -56,6 +56,7 @@ def main(cfg: OmegaConf) -> None:
         else:
             wandb.init(
                 project="large_gcs",
+                entity="contact_placement",
                 name=cfg.log_dir,
                 config=wandb_config,
                 save_code=True,
