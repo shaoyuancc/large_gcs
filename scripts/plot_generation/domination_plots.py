@@ -124,29 +124,29 @@ MIN_COLOR = GREEN2.diffuse()
 
 def make_plot(figure_idx, filename=None):
     use_type_1_fonts_in_plots()
-    fig = plt.figure(figsize=(3, 2))
+    fig = plt.figure(figsize=(3, 1.5))
 
     if figure_idx == 0:
 
         # Generate x values
         x_vals = np.linspace(0, 10, 800)
 
-        g = Curve.make_quadratic(
+        g_next = Curve.make_quadratic(
             6,
             1,
             7,
             shift=-5,
             x_min=2.5,
             x_max=7,
+            with_dash=True,
         )
-        g_next = Curve.make_quadratic(
-            2,
+        g = Curve.make_quadratic(
+            4,
             1,
             5,
             shift=-5,
             x_min=2,
             x_max=7.5,
-            with_dash=True,
         )
 
         g_next.plot()
@@ -155,21 +155,20 @@ def make_plot(figure_idx, filename=None):
         plot_min([g, g_next], x_vals)
         y_max = 50
 
-        plt.legend(fontsize=14, loc="center left")
+        save_legend = False
+        if save_legend:
+            plt.legend(fontsize=14, loc="center left")
+            ax = plt.gca()
+            # Create a new figure for the legend
+            fig_legend = plt.figure(figsize=(1.5, 1))
+            # Add the legend to the new figure
+            fig_legend.legend(*ax.get_legend_handles_labels(), loc="center")
 
-        ax = plt.gca()
+            # Remove axes from the legend figure
+            plt.axis("off")
 
-        # Create a new figure for the legend
-        fig_legend = plt.figure(figsize=(1.5, 1))
-
-        # Add the legend to the new figure
-        fig_legend.legend(*ax.get_legend_handles_labels(), loc="center")
-
-        # Remove axes from the legend figure
-        plt.axis("off")
-
-        # Save the legend figure
-        fig_legend.savefig("domination_legend.pdf")
+            # Save the legend figure
+            fig_legend.savefig("domination_legend.pdf")
 
     elif figure_idx == 1:
 
@@ -233,8 +232,8 @@ def make_plot(figure_idx, filename=None):
         # Generate x values
         x_vals = np.linspace(0, 10, 800)
 
-        g_1 = Curve.make_quadratic(8, 1, 7, shift=-3, x_min=1, x_max=4)
-        g_2 = Curve.make_quadratic(4, 1, 6, shift=-5, x_min=3, x_max=6, no_name=True)
+        g_1 = Curve.make_quadratic(5, 1, 7, shift=-3, x_min=1, x_max=4)
+        g_2 = Curve.make_quadratic(4, 1, 6, shift=-5, x_min=3, x_max=7, no_name=True)
         g_3 = Curve.make_quadratic(3, 1, 8, shift=-8, x_min=5.5, x_max=9, no_name=True)
         g_next = Curve.make_quadratic(
             4, 1, 5, shift=-6.5, x_min=5, x_max=8, with_dash=True
@@ -256,9 +255,9 @@ def make_plot(figure_idx, filename=None):
 
         g_1 = Curve.make_quadratic(5, 1, 7, shift=-3, x_min=1, x_max=4)
         g_2 = Curve.make_quadratic(4, 1, 6, shift=-5, x_min=3, x_max=7)
-        g_3 = Curve.make_quadratic(3, 1, 8, shift=-7, x_min=5.5, x_max=9)
+        g_3 = Curve.make_quadratic(3, 1, 8, shift=-8, x_min=5.5, x_max=9)
         g_next = Curve.make_quadratic(
-            1.5, 1, 13, shift=-7, x_min=5, x_max=8, with_dash=True
+            2, 1, 20, shift=-6.5, x_min=5, x_max=8, with_dash=True
         )
 
         g_1.plot()
