@@ -3,7 +3,6 @@ from typing import List
 
 from large_gcs.contact.contact_set import ContactPointSet, ContactSet
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
-from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
 from large_gcs.utils.hydra_utils import get_function_from_string
 

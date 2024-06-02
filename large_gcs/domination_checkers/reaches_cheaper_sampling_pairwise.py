@@ -6,10 +6,9 @@ import numpy as np
 from large_gcs.algorithms.search_algorithm import SearchNode
 from large_gcs.domination_checkers.sampling_domination_checker import (
     SamplingDominationChecker,
-    SetSamples,
 )
 from large_gcs.geometry.point import Point
-from large_gcs.graph.graph import Edge, Vertex
+from large_gcs.graph.graph import Vertex
 
 logger = logging.getLogger(__name__)
 

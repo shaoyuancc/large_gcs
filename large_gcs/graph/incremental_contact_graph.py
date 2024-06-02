@@ -4,10 +4,10 @@ from collections import defaultdict
 from copy import copy
 from itertools import combinations, product
 from multiprocessing import Pool
-from typing import List, Optional
+from typing import List
 
 import numpy as np
-from pydrake.all import Cost, SolverOptions
+from pydrake.all import Cost
 from tqdm import tqdm
 
 from large_gcs.contact.contact_regions_set import ContactRegionParams, ContactRegionsSet

@@ -1,11 +1,10 @@
 import logging
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import numpy as np
 import pypolycontain as pp
 import scipy
 from pydrake.all import (
-    CommonSolverOption,
     Constraint,
     HPolyhedron,
     L1NormCost,
@@ -18,7 +17,6 @@ from pydrake.all import (
 )
 
 from large_gcs.algorithms.search_algorithm import AlgMetrics, SearchNode, profile_method
-from large_gcs.contact.contact_set import ContactSet
 from large_gcs.domination_checkers.domination_checker import DominationChecker
 from large_gcs.geometry.geometry_utils import create_selection_matrix
 from large_gcs.geometry.polyhedron import Polyhedron

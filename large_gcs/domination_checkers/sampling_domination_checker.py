@@ -2,18 +2,15 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-import matplotlib.pyplot as plt
 import numpy as np
-from pydrake.all import CommonSolverOption, MathematicalProgram, Solve, SolverOptions
+from pydrake.all import MathematicalProgram, Solve, SolverOptions
 
 from large_gcs.algorithms.search_algorithm import AlgMetrics, SearchNode, profile_method
 from large_gcs.domination_checkers.domination_checker import DominationChecker
 from large_gcs.geometry.geometry_utils import unique_rows_with_tolerance_ignore_nan
 from large_gcs.geometry.point import Point
 from large_gcs.graph.cost_constraint_factory import (
-    create_equality_edge_constraint,
     create_l2norm_squared_vertex_cost_from_point,
-    create_l2norm_vertex_cost_from_point,
 )
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution, Vertex
 

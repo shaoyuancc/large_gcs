@@ -2,6 +2,8 @@ job_logging:
   loggers:
     large_gcs:
       level: INFO
+    large_gcs.graph:
+      level: INFO
     large_gcs.algorithms:
       level: DEBUG
     large_gcs.cost_estimators:

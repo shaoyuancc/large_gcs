@@ -1,23 +1,21 @@
 import logging
-from itertools import combinations, product
+from itertools import product
 from typing import List, Tuple
 
-import matplotlib.cm as cm
-import matplotlib.pyplot as plt
 import numpy as np
-from pydrake.all import Constraint, Cost, Expression, GraphOfConvexSets, eq
+from pydrake.all import Cost
 from tqdm import tqdm
 
 from large_gcs.contact.contact_pair_mode import generate_cfree_contact_pair_modes
 from large_gcs.contact.contact_regions_set import ContactRegionParams, ContactRegionsSet
 from large_gcs.contact.contact_set import ContactPointSet, ContactSet
-from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
+from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.contact_cost_constraint_factory import (
     vertex_cost_position_path_length,
 )
 from large_gcs.graph.contact_graph import ContactGraph
-from large_gcs.graph.graph import Graph, ShortestPathSolution
+from large_gcs.graph.graph import Graph
 
 logger = logging.getLogger(__name__)
 

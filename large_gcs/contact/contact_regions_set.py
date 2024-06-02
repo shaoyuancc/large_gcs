@@ -1,24 +1,11 @@
 from dataclasses import dataclass
 from typing import List
 
-import numpy as np
-from pydrake.all import (
-    DecomposeAffineExpressions,
-    Formula,
-    FormulaKind,
-    HPolyhedron,
-    Variables,
-    le,
-)
+from pydrake.all import le
 
 from large_gcs.contact.contact_location import ContactLocationVertex
-from large_gcs.contact.contact_pair_mode import (
-    ContactPairMode,
-    InContactPairMode,
-    NoContactPairMode,
-)
 from large_gcs.contact.contact_set_decision_variables import ContactSetDecisionVariables
-from large_gcs.contact.rigid_body import MobilityType, RigidBody
+from large_gcs.contact.rigid_body import RigidBody
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.geometry_utils import (
     HPolyhedronFromConstraints,

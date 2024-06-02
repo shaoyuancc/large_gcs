@@ -5,33 +5,18 @@ from collections import defaultdict
 from itertools import combinations, product
 from typing import Dict, Iterable
 
-import matplotlib.cm as cm
-import matplotlib.pyplot as plt
 import numpy as np
-from pydrake.all import Constraint, Cost, Expression, GraphOfConvexSets, eq
+from pydrake.all import eq
 from tqdm import tqdm
 
 from large_gcs.contact.contact_pair_mode import (
     ContactPairMode,
-    InContactPairMode,
-    RelaxedContactPairMode,
     RelaxedInContactPairMode,
-    RelaxedNoContactPairMode,
     generate_contact_pair_modes,
     generate_relaxed_contact_pair_modes,
 )
-from large_gcs.contact.contact_regions_set import ContactRegionParams, ContactRegionsSet
-from large_gcs.contact.contact_set import ContactPointSet, ContactSet
-from large_gcs.contact.contact_set_decision_variables import ContactSetDecisionVariables
-from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
-from large_gcs.geometry.polyhedron import Polyhedron
-from large_gcs.graph.contact_cost_constraint_factory import (
-    edge_constraint_position_continuity,
-    edge_cost_constant,
-    vertex_cost_force_actuation_norm,
-    vertex_cost_position_path_length,
-)
-from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution, Vertex
+from large_gcs.contact.contact_set import ContactSet
+from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 
 logger = logging.getLogger(__name__)

@@ -8,10 +8,8 @@ from typing import List, Optional
 import matplotlib.pyplot as plt
 import numpy as np
 from IPython.display import HTML, display
-from matplotlib.animation import FFMpegWriter
 
 from large_gcs.algorithms.search_algorithm import (
-    AlgMetrics,
     AlgVisParams,
     ReexploreLevel,
     SearchAlgorithm,
@@ -19,7 +17,7 @@ from large_gcs.algorithms.search_algorithm import (
 )
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.graph.contact_graph import ContactGraph
-from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
+from large_gcs.graph.graph import Edge, Graph
 
 logger = logging.getLogger(__name__)
 

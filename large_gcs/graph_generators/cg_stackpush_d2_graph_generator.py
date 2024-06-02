@@ -1,19 +1,8 @@
 import logging
 
 import numpy as np
-from IPython.display import HTML
-from matplotlib import pyplot as plt
 
-from large_gcs.algorithms.gcs_astar_convex_restriction import GcsAstarConvexRestriction
-from large_gcs.algorithms.search_algorithm import ReexploreLevel
 from large_gcs.contact.contact_regions_set import ContactRegionParams
-from large_gcs.cost_estimators.shortcut_edge_ce import ShortcutEdgeCE
-from large_gcs.graph.contact_cost_constraint_factory import (
-    contact_shortcut_edge_cost_factory_over_obj_weighted,
-    contact_shortcut_edge_cost_factory_under,
-)
-from large_gcs.graph.contact_graph import ContactGraph
-from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 from large_gcs.graph_generators.contact_graph_generator import (
     ContactGraphGenerator,
     ContactGraphGeneratorParams,

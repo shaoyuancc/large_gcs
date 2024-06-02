@@ -1,14 +1,10 @@
 import logging
 
-import numpy as np
-
 from large_gcs.algorithms.gcs_astar_reachability import GcsAstarReachability
-from large_gcs.algorithms.search_algorithm import SearchNode
 from large_gcs.cost_estimators.shortcut_edge_ce import ShortcutEdgeCE
 from large_gcs.graph.contact_cost_constraint_factory import (
     contact_shortcut_edge_cost_factory_over_obj_weighted,
 )
-from large_gcs.graph.cost_constraint_factory import shortcut_edge_cost_factory
 
 logging.basicConfig(level=logging.WARN)
 logging.getLogger("large_gcs").setLevel(logging.DEBUG)

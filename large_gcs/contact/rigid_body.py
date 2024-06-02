@@ -6,7 +6,6 @@ import numpy as np
 from pydrake.all import (
     MakeMatrixContinuousVariable,
     MakeVectorContinuousVariable,
-    eq,
     ge,
     le,
 )

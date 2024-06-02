@@ -6,20 +6,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 import scipy
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from pydrake.all import (
     DecomposeAffineExpressions,
     Formula,
     FormulaKind,
     HPolyhedron,
-    Variable,
     VPolytope,
 )
 from scipy.spatial import ConvexHull
 
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.geometry_utils import is_on_hyperplane
-from large_gcs.utils.utils import copy_pastable_str_from_np_array
 
 logger = logging.getLogger(__name__)
 

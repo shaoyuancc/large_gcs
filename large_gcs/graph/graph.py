@@ -11,13 +11,11 @@ import numpy as np
 from graphviz import Digraph
 from pydrake.all import (
     Binding,
-    CommonSolverOption,
     Constraint,
     Cost,
     GraphOfConvexSets,
     GraphOfConvexSetsOptions,
     MathematicalProgramResult,
-    MosekSolver,
     SolverOptions,
 )
 from tqdm import tqdm

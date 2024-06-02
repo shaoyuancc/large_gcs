@@ -13,7 +13,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 import wandb
-from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
+from large_gcs.graph.graph import Edge, ShortestPathSolution
 from large_gcs.utils.utils import dict_to_dataclass
 
 

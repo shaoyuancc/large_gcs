@@ -2,8 +2,6 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Callable, List
 
-import numpy as np
-
 from large_gcs.graph.contact_graph import ContactGraph
 
 

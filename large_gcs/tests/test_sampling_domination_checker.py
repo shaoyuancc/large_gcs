@@ -1,20 +1,15 @@
 from large_gcs.algorithms.search_algorithm import AlgMetrics, SearchNode
-from large_gcs.domination_checkers.reaches_cheaper_containment import (
-    ReachesCheaperContainment,
-)
 from large_gcs.domination_checkers.reaches_cheaper_sampling import (
     ReachesCheaperSampling,
 )
 from large_gcs.domination_checkers.reaches_cheaper_sampling_pairwise import (
     ReachesCheaperSamplingPairwise,
 )
-from large_gcs.domination_checkers.reaches_new_containment import ReachesNewContainment
 from large_gcs.domination_checkers.reaches_new_sampling import ReachesNewSampling
 from large_gcs.domination_checkers.reaches_new_sampling_pairwise import (
     ReachesNewSamplingPairwise,
 )
 from large_gcs.graph_generators.hor_vert_gcs import create_polyhedral_hor_vert_b_graph
-from large_gcs.graph_generators.one_dimensional_gcs import create_simple_1d_graph
 
 NUM_SAMPLES_PER_VERTEX = 200
 

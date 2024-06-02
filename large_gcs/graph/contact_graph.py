@@ -6,10 +6,9 @@ from multiprocessing import Pool
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
-import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
-from pydrake.all import Constraint, Cost, Expression, GraphOfConvexSets, eq
+from pydrake.all import Constraint, Cost, Expression, eq
 from tqdm import tqdm
 
 from large_gcs.contact.contact_pair_mode import (
@@ -24,7 +23,6 @@ from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.contact_cost_constraint_factory import (
     edge_constraint_position_continuity,
     edge_cost_constant,
-    vertex_cost_force_actuation_norm,
     vertex_cost_position_l1_norm,
     vertex_cost_position_path_length,
 )

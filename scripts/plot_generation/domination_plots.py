@@ -3,21 +3,10 @@ from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pydrake.symbolic import Monomial, Polynomial, Variable
+from pydrake.symbolic import Polynomial, Variable
 
 from large_gcs.utils.utils import use_type_1_fonts_in_plots
-from large_gcs.visualize.colors import (
-    BLUE,
-    DEEPPINK2,
-    DODGERBLUE3,
-    GREEN,
-    GREEN2,
-    GREEN3,
-    GREEN4,
-    LIGHTSEAGREEN,
-    PURPLE,
-)
-from large_gcs.visualize.plot_sampling_comparison import SamplingRunData, SingleRunData
+from large_gcs.visualize.colors import DEEPPINK2, DODGERBLUE3, GREEN2
 
 
 def _make_values(a, b, c, shift, x_vals) -> np.ndarray:

@@ -1,4 +1,3 @@
-import numpy as np
 from pydrake.all import GraphOfConvexSets, GraphOfConvexSetsOptions
 from pydrake.all import Point as Point
 

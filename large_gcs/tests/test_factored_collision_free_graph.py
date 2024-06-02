@@ -1,14 +1,4 @@
-import numpy as np
-import pytest
-
-from large_gcs.algorithms.gcs_astar_convex_restriction import GcsAstarConvexRestriction
-from large_gcs.algorithms.search_algorithm import ReexploreLevel
 from large_gcs.cost_estimators.factored_collision_free_ce import FactoredCollisionFreeCE
-from large_gcs.graph.contact_cost_constraint_factory import (
-    contact_shortcut_edge_cost_factory_over_obj_weighted,
-)
-from large_gcs.graph.contact_graph import ContactGraph
-from large_gcs.graph.graph import ShortestPathSolution
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 from large_gcs.graph_generators.contact_graph_generator import (
     ContactGraphGeneratorParams,

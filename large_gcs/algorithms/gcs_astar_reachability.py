@@ -1,3 +1,4 @@
+import gc
 import itertools
 import logging
 import os
@@ -5,15 +6,10 @@ import time
 from collections import defaultdict, deque
 from typing import List, Optional
 
-import matplotlib.pyplot as plt
 import numpy as np
-import plotly.graph_objs as go
-from IPython.display import HTML, display
-from matplotlib.animation import FFMpegWriter
 
 import wandb
 from large_gcs.algorithms.search_algorithm import (
-    AlgMetrics,
     AlgVisParams,
     SearchAlgorithm,
     SearchNode,
@@ -22,11 +18,11 @@ from large_gcs.algorithms.search_algorithm import (
 )
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.domination_checkers.domination_checker import DominationChecker
-from large_gcs.geometry.geometry_utils import unique_rows_with_tolerance_ignore_nan
-from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution, Vertex
+from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 
 logger = logging.getLogger(__name__)
+# tracemalloc.start()
 
 
 class GcsAstarReachability(SearchAlgorithm):
@@ -105,6 +101,9 @@ class GcsAstarReachability(SearchAlgorithm):
 
         self._cost_estimator.setup_subgraph(self._graph)
 
+        n_unreachable = gc.collect()
+        logger.debug(f"Garbage collected {n_unreachable} unreachable objects")
+
     def add_node_to_S_left(self, n: SearchNode):
         self._S[n.vertex_name].appendleft(n)
 
@@ -130,8 +129,6 @@ class GcsAstarReachability(SearchAlgorithm):
                 f"{self.__class__.__name__} failed to find a path to the target."
             )
             return
-
-        self._graph._post_solve(sol)
         logger.info(
             f"{self.__class__.__name__} complete! \ncost: {sol.cost}, time: {sol.time}"
             f"\nvertex path: {np.array(sol.vertex_path)}"
@@ -141,6 +138,11 @@ class GcsAstarReachability(SearchAlgorithm):
     @profile_method
     def _run_iteration(self) -> Optional[ShortestPathSolution]:
         """Runs one iteration of the search algorithm."""
+        # snapshot = tracemalloc.take_snapshot()
+        # top_stats = snapshot.statistics('lineno')
+        # for stat in top_stats[:10]:
+        #     logger.debug(stat)
+
         n: SearchNode = self.pop_node_from_Q()
 
         # Check termination condition

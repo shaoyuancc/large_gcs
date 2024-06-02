@@ -3,14 +3,8 @@ import numpy as np
 from large_gcs.algorithms.gcs_astar_reachability import GcsAstarReachability
 from large_gcs.cost_estimators.shortcut_edge_ce import ShortcutEdgeCE
 from large_gcs.domination_checkers.reaches_new_sampling import ReachesNewSampling
-from large_gcs.graph.contact_cost_constraint_factory import (
-    contact_shortcut_edge_cost_factory_over_obj_weighted,
-)
 from large_gcs.graph.cost_constraint_factory import shortcut_edge_cost_factory
-from large_gcs.graph_generators.hor_vert_gcs import (
-    create_polyhedral_hor_vert_graph,
-    create_simplest_hor_vert_graph,
-)
+from large_gcs.graph_generators.hor_vert_gcs import create_polyhedral_hor_vert_graph
 
 tol = 1e-3
 

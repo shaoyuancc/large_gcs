@@ -1,7 +1,6 @@
 import logging
 from typing import List
 
-import numpy as np
 from pydrake.all import HPolyhedron, VPolytope
 
 from large_gcs.algorithms.search_algorithm import SearchNode

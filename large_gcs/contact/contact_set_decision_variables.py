@@ -2,11 +2,9 @@ from dataclasses import dataclass
 from typing import List
 
 import numpy as np
-from pydrake.all import Formula
-from pydrake.all import Point as DrakePoint
 
 from large_gcs.contact.contact_pair_mode import ContactPairMode, InContactPairMode
-from large_gcs.contact.rigid_body import MobilityType, RigidBody
+from large_gcs.contact.rigid_body import RigidBody
 
 
 @dataclass

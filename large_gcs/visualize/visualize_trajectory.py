@@ -13,12 +13,8 @@ from large_gcs.visualize.colors import (
     AZURE3,
     BISQUE3,
     BLACK,
-    CRIMSON,
     DARKSEAGREEN2,
-    DARKSLATEGRAY1,
     EMERALDGREEN,
-    FIREBRICK3,
-    WHITE,
 )
 
 

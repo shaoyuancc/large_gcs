@@ -8,7 +8,6 @@ from pydrake.all import (
     Formula,
     FormulaKind,
     HPolyhedron,
-    Variables,
     le,
 )
 

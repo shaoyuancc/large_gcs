@@ -1,18 +1,14 @@
 from typing import List
 
-import matplotlib.pyplot as plt
 import numpy as np
 from pydrake.all import Formula
 from pydrake.all import Point as DrakePoint
 
-from large_gcs.contact.contact_pair_mode import ContactPairMode, InContactPairMode
+from large_gcs.contact.contact_pair_mode import ContactPairMode
 from large_gcs.contact.contact_set_decision_variables import ContactSetDecisionVariables
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.convex_set import ConvexSet
-from large_gcs.geometry.geometry_utils import (
-    HPolyhedronAbFromConstraints,
-    HPolyhedronFromConstraints,
-)
+from large_gcs.geometry.geometry_utils import HPolyhedronFromConstraints
 from large_gcs.geometry.polyhedron import Polyhedron
 
 

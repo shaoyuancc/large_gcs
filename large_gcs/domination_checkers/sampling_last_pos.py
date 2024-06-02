@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Tuple
+from typing import Tuple
 
 from numpy import ndarray
 
@@ -7,14 +7,11 @@ from large_gcs.algorithms.search_algorithm import SearchNode
 from large_gcs.contact.contact_set import ContactSet
 from large_gcs.domination_checkers.sampling_domination_checker import (
     SamplingDominationChecker,
-    SetSamples,
 )
-from large_gcs.geometry.point import Point
 from large_gcs.graph.contact_cost_constraint_factory import (
-    vertex_constraint_last_pos_eps_equality,
     vertex_constraint_last_pos_equality,
 )
-from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution, Vertex
+from large_gcs.graph.graph import ShortestPathSolution, Vertex
 
 logger = logging.getLogger(__name__)
 

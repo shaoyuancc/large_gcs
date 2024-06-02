@@ -8,7 +8,6 @@ from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 from large_gcs.graph_generators.contact_graph_generator import (
     ContactGraphGeneratorParams,
 )
-from large_gcs.utils.utils import copy_pastable_str_from_np_array
 
 logging.getLogger("large_gcs").setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)

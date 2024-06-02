@@ -1,4 +1,3 @@
-import itertools
 import pickle
 from dataclasses import fields
 from typing import List

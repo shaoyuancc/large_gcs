@@ -5,9 +5,7 @@ import time
 from collections import defaultdict
 from typing import List
 
-import matplotlib.pyplot as plt
 import numpy as np
-import plotly.graph_objs as go
 
 import wandb
 from large_gcs.abstraction_models.abstraction_model import AbstractionModel
@@ -17,11 +15,7 @@ from large_gcs.abstraction_models.gcshastar_node import (
     StatementNode,
 )
 from large_gcs.algorithms.gcs_hastar import GcsHAstarMetrics
-from large_gcs.algorithms.search_algorithm import (
-    AlgMetrics,
-    AlgVisParams,
-    SearchAlgorithm,
-)
+from large_gcs.algorithms.search_algorithm import AlgVisParams, SearchAlgorithm
 from large_gcs.geometry.point import Point
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.graph import Edge, Graph, Vertex
