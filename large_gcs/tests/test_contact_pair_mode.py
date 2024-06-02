@@ -65,12 +65,12 @@ def test_create_static_face_movable_face_signed_dist_surrog_square():
 def test_create_static_face_movable_face_signed_dist_surrog_triangle():
     body_a = RigidBody(
         "obj_a",
-        Polyhedron(H=[[1.5, 1], [-1, 0], [0, -1]], h=[4, 0, 0]),
+        Polyhedron(H=np.array([[1.5, 1], [-1, 0], [0, -1]]), h=np.array([4, 0, 0])),
         MobilityType.STATIC,
     )
     body_b = RigidBody(
         "obj_b",
-        Polyhedron(H=[[-1.5, -1], [1, 0], [0, 1]], h=[-4, 3, 5]),
+        Polyhedron(H=np.array([[-1.5, -1], [1, 0], [0, 1]]), h=np.array([-4, 3, 5])),
         MobilityType.UNACTUATED,
     )
     contact_loc_a = ContactLocationFace(body_a, 0)
@@ -207,12 +207,12 @@ def test_create_static_vert_movable_face_signed_dist_surrog_square():
 def test_create_movable_face_face_signed_dist_surrog_triangle():
     body_a = RigidBody(
         "obj_a",
-        Polyhedron(H=[[1.5, 1], [-1, 0], [0, -1]], h=[4, 0, 0]),
+        Polyhedron(H=np.array([[1.5, 1], [-1, 0], [0, -1]]), h=np.array([4, 0, 0])),
         MobilityType.UNACTUATED,
     )
     body_b = RigidBody(
         "obj_b",
-        Polyhedron(H=[[-1.5, -1], [1, 0], [0, 1]], h=[-4, 3, 5]),
+        Polyhedron(H=np.array([[-1.5, -1], [1, 0], [0, 1]]), h=np.array([-4, 3, 5])),
         MobilityType.ACTUATED,
     )
     contact_loc_a = ContactLocationFace(body_a, 0)
@@ -250,12 +250,12 @@ def test_create_movable_face_face_signed_dist_surrog_triangle():
 def test_create_movable_face_vert_signed_dist_surrog_triangle():
     body_a = RigidBody(
         "obj_a",
-        Polyhedron(H=[[1.5, 1], [-1, 0], [0, -1]], h=[4, 0, 0]),
+        Polyhedron(H=np.array([[1.5, 1], [-1, 0], [0, -1]]), h=np.array([4, 0, 0])),
         MobilityType.UNACTUATED,
     )
     body_b = RigidBody(
         "obj_b",
-        Polyhedron(H=[[-1.5, -1], [1, 0], [0, 1]], h=[-4, 3, 5]),
+        Polyhedron(H=np.array([[-1.5, -1], [1, 0], [0, 1]]), h=np.array([-4, 3, 5])),
         MobilityType.ACTUATED,
     )
     contact_loc_a = ContactLocationFace(body_a, 0)
@@ -293,12 +293,12 @@ def test_create_movable_face_vert_signed_dist_surrog_triangle():
 def test_create_movable_vert_face_signed_dist_surrog_triangle():
     body_a = RigidBody(
         "obj_a",
-        Polyhedron(H=[[1.5, 1], [-1, 0], [0, -1]], h=[4, 0, 0]),
+        Polyhedron(H=np.array([[1.5, 1], [-1, 0], [0, -1]]), h=np.array([4, 0, 0])),
         MobilityType.UNACTUATED,
     )
     body_b = RigidBody(
         "obj_b",
-        Polyhedron(H=[[-1.5, -1], [1, 0], [0, 1]], h=[-4, 3, 5]),
+        Polyhedron(H=np.array([[-1.5, -1], [1, 0], [0, 1]]), h=np.array([-4, 3, 5])),
         MobilityType.ACTUATED,
     )
     contact_loc_a = ContactLocationFace(body_a, 0)

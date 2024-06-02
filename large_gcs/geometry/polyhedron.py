@@ -28,13 +28,13 @@ class Polyhedron(ConvexSet):
     """Wrapper for the Drake HPolyhedron class that uses the half-space
     representation: {x| H x ≤ h}"""
 
-    def __init__(self, H, h, should_compute_vertices=True):
+    def __init__(
+        self, H: np.ndarray, h: np.ndarray, should_compute_vertices: bool = True
+    ):
         """Default constructor for the polyhedron {x| A x ≤ b}."""
         self._vertices = None
         self._center = None
 
-        H = np.array(H)
-        h = np.array(h)
         self._H = H
         self._h = h
 
