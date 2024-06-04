@@ -108,6 +108,10 @@ class ContactPairMode(ABC):
         pass
 
     @property
+    def body_pair(self):
+        return (self.body_a.name, self.body_b.name)
+
+    @property
     def params(self):
         return ContactPairModeParams(
             type=type(self),

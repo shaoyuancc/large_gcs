@@ -145,9 +145,7 @@ def _contact_shortcut_edge_l1_norm_cost_factory(
     add_const_cost: bool = False,
     scaling_eps: float = 1,
 ) -> List[Cost]:
-    costs = create_scaled_l1norm_position_continuity_costs(
-        u_vars, v_vars, 1 * scaling_eps
-    )
+    costs = create_scaled_l1norm_position_continuity_costs(u_vars, v_vars, scaling_eps)
 
     if add_const_cost:
         total_dims = u_vars.all.size + v_vars.all.size
@@ -158,6 +156,49 @@ def _contact_shortcut_edge_l1_norm_cost_factory(
         costs.append(LinearCost(a, constant_cost))
 
     return costs
+
+
+def _contact_shortcut_edge_l1_norm_plus_switches_cost_factory(
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    n_switches: int,
+    scaling_eps: float = 1,
+) -> List[Cost]:
+    """Assumes that simultaneous mode switches are not allowed."""
+    costs = create_scaled_l1norm_position_continuity_costs(u_vars, v_vars, scaling_eps)
+
+    total_dims = u_vars.all.size + v_vars.all.size
+    # Constant cost for the edge
+    a = np.zeros((total_dims, 1))
+    # We add 2 because if a shortcut is used it minimally replaces 2 edges
+    constant_cost = (2 + n_switches) * scaling_eps
+    costs.append(LinearCost(a, constant_cost))
+
+    return costs
+
+
+def contact_shortcut_edge_l1_norm_plus_switches_cost_factory_under(
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    n_switches: int,
+    add_const_cost: bool = True,
+) -> List[Cost]:
+    # add_const_cost is ignored and assumed to be True because otherwise it doesn't make sense to add the constant costs for contact pair mode switches
+    return _contact_shortcut_edge_l1_norm_plus_switches_cost_factory(
+        u_vars, v_vars, n_switches, scaling_eps=1
+    )
+
+
+def contact_shortcut_edge_l1_norm_plus_switches_cost_factory_over(
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    n_switches: int,
+    add_const_cost: bool = True,
+) -> List[Cost]:
+    # add_const_cost is ignored and assumed to be True because otherwise it doesn't make sense to add the constant costs for contact pair mode switches
+    return _contact_shortcut_edge_l1_norm_plus_switches_cost_factory(
+        u_vars, v_vars, n_switches, n_switches, scaling_eps=OVERESTIMATE_EPS
+    )
 
 
 def contact_shortcut_edge_l1_norm_cost_factory_under_obj_weighted(

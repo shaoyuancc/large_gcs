@@ -170,6 +170,7 @@ class IncrementalContactGraph(ContactGraph):
                         self._bodies_w_target_region.add(self.robots[body_index].name)
 
         self._modes_w_possible_edge_to_target = set()
+        self._body_pair_to_mode_ids_w_possible_edge_to_target = defaultdict(list)
 
         self._adj_modes = defaultdict(list)
         sets = []
@@ -225,6 +226,7 @@ class IncrementalContactGraph(ContactGraph):
             ), f"Could not find source contact pair neighbor for {body_pair}"
 
             # Determining incoming edges for target vertex
+            # Target position is defined
             if self.target_pos is not None:
                 target_pos = np.array([])
                 for body_name in body_pair:
@@ -235,6 +237,10 @@ class IncrementalContactGraph(ContactGraph):
                 for id in mode_ids:
                     if base_polyhedra[id].PointInSet(target_pos):
                         self._modes_w_possible_edge_to_target.add(id)
+                        self._body_pair_to_mode_ids_w_possible_edge_to_target[
+                            body_pair
+                        ].append(id)
+            # Target region is defined
             elif (
                 self.target_region_params is not None
                 and len(objs) + len(robs) == 1
@@ -253,6 +259,9 @@ class IncrementalContactGraph(ContactGraph):
                         (base_polyhedra[id], target_set.base_set)
                     ):
                         self._modes_w_possible_edge_to_target.add(id)
+                        self._body_pair_to_mode_ids_w_possible_edge_to_target[
+                            body_pair
+                        ].append(id)
 
         with Pool() as pool:
             logger.info(f"Calculating adjacent contact pair modes ({len(sets)})")
@@ -427,7 +436,10 @@ class IncrementalContactGraph(ContactGraph):
         if self.target_pos is not None:
             for id in mode_ids:
                 mode = self._contact_pair_modes[id]
-                # Only consider body pairs that are not both movable
+                # Only consider body pairs that are not both movable.
+                # Because target is defined by absolute position of movable bodies
+                # not relative position between bodies, so the contact pair mode
+                # between movable bodies not not matter.
                 # Note for target pos, all movable bodies have a position set for them
                 if not (
                     mode.body_a.mobility_type != MobilityType.STATIC
@@ -455,6 +467,25 @@ class IncrementalContactGraph(ContactGraph):
         if all(possible_edge_to_target):
             return True
         return False
+
+    def num_modes_not_adj_to_target(self, vertex_name: str) -> int:
+        if vertex_name == self.source_name or vertex_name == self.target_name:
+            # This computation is not valid for source or target vertex.
+            return 0
+        mode_ids = ast.literal_eval(vertex_name)
+        n_modes = 0
+        for id in mode_ids:
+            mode = self._contact_pair_modes[id]
+            # If this body pair has modes with possible edges to target specified but this mode is not one of them, increment n_modes
+            if (
+                mode.body_pair in self._body_pair_to_mode_ids_w_possible_edge_to_target
+                and id
+                not in self._body_pair_to_mode_ids_w_possible_edge_to_target[
+                    mode.body_pair
+                ]
+            ):
+                n_modes += 1
+        return n_modes
 
     ### SERIALIZATION METHODS ###
 

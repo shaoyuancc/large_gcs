@@ -55,8 +55,10 @@ class ShortcutEdgeCE(CostEstimator):
                     # Only ContactSet and ContactPointSet have the vars attribute
                     # convex_sets in general do not.
                     direct_edge_costs = self._shortcut_edge_cost_factory(
-                        self._graph.vertices[neighbor].convex_set.vars,
-                        self._graph.vertices[self._graph.target_name].convex_set.vars,
+                        u_vars=self._graph.vertices[neighbor].convex_set.vars,
+                        v_vars=self._graph.vertices[
+                            self._graph.target_name
+                        ].convex_set.vars,
                         add_const_cost=self._add_const_cost,
                     )
                 else:
