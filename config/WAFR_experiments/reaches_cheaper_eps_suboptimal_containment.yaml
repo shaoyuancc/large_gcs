@@ -28,5 +28,4 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      graph_name: cg_trichal4
-      # graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1
+      graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1
