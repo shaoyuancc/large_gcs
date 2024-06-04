@@ -147,9 +147,8 @@ class AHContainmentDominationChecker(DominationChecker):
     @profile_method
     def _create_path_AH_polytope(self, node: SearchNode):
         A, b, C, d = self.get_path_A_b_C_d(node)
-        H = np.vstack([A, C, -C])
-        h = np.hstack([b, d, -d])
-        T_H = self.get_H_transformation(node, H.shape[1])
+        total_dims = A.shape[1]
+        T_H = self.get_H_transformation(node, total_dims=total_dims)
         K, k, T, t = self._nullspace_polyhedron_and_transformation(A, b, C, d, T_H)
         X = pp.H_polytope(K, k)
         return pp.AH_polytope(t, T, X)
