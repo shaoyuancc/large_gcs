@@ -19,6 +19,8 @@ from pydrake.all import (
 
 from large_gcs.contact.contact_set_decision_variables import ContactSetDecisionVariables
 
+OVERESTIMATE_EPS = 10
+
 
 def create_vars_from_template(
     vars_template: np.ndarray, name_prefix: str
@@ -104,12 +106,16 @@ def contact_shortcut_edge_cost_factory_under_obj_weighted(
     return costs
 
 
-def contact_shortcut_edge_l1_norm_cost_factory_under_obj_weighted(
-    u_vars: ContactSetDecisionVariables,
-    v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False,
-) -> List[Cost]:
-    """Creates a list of costs for the shortcut between set u and set v."""
+def create_l1norm_cost(u_pos, v_pos, uv_vars_all, scaling=1):
+    u_last_pos = u_pos[:, :, -1].flatten()
+    v_first_pos = v_pos[:, :, 0].flatten()
+    exprs = (u_last_pos - v_first_pos).flatten() * scaling
+    A = DecomposeLinearExpressions(exprs, uv_vars_all)
+    b = np.zeros(A.shape[0])
+    return L1NormCost(A, b)
+
+
+def create_scaled_l1norm_position_continuity_costs(u_vars, v_vars, scaling_eps):
     u_vars_all = create_vars_from_template(u_vars.all, "u")
     v_vars_all = create_vars_from_template(v_vars.all, "v")
     uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
@@ -122,27 +128,58 @@ def contact_shortcut_edge_l1_norm_cost_factory_under_obj_weighted(
     n_robs = u_vars.force_act.shape[0]
     n_objs = u_vars.pos.shape[0] - n_robs
 
-    def create_l1norm_cost(u_pos, v_pos, scaling=1):
-        u_last_pos = u_pos[:, :, -1].flatten()
-        v_first_pos = v_pos[:, :, 0].flatten()
-        exprs = (u_last_pos - v_first_pos).flatten() * scaling
-        A = DecomposeLinearExpressions(exprs, uv_vars_all)
-        b = np.zeros(A.shape[0])
-        return L1NormCost(A, b)
-
     costs = [
-        create_l1norm_cost(u_pos[:n_objs], v_pos[:n_objs], scaling=1),
-        create_l1norm_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=0.2),
+        create_l1norm_cost(
+            u_pos[:n_objs], v_pos[:n_objs], uv_vars_all, scaling=1 * scaling_eps
+        ),
+        create_l1norm_cost(
+            u_pos[n_objs:], v_pos[n_objs:], uv_vars_all, scaling=0.2 * scaling_eps
+        ),
     ]
+    return costs
+
+
+def _contact_shortcut_edge_l1_norm_cost_factory(
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    add_const_cost: bool = False,
+    scaling_eps: float = 1,
+) -> List[Cost]:
+    costs = create_scaled_l1norm_position_continuity_costs(
+        u_vars, v_vars, 1 * scaling_eps
+    )
 
     if add_const_cost:
+        total_dims = u_vars.all.size + v_vars.all.size
         # Constant cost for the edge
-        a = np.zeros((uv_vars_all.size, 1))
+        a = np.zeros((total_dims, 1))
         # We add 2 because if a shortcut is used it minimally replaces 2 edges
-        constant_cost = 2
+        constant_cost = 2 * scaling_eps
         costs.append(LinearCost(a, constant_cost))
 
     return costs
+
+
+def contact_shortcut_edge_l1_norm_cost_factory_under_obj_weighted(
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    add_const_cost: bool = False,
+) -> List[Cost]:
+    """Creates a list of costs for the shortcut between set u and set v."""
+    return _contact_shortcut_edge_l1_norm_cost_factory(
+        u_vars, v_vars, add_const_cost, 1
+    )
+
+
+def contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted(
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    add_const_cost: bool = False,
+) -> List[Cost]:
+    """Creates a list of costs for the shortcut between set u and set v."""
+    return _contact_shortcut_edge_l1_norm_cost_factory(
+        u_vars, v_vars, add_const_cost, OVERESTIMATE_EPS
+    )
 
 
 def contact_shortcut_edge_cost_factory_over(
@@ -236,47 +273,6 @@ def contact_shortcut_edge_cost_factory_over_obj_weighted(
     costs = [
         create_l2norm_cost(u_pos[:n_objs], v_pos[:n_objs], scaling=10),
         create_l2norm_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=2),
-    ]
-
-    if add_const_cost:
-        # Constant cost for the edge
-        a = np.zeros((uv_vars_all.size, 1))
-        # We add 2 because if a shortcut is used it minimally replaces 2 edges
-        constant_cost = 20
-        costs.append(LinearCost(a, constant_cost))
-
-    return costs
-
-
-def contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted(
-    u_vars: ContactSetDecisionVariables,
-    v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False,
-) -> List[Cost]:
-    """Creates a list of costs for the shortcut between set u and set v."""
-    u_vars_all = create_vars_from_template(u_vars.all, "u")
-    v_vars_all = create_vars_from_template(v_vars.all, "v")
-    # Hacky way to separate the object and robot positions variables
-    # I know that v will be the target, and so will not have force variables
-    # I know that only robots have actuation force variables
-    n_robs = u_vars.force_act.shape[0]
-    n_objs = u_vars.pos.shape[0] - n_robs
-    # Position continuity cost
-    u_pos = u_vars.pos_from_all(u_vars_all)
-    v_pos = v_vars.pos_from_all(v_vars_all)
-    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
-
-    def create_l1norm_cost(u_pos, v_pos, scaling=1):
-        u_last_pos = u_pos[:, :, -1].flatten()
-        v_first_pos = v_pos[:, :, 0].flatten()
-        exprs = (u_last_pos - v_first_pos).flatten() * scaling
-        A = DecomposeLinearExpressions(exprs, uv_vars_all)
-        b = np.zeros(A.shape[0])
-        return L1NormCost(A, b)
-
-    costs = [
-        create_l1norm_cost(u_pos[:n_objs], v_pos[:n_objs], scaling=10),
-        create_l1norm_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=2),
     ]
 
     if add_const_cost:
