@@ -33,7 +33,7 @@ line-length = 88
 
 [tool.pytest.ini_options]
 log_cli = true
-log_cli_level = "INFO"
+log_cli_level = "DEBUG"
 
 [build-system]
 requires = ["poetry-core"]

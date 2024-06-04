@@ -4,7 +4,7 @@ from collections import defaultdict
 from copy import copy
 from itertools import combinations, product
 from multiprocessing import Pool
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 from pydrake.all import Cost
@@ -389,7 +389,7 @@ class IncrementalContactGraph(ContactGraph):
                     u_vertex_name,
                     self.target_name,
                     True,
-                    self.vertices[self.target_name].convex_set,
+                    None,
                 )
             )
 
@@ -409,7 +409,7 @@ class IncrementalContactGraph(ContactGraph):
                 self._generate_neighbor(*inputs)
 
     def _generate_neighbor(
-        self, u: str, v: str, is_v_in_vertices: bool, v_set: ContactSet
+        self, u: str, v: str, is_v_in_vertices: bool, v_set: Optional[ContactSet] = None
     ) -> None:
         if not is_v_in_vertices:
             vertex = Vertex(
@@ -427,6 +427,21 @@ class IncrementalContactGraph(ContactGraph):
             ),
             should_add_to_gcs=self._should_add_gcs,
         )
+
+    def add_vertex_path_to_graph(self, vertex_path: List[str]) -> None:
+        """Adds the vertices and edges along a vertex path to the graph.
+
+        Assumes that vertices and edges exist. Assumes that the first
+        vertex and edge in the path is already in the graph.
+        """
+        for u_name, v_name in zip(vertex_path[:-1], vertex_path[1:]):
+            v_set = None
+            is_v_in_vertices = v_name in self.vertices
+            if not is_v_in_vertices:
+                mode_ids = ast.literal_eval(v_name)
+                v_set = self._create_contact_set_from_contact_pair_mode_ids(mode_ids)
+                assert v_set.set.IsEmpty() == False, f"Vertex {v_name} is empty"
+            self._generate_neighbor(u_name, v_name, is_v_in_vertices, v_set)
 
     def _does_vertex_have_possible_edge_to_target(self, vertex_name: str) -> bool:
         # Determine if we can add an edge to the target vertex
