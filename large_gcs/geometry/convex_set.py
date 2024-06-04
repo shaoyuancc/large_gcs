@@ -59,7 +59,7 @@ class ConvexSet(ABC):
                 logger.debug(f"Sampled {i+2} points from convex set")
         except (RuntimeError, ValueError) as e:
             chebyshev_center = self.set.ChebyshevCenter()
-            logger.warning("Failed to sample convex set" f"\n{e}")
+            logger.warn("Failed to sample convex set" f"\n{e}")
             return np.array([chebyshev_center])
         return np.array(samples)
 

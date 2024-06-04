@@ -412,6 +412,9 @@ class IncrementalContactGraph(ContactGraph):
         self, u: str, v: str, is_v_in_vertices: bool, v_set: Optional[ContactSet] = None
     ) -> None:
         if not is_v_in_vertices:
+            # Create the nullspace set for the vertex.
+            v_set._polyhedron.create_nullspace_set()
+
             vertex = Vertex(
                 v_set,
                 costs=self._create_single_vertex_costs(v_set),

@@ -7,6 +7,7 @@ import numpy as np
 import plotly.graph_objects as go
 import scipy
 from pydrake.all import (
+    AffineSubspace,
     DecomposeAffineExpressions,
     Formula,
     FormulaKind,
@@ -17,6 +18,7 @@ from scipy.spatial import ConvexHull
 
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.geometry_utils import is_on_hyperplane
+from large_gcs.geometry.nullspace_set import NullspaceSet
 
 logger = logging.getLogger(__name__)
 
@@ -28,24 +30,18 @@ class Polyhedron(ConvexSet):
     def __init__(
         self, H: np.ndarray, h: np.ndarray, should_compute_vertices: bool = True
     ):
-        """Default constructor for the polyhedron {x| A x ≤ b}."""
+        """Default constructor for the polyhedron {x| H x ≤ h}.
+
+        This constructor should be kept cheap to run since many
+        polyhedrons are constructed and then thrown away if they are
+        empty or they don't intersect other sets.
+        """
         self._vertices = None
         self._center = None
 
+        self._h_polyhedron = HPolyhedron(H, h)
         self._H = H
         self._h = h
-
-        # Detect and remove rows with very small A and b, practically zero \leq zero
-        for i, (a1, b1) in enumerate(zip(H, h)):
-            if np.allclose(a1, 0) and np.isclose(b1, 0):
-                logger.error(f"row {i} in polyhedron is practically 0.")
-                # logger.debug(
-                #     f"Removing row {i} from A and b, because they are practically zero."
-                # )
-                # H = np.delete(H, i, axis=0)
-                # h = np.delete(h, i)
-
-        self._h_polyhedron = HPolyhedron(H, h)
 
         if should_compute_vertices:
             if H.shape[1] == 1 or self._h_polyhedron.IsEmpty():
@@ -58,6 +54,8 @@ class Polyhedron(ConvexSet):
             H, h = Polyhedron._reorder_A_b_by_vertices(H, h, self._vertices)
 
             self._h_polyhedron = HPolyhedron(H, h)
+            self._H = H
+            self._h = h
 
             # Compute center
             try:
@@ -66,6 +64,12 @@ class Polyhedron(ConvexSet):
             except:
                 logger.warning("Could not compute center")
                 self._center = None
+
+    def create_nullspace_set(self):
+        # logger.debug(f"H size before: {self._h_polyhedron.A().shape}")
+        # self._h_polyhedron = self._h_polyhedron.ReduceInequalities(tol=0)
+        # logger.debug(f"H size after: {self._h_polyhedron.A().shape}")
+        self._nullspace_set = NullspaceSet(self._h_polyhedron)
 
     @classmethod
     def from_vertices(cls, vertices):
@@ -143,7 +147,6 @@ class Polyhedron(ConvexSet):
             polyhedron = cls(C, d, should_compute_vertices=False)
         else:
             raise ValueError("No constraints given")
-
         # Store the separated inequality and equality constraints
         polyhedron._A = A
         polyhedron._b = b
@@ -364,79 +367,8 @@ class Polyhedron(ConvexSet):
         )
         return np.array(A_ineq), np.array(b_ineq), C, d
 
-    def _create_null_space_polyhedron(self):
-        # logger.debug(f"A_original = {print_copy_pastable_np_array(self.set.A())}")
-        # logger.debug(f"b_original = {print_copy_pastable_np_array(self.set.b())}")
-
-        # Separate original A and B into inequality and equality constraints
-        # A, b, C, d = self.get_separated_inequality_equality_constraints(
-        #     self.set.A(), self.set.b()
-        # )
-        if not hasattr(self, "_A"):
-            self._A, self._b, self._C, self._d = (
-                self.get_separated_inequality_equality_constraints(
-                    self.set.A(), self.set.b()
-                )
-            )
-        A, b, C, d = self._A, self._b, self._C, self._d
-
-        # logger.debug(
-        #     f"\n A.shape: {A.shape}, b.shape: {b.shape}, C.shape: {C.shape}, d.shape: {d.shape}"
-        # )
-        # logger.debug(
-        #     f"ranks: A: {np.linalg.matrix_rank(A)}, C: {np.linalg.matrix_rank(C)}"
-        # )
-        # logger.debug(f"C = {copy_pastable_str_from_np_array(C)}")
-        # logger.debug(f"d = {copy_pastable_str_from_np_array(d)}")
-
-        # Compute the basis of the null space of C
-        self._V = scipy.linalg.null_space(C)
-        # # Compute the pseudo-inverse of C
-        # C_pinv = np.linalg.pinv(C)
-
-        # # Use the pseudo-inverse to find x_0
-        # self._x_0 = np.dot(C_pinv, d)
-        self._x_0, residuals, rank, s = np.linalg.lstsq(C, d, rcond=None)
-        A_prime = A @ self._V
-        b_prime = b - A @ self._x_0
-
-        self._null_space_polyhedron = Polyhedron(
-            H=A_prime, h=b_prime, should_compute_vertices=False
-        )
-
     def get_samples(self, n_samples=100):
-        # Check if _has_equality_constraints attribute has been set
-        if not hasattr(self, "_has_equality_constraints"):
-            if Polyhedron._check_contains_equality_constraints(
-                self.set.A(), self.set.b()
-            ):
-                logger.debug(
-                    "Polyhedron has equality constraints, creating null space polyhedron"
-                )
-                self._has_equality_constraints = True
-                if not self._h_polyhedron.IsEmpty():
-                    self._create_null_space_polyhedron()
-                else:
-                    logger.warning("Trying to sample from an empty polyhedron")
-                    return None
-            else:
-                self._has_equality_constraints = False
-
-        if self._has_equality_constraints:
-            try:
-                q_samples = self._null_space_polyhedron.get_samples(n_samples)
-            except RuntimeError as e:
-                logger.warning(
-                    f"Failed to sample null space polyhedron: {e}, returning chebyshev center as sample"
-                )
-                chebyshev_center = self.set.ChebyshevCenter()
-                return np.array([chebyshev_center])
-            assert len(q_samples) > 0
-            p_samples = q_samples @ self._V.T + self._x_0
-
-            return p_samples
-        else:
-            return super().get_samples(n_samples)
+        return self._nullspace_set.get_samples(n_samples)
 
     @property
     def dim(self):
@@ -445,21 +377,6 @@ class Polyhedron(ConvexSet):
     @property
     def set(self):
         return self._h_polyhedron
-
-    # The following properties rely on vertices and center being set,
-    # they will not work for polyhedra with equality constraints.
-
-    @property
-    def bounding_box(self):
-        return np.array([self.vertices.min(axis=0), self.vertices.max(axis=0)])
-
-    @property
-    def vertices(self):
-        return self._vertices
-
-    @property
-    def center(self):
-        return self._center
 
     @property
     def H(self):
@@ -484,3 +401,18 @@ class Polyhedron(ConvexSet):
     @property
     def d(self):
         return self._d
+
+    # The following properties rely on vertices and center being set,
+    # they will not work for polyhedra with equality constraints.
+
+    @property
+    def bounding_box(self):
+        return np.array([self.vertices.min(axis=0), self.vertices.max(axis=0)])
+
+    @property
+    def vertices(self):
+        return self._vertices
+
+    @property
+    def center(self):
+        return self._center

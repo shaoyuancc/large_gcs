@@ -5,6 +5,7 @@ import numpy as np
 import pypolycontain as pp
 import scipy
 from pydrake.all import (
+    AffineSubspace,
     Constraint,
     HPolyhedron,
     L1NormCost,
@@ -19,6 +20,7 @@ from pydrake.all import (
 from large_gcs.algorithms.search_algorithm import AlgMetrics, SearchNode, profile_method
 from large_gcs.domination_checkers.domination_checker import DominationChecker
 from large_gcs.geometry.geometry_utils import create_selection_matrix
+from large_gcs.geometry.nullspace_set import AFFINE_SUBSPACE_TOL, NullspaceSet
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.graph import Graph
 
@@ -86,13 +88,13 @@ class AHContainmentDominationChecker(DominationChecker):
         A_x, b_x, C_x, d_x = Polyhedron.get_separated_inequality_equality_constraints(
             A_x, b_x
         )
-        K_x, k_x, T_x, t_x = self._nullspace_polyhedron_and_transformation(
+        K_x, k_x, T_x, t_x = self._nullspace_polyhedron_and_transformation_from_AbCdT(
             A_x, b_x, C_x, d_x, T_x
         )
         A_y, b_y, C_y, d_y = Polyhedron.get_separated_inequality_equality_constraints(
             A_y, b_y
         )
-        K_y, k_y, T_y, t_y = self._nullspace_polyhedron_and_transformation(
+        K_y, k_y, T_y, t_y = self._nullspace_polyhedron_and_transformation_from_AbCdT(
             A_y, b_y, C_y, d_y, T_y
         )
 
@@ -107,7 +109,15 @@ class AHContainmentDominationChecker(DominationChecker):
 
         return self._solve_containment_prog(prog)
 
-    def _nullspace_polyhedron_and_transformation(self, A, b, C, d, T):
+    def _nullspace_polyhedron_and_transformation_from_HPoly_and_T(
+        self, h_poly: HPolyhedron, T: np.ndarray
+    ):
+        nullspace_set = NullspaceSet(h_poly, should_reduce_inequalities=True)
+        T_prime = T @ nullspace_set._V
+        t_prime = T @ nullspace_set._x_0
+        return nullspace_set._set.A(), nullspace_set._set.b(), T_prime, t_prime
+
+    def _nullspace_polyhedron_and_transformation_from_AbCdT(self, A, b, C, d, T):
         A_invalid = A is None or A.shape[0] == 0
         C_invalid = C is None or C.shape[0] == 0
 
@@ -146,10 +156,18 @@ class AHContainmentDominationChecker(DominationChecker):
 
     @profile_method
     def _create_path_AH_polytope(self, node: SearchNode):
-        A, b, C, d = self.get_path_A_b_C_d(node)
-        total_dims = A.shape[1]
-        T_H = self.get_H_transformation(node, total_dims=total_dims)
-        K, k, T, t = self._nullspace_polyhedron_and_transformation(A, b, C, d, T_H)
+        # A, b, C, d = self.get_path_A_b_C_d(node)
+        # total_dims = A.shape[1]
+        if self.include_cost_epigraph:
+            prog = self.get_path_mathematical_program(node)
+        else:
+            prog = self.get_path_constraint_mathematical_program(node)
+        h_poly = HPolyhedron(prog)
+        T_H = self.get_H_transformation(node, h_poly.ambient_dimension())
+        # K, k, T, t = self._nullspace_polyhedron_and_transformation_from_AbCdT(A, b, C, d, T_H)
+        K, k, T, t = self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
+            h_poly, T_H
+        )
         X = pp.H_polytope(K, k)
         return pp.AH_polytope(t, T, X)
 
