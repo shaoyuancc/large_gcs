@@ -20,6 +20,7 @@ from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 from large_gcs.graph_generators.contact_graph_generator import (
     ContactGraphGeneratorParams,
 )
+from large_gcs.utils.hydra_utils import get_cfg_from_folder
 
 logger = logging.getLogger(__name__)
 
@@ -92,8 +93,16 @@ def main(cfg: OmegaConf) -> None:
             graph_file,
             should_use_l1_norm_vertex_cost=cfg.should_use_l1_norm_vertex_cost,
         )
+
+    if "load_checkpoint_log_dir" in cfg.algorithm:
+        # Make sure checkpoint graph is the same as current graph
+        checkpoint_cfg = get_cfg_from_folder(
+            Path(cfg.algorithm.load_checkpoint_log_dir)
+        )
+        if cfg.graph_name != checkpoint_cfg.graph_name:
+            raise ValueError("Checkpoint graph name does not match current graph name.")
+
     if "abstraction_model_generator" in cfg:
-        print("Using abstraction model generator")
         abs_model_generator = instantiate(cfg.abstraction_model_generator)
         abs_model = abs_model_generator.generate(concrete_graph=cg)
         if cfg.algorithm._target_ == "large_gcs.algorithms.gcs_hastar.GcsHAstar":
@@ -110,7 +119,6 @@ def main(cfg: OmegaConf) -> None:
                 vis_params=AlgVisParams(log_dir=full_log_dir),
             )
     else:
-        print("No abstraction model generator")
         cost_estimator: CostEstimator = instantiate(
             cfg.cost_estimator, graph=cg, add_const_cost=cfg.should_add_const_edge_cost
         )

@@ -11,6 +11,7 @@ from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 from large_gcs.graph_generators.contact_graph_generator import (
     ContactGraphGeneratorParams,
 )
+from large_gcs.utils.hydra_utils import get_cfg_from_folder
 
 logger = logging.getLogger(__name__)
 
@@ -72,11 +73,7 @@ def main() -> None:
             continue
 
         # Load the config file for this run
-        config_path = path / "config.yaml"
-        if not config_path.is_file():
-            print(f"The config file {config_path} does not exist.")
-            return
-        cfg: DictConfig = OmegaConf.load(config_path)  # type: ignore
+        cfg = get_cfg_from_folder(path)
         cg = _construct_graph(cfg)
 
         sol_files = list(path.glob("*_solution.pkl"))

@@ -44,7 +44,6 @@ class ShortcutEdgeCE(CostEstimator):
         neighbor = edge.v
 
         # Check if this neighbor is the target to see if shortcut edge is required
-        # Actually you can't do this because this will make the algorithm assume that neighbor is unreachable, in case you can't get from the neighbor to the target
         add_shortcut_edge = neighbor != self._graph.target_name
         if add_shortcut_edge:
             # Add an edge from the neighbor to the target

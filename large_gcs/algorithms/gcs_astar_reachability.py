@@ -2,11 +2,13 @@ import gc
 import itertools
 import logging
 import os
+import pickle
 import time
 from collections import defaultdict, deque
 from typing import List, Optional
 
 import numpy as np
+from tqdm import tqdm
 
 import wandb
 from large_gcs.algorithms.search_algorithm import (
@@ -42,6 +44,8 @@ class GcsAstarReachability(SearchAlgorithm):
         should_terminate_early: bool = False,
         should_invert_S: bool = False,
         max_len_S_per_vertex: int = 0,  # 0 means no limit
+        load_checkpoint_log_dir: Optional[str] = None,
+        override_wall_clock_time: Optional[float] = None,
     ):
         if isinstance(graph, IncrementalContactGraph):
             assert (
@@ -58,6 +62,7 @@ class GcsAstarReachability(SearchAlgorithm):
         self._max_len_S_per_vertex = max_len_S_per_vertex
         self._cost_estimator.set_alg_metrics(self._alg_metrics)
         self._domination_checker.set_alg_metrics(self._alg_metrics)
+        self._tiebreak = tiebreak
         if tiebreak == TieBreak.FIFO or tiebreak == TieBreak.FIFO.name:
             self._counter = itertools.count(start=0, step=1)
         elif tiebreak == TieBreak.LIFO or tiebreak == TieBreak.LIFO.name:
@@ -66,6 +71,8 @@ class GcsAstarReachability(SearchAlgorithm):
         if should_invert_S:
             self.add_node_to_S = self.add_node_to_S_left
             self.remove_node_from_S = self.remove_node_from_S_left
+
+        self._load_checkpoint_log_dir = load_checkpoint_log_dir
 
         # For logging/metrics
         # Expanded set
@@ -101,6 +108,13 @@ class GcsAstarReachability(SearchAlgorithm):
 
         self._cost_estimator.setup_subgraph(self._graph)
 
+        if load_checkpoint_log_dir is not None:
+            self.load_checkpoint(
+                load_checkpoint_log_dir,
+                override_wall_clock_time=override_wall_clock_time,
+            )
+            self._load_graph_from_checkpoint_data()
+
         n_unreachable = gc.collect()
         logger.debug(f"Garbage collected {n_unreachable} unreachable objects")
 
@@ -119,7 +133,10 @@ class GcsAstarReachability(SearchAlgorithm):
     def run(self) -> ShortestPathSolution:
         """Searches for a shortest path in the given graph."""
         logger.info(f"Running {self.__class__.__name__}")
-        start_time = time.time()
+        if self._load_checkpoint_log_dir is not None:
+            start_time = time.time() - self._alg_metrics.time_wall_clock
+        else:
+            start_time = time.time()
         sol: Optional[ShortestPathSolution] = None
         while sol == None and len(self._Q) > 0:
             sol = self._run_iteration()
@@ -250,11 +267,11 @@ class GcsAstarReachability(SearchAlgorithm):
     @profile_method
     def _save_metrics(self, n: SearchNode, edges: List[Edge], override_save=False):
         logger.info(
-            f"\n{self.alg_metrics}\nnow exploring node {n.vertex_name}'s {len(edges)} neighbors ({n.priority})"
+            f"iter: {self._step}\n{self.alg_metrics}\nnow exploring node {n.vertex_name}'s {len(edges)} neighbors ({n.priority})"
         )
         self._step += 1
         current_time = time.time()
-        PERIOD = 300
+        PERIOD = 1800
 
         if self._vis_params is not None and (
             override_save or self._last_plots_save_time + PERIOD < current_time
@@ -274,6 +291,8 @@ class GcsAstarReachability(SearchAlgorithm):
             pie_fig = self._alg_metrics.generate_method_time_piechart()
             pie_fig.write_image(os.path.join(log_dir, "method_times_pie_chart.png"))
 
+            checkpoint_path_str = self.save_checkpoint()
+
             if wandb.run is not None:
                 # Log the Plotly figure and other metrics to wandb
                 wandb.log(
@@ -283,6 +302,7 @@ class GcsAstarReachability(SearchAlgorithm):
                     },
                     step=self._step,
                 )
+                wandb.save(checkpoint_path_str)
 
             self._last_plots_save_time = current_time
         self.log_metrics_to_wandb(n.priority)
@@ -302,3 +322,67 @@ class GcsAstarReachability(SearchAlgorithm):
         self._alg_metrics.n_S = sum(len(lst) for lst in self._S.values())
         self._alg_metrics.n_S_pruned = sum(self._S_pruned_counts.values())
         return super().alg_metrics
+
+    def save_checkpoint(self):
+        logger.info("Saving checkpoint")
+        log_dir = self._vis_params.log_dir
+        file_path = os.path.join(log_dir, "checkpoint.pkl")
+        checkpoint_data = {
+            "Q": self._Q,
+            "S": self._S,
+            "S_pruned_counts": self._S_pruned_counts,
+            "expanded": self._expanded,
+            "counter": next(self._counter) - 1,
+            "step": self._step,
+            "alg_metrics": self._alg_metrics,
+        }
+        with open(file_path, "wb") as f:
+            pickle.dump(checkpoint_data, f)
+        return str(file_path)
+
+    def load_checkpoint(self, checkpoint_log_dir, override_wall_clock_time=None):
+        file_path = os.path.join(checkpoint_log_dir, "checkpoint.pkl")
+        with open(file_path, "rb") as f:
+            checkpoint_data = pickle.load(f)
+        self._Q = checkpoint_data["Q"]
+        self._S = checkpoint_data["S"]
+        self._S_pruned_counts = checkpoint_data["S_pruned_counts"]
+        self._expanded = checkpoint_data["expanded"]
+        if self._tiebreak == TieBreak.FIFO or self._tiebreak == TieBreak.FIFO.name:
+            self._counter = itertools.count(start=checkpoint_data["counter"], step=1)
+        elif self._tiebreak == TieBreak.LIFO or self._tiebreak == TieBreak.LIFO.name:
+            self._counter = itertools.count(start=checkpoint_data["counter"], step=-1)
+        self._step = checkpoint_data["step"]
+        self._alg_metrics = checkpoint_data["alg_metrics"]
+        if override_wall_clock_time is not None:
+            self._alg_metrics.time_wall_clock = override_wall_clock_time
+        self._cost_estimator.set_alg_metrics(self._alg_metrics)
+        self._domination_checker.set_alg_metrics(self._alg_metrics)
+
+    def _load_graph_from_checkpoint_data(self):
+        # Create a FIFO queue of nodes to expand
+        vertices_to_expand = deque()
+        vertices_to_expand.append(self._graph.source_name)
+        newly_expanded = set()
+        total_vertices = len(self._expanded)
+
+        # Use tqdm with leave=False to prevent it from leaving a progress bar after completion
+        with tqdm(
+            total=total_vertices, desc="Loading graph from checkpoint data", leave=False
+        ) as pbar:
+            while len(vertices_to_expand) > 0:
+                vertex_name = vertices_to_expand.popleft()
+                self._graph.generate_neighbors(vertex_name)
+                newly_expanded.add(vertex_name)
+                edges = self._graph.outgoing_edges(vertex_name)
+                for edge in edges:
+                    neighbor = edge.v
+                    if (
+                        (neighbor in self._expanded)
+                        and (neighbor not in newly_expanded)
+                        and (neighbor not in vertices_to_expand)
+                    ):
+                        vertices_to_expand.append(neighbor)
+                pbar.update(1)
+
+        logger.info(f"Graph loaded with {len(newly_expanded)} vertices expanded.")

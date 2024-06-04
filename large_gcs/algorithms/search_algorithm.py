@@ -263,12 +263,6 @@ class SearchNode:
     parent: Optional["SearchNode"] = None
     sol: Optional[ShortestPathSolution] = None
 
-    # @property
-    # def id(self):
-    #     """Note that this id is not unique. What uniquely defines a
-    #     node is actually the path. Maybe should change this..."""
-    #     return f"{self.vertex_name}"
-
     def __lt__(self, other: "SearchNode"):
         return self.priority < other.priority
 
@@ -296,6 +290,11 @@ class SearchNode:
             vertex_path=vertex_path,
             parent=None,
         )
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["sol"] = None  # Do not serialize `sol`
+        return state
 
 
 class SearchAlgorithm(ABC):
