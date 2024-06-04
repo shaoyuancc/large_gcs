@@ -133,13 +133,14 @@ class RigidBody:
     def vars_base_pos(self):
         return self.vars_pos[:, 0]
 
-    def plot(self):
+    def plot(self, label_vertices_faces: bool = True):
         plt.rc("axes", axisbelow=True)
         plt.gca().set_aspect("equal")
         self.geometry.plot()
         plt.text(*self.geometry.center, self.name, ha="center", va="center")
-        self._plot_vertices()
-        self._plot_face_labels()
+        if label_vertices_faces:
+            self._plot_vertices()
+            self._plot_face_labels()
 
     def _plot_vertices(self, pos=None, ax=None, **kwargs):
         # Use the provided axis or get the current axis

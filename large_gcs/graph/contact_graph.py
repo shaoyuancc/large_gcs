@@ -278,8 +278,8 @@ class ContactGraph(Graph):
             set_ids = list(product(*self._body_pair_to_mode_ids.values()))
         else:
             logger.info(
-                f"Loading {len(contact_pair_modes)} contact pair modes for {
-                    self.n_obstacles + self.n_objects + self.n_robots} bodies..."
+                f"Loading {len(contact_pair_modes)} contact pair modes for "
+                f"{self.n_obstacles + self.n_objects + self.n_robots} bodies..."
             )
             mode_ids_to_mode = contact_pair_modes
             self._contact_pair_modes = mode_ids_to_mode
@@ -301,17 +301,13 @@ class ContactGraph(Graph):
             ]
 
             logger.info(
-                f"{len(sets_to_keep)} sets remain after removing {
-                    len(all_contact_sets) - len(sets_to_keep)} empty sets"
+                f"{len(sets_to_keep)} sets remain after removing "
+                f"{len(all_contact_sets) - len(sets_to_keep)} empty sets"
             )
         else:
             sets_to_keep = all_contact_sets
 
         if vertex_exlcusion is not None:
-            logger.info(
-                f"Removing sets matching exclusion strings {
-                    vertex_exlcusion}"
-            )
             sets_to_keep = [
                 contact_set
                 for contact_set in tqdm(sets_to_keep)
@@ -323,10 +319,6 @@ class ContactGraph(Graph):
             logger.info(f"{len(sets_to_keep)} sets remain after removing excluded sets")
 
         if vertex_inclusion is not None:
-            logger.info(
-                f"Filtering sets for inclusion strings {
-                    vertex_inclusion}"
-            )
             sets_to_keep = [
                 contact_set
                 for contact_set in tqdm(sets_to_keep)
@@ -365,8 +357,8 @@ class ContactGraph(Graph):
         rigid_body_pairs = static_movable_pairs + movable_pairs
 
         logger.info(
-            f"Generating contact pair modes for {
-                len(rigid_body_pairs)} body pairs..."
+            f"Generating contact pair modes for "
+            f"{len(rigid_body_pairs)} body pairs..."
         )
 
         body_pair_to_modes = {
@@ -482,18 +474,22 @@ class ContactGraph(Graph):
 
     ### PLOTTING AND ANIMATING ###
 
-    def plot(self):
+    def plot(self, label_vertices_faces: bool = True):
         plt.figure()
         for body in self.obstacles:
-            body.plot()
+            body.plot(label_vertices_faces=label_vertices_faces)
         if self.source_pos is not None:
             for body, pos in zip(self.objects, self.source_pos[: self.n_objects]):
                 body.plot_at_position(
-                    pos=pos, label_vertices_faces=True, color=BodyColor["object"]
+                    pos=pos,
+                    label_vertices_faces=label_vertices_faces,
+                    color=BodyColor["object"],
                 )
             for body, pos in zip(self.robots, self.source_pos[self.n_objects :]):
                 body.plot_at_position(
-                    pos=pos, label_vertices_faces=True, color=BodyColor["robot"]
+                    pos=pos,
+                    label_vertices_faces=label_vertices_faces,
+                    color=BodyColor["robot"],
                 )
         if self.target_pos is not None:
             for body, pos in zip(
@@ -519,8 +515,7 @@ class ContactGraph(Graph):
         vertex = self.vertices[set_name]
         if isinstance(vertex.convex_set, ContactPointSet):
             logger.info(
-                f"skipping sampling for {
-                    set_name} as it is a contact point set"
+                f"skipping sampling for {set_name} as it is a contact point set"
             )
             return
         samples = vertex.convex_set.get_samples(n_samples)
