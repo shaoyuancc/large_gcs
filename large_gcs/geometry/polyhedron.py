@@ -69,12 +69,7 @@ class Polyhedron(ConvexSet):
         # logger.debug(f"H size before: {self._h_polyhedron.A().shape}")
         # self._h_polyhedron = self._h_polyhedron.ReduceInequalities(tol=0)
         # logger.debug(f"H size after: {self._h_polyhedron.A().shape}")
-        # Tommy's method
-        # self._nullspace_set = NullspaceSet.from_hpolyhedron(
-        #     self._h_polyhedron, should_reduce_inequalities=False
-        # )
-        # Rebecca's method
-        self._nullspace_set = NullspaceSet.from_hpolyhedron_w_active_everywhere(
+        self._nullspace_set = NullspaceSet.from_hpolyhedron(
             self._h_polyhedron, should_reduce_inequalities=False
         )
 

@@ -3,7 +3,7 @@ import logging
 import numpy as np
 from pydrake.all import AffineSubspace, ClpSolver
 from pydrake.all import ConvexSet as DrakeConvexSet
-from pydrake.all import HPolyhedron, MathematicalProgram, MosekSolver
+from pydrake.all import GurobiSolver, HPolyhedron, MathematicalProgram, MosekSolver
 from pydrake.all import Point as DrakePoint
 from scipy.linalg import null_space
 

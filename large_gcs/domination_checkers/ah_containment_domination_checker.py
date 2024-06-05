@@ -8,12 +8,14 @@ from pydrake.all import (
     AffineSubspace,
     ClpSolver,
     Constraint,
+    GurobiSolver,
     HPolyhedron,
     L1NormCost,
     LinearConstraint,
     LinearCost,
     LinearEqualityConstraint,
     MathematicalProgram,
+    MathematicalProgramResult,
     MosekSolver,
     Solve,
     SolverOptions,
@@ -61,7 +63,7 @@ class AHContainmentDominationChecker(DominationChecker):
         # )
         # AH_n = self._create_path_AH_polytope(candidate_node)
         AH_n = self._create_path_AH_polytope_from_nullspace_sets(candidate_node)
-        logger.debug(f"{AH_n.P.H.shape}")
+        # logger.debug(f"{AH_n.P.H.shape}")
         for alt_n in alternate_nodes:
             logger.debug(
                 f"Checking if candidate node is dominated by alternate node with path:"
@@ -120,10 +122,7 @@ class AHContainmentDominationChecker(DominationChecker):
     def _nullspace_polyhedron_and_transformation_from_HPoly_and_T(
         self, h_poly: HPolyhedron, T: np.ndarray
     ):
-        # nullspace_set = NullspaceSet.from_hpolyhedron(
-        #     h_poly, should_reduce_inequalities=True
-        # )
-        nullspace_set = NullspaceSet.from_hpolyhedron_w_active_everywhere(
+        nullspace_set = NullspaceSet.from_hpolyhedron(
             h_poly, should_reduce_inequalities=True
         )
         T_prime = T @ nullspace_set._V
@@ -208,8 +207,11 @@ class AHContainmentDominationChecker(DominationChecker):
         # solver_options.SetOption(
         #     CommonSolverOption.kPrintToConsole, 1
         # )
-
-        result = Solve(prog, solver=ClpSolver(), solver_options=solver_options)
+        solver = ClpSolver()
+        result: MathematicalProgramResult = solver.Solve(
+            prog, solver_options=solver_options
+        )
+        logger.debug(f"Solver name: {result.get_solver_id().name()}")
         return result.is_success()
 
     @profile_method
