@@ -57,6 +57,11 @@ Additional packages that I was not able to install using poetry, and had to use 
 pip install kaleido
 ```
 
+If you have problems with poetry, when in the virtual env shell, run the following:
+```
+pip install numpy matplotlib ipykernel scipy graphviz black tqdm pytest wandb hydra-core omegaconf autoflake isort pdbpp plotly docformatter drake kaleido pre-commit
+```
+
 ## Running pre-commit hooks
 The repo is setup to do automatic linting and code checking on every commit through the use of pre-commits. To run all the pre-commit hooks (which will clean up all files in the repo), run the following command:
 ```
