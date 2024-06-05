@@ -6,6 +6,7 @@ import pypolycontain as pp
 import scipy
 from pydrake.all import (
     AffineSubspace,
+    ClpSolver,
     Constraint,
     HPolyhedron,
     L1NormCost,
@@ -13,6 +14,7 @@ from pydrake.all import (
     LinearCost,
     LinearEqualityConstraint,
     MathematicalProgram,
+    MosekSolver,
     Solve,
     SolverOptions,
 )
@@ -57,15 +59,16 @@ class AHContainmentDominationChecker(DominationChecker):
         #     f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"
         #     f"\n via path: {candidate_node.vertex_path}"
         # )
-        AH_n = self._create_path_AH_polytope(candidate_node)
-        # AH_n = self._create_path_AH_polytope_from_nullspace_sets(candidate_node)
+        # AH_n = self._create_path_AH_polytope(candidate_node)
+        AH_n = self._create_path_AH_polytope_from_nullspace_sets(candidate_node)
+        logger.debug(f"{AH_n.P.H.shape}")
         for alt_n in alternate_nodes:
             logger.debug(
                 f"Checking if candidate node is dominated by alternate node with path:"
                 f"{alt_n.vertex_path}"
             )
-            AH_alt = self._create_path_AH_polytope(alt_n)
-            # AH_alt = self._create_path_AH_polytope_from_nullspace_sets(alt_n)
+            # AH_alt = self._create_path_AH_polytope(alt_n)
+            AH_alt = self._create_path_AH_polytope_from_nullspace_sets(alt_n)
             if self.is_contained_in(AH_n, AH_alt):
                 return True
         return False
@@ -117,7 +120,10 @@ class AHContainmentDominationChecker(DominationChecker):
     def _nullspace_polyhedron_and_transformation_from_HPoly_and_T(
         self, h_poly: HPolyhedron, T: np.ndarray
     ):
-        nullspace_set = NullspaceSet.from_hpolyhedron(
+        # nullspace_set = NullspaceSet.from_hpolyhedron(
+        #     h_poly, should_reduce_inequalities=True
+        # )
+        nullspace_set = NullspaceSet.from_hpolyhedron_w_active_everywhere(
             h_poly, should_reduce_inequalities=True
         )
         T_prime = T @ nullspace_set._V
@@ -203,7 +209,7 @@ class AHContainmentDominationChecker(DominationChecker):
         #     CommonSolverOption.kPrintToConsole, 1
         # )
 
-        result = Solve(prog, solver_options=solver_options)
+        result = Solve(prog, solver=ClpSolver(), solver_options=solver_options)
         return result.is_success()
 
     @profile_method
@@ -448,20 +454,20 @@ class AHContainmentDominationChecker(DominationChecker):
                         f"Only linear constraints are supported for now, {constraint} not supported"
                     )
                 variables = np.concatenate((ns_vertex_vars[i], ns_vertex_vars[i + 1]))
-                logger.debug(f"Adding edge constraint for edge {i}")
+                # logger.debug(f"Adding edge constraint for edge {i}")
                 x_0s = np.concatenate((ns_sets[i].x_0, ns_sets[i + 1].x_0))
-                logger.debug(
-                    f"ns_sets[{i}].V {ns_sets[i].V.shape}, ns_sets[{i+1}].V {ns_sets[i+1].V.shape}"
-                )
+                # logger.debug(
+                #     f"ns_sets[{i}].V {ns_sets[i].V.shape}, ns_sets[{i+1}].V {ns_sets[i+1].V.shape}"
+                # )
                 Vs = scipy.linalg.block_diag(ns_sets[i].V, ns_sets[i + 1].V)
                 lb = constraint.lower_bound() - constraint.GetDenseA() @ x_0s
                 ub = constraint.upper_bound() - constraint.GetDenseA() @ x_0s
-                logger.debug(
-                    f"constraint.GetDenseA() {constraint.GetDenseA().shape}, Vs {Vs.shape}, lb {lb.shape}, ub {ub.shape}"
-                )
+                # logger.debug(
+                #     f"constraint.GetDenseA() {constraint.GetDenseA().shape}, Vs {Vs.shape}, lb {lb.shape}, ub {ub.shape}"
+                # )
                 A = constraint.GetDenseA() @ Vs
                 A, lb, ub = remove_rows_near_zero(A, lb, ub, AFFINE_SUBSPACE_TOL)
-                logger.debug(f"A: {A.shape}")
+                # logger.debug(f"A: {A.shape}")
                 # logger.debug(f"lb: {lb}")
                 # logger.debug(f"ub: {ub}")
                 prog.AddLinearConstraint(A=A, lb=lb, ub=ub, vars=variables)
