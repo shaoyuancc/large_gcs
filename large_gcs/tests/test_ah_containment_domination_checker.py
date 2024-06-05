@@ -86,7 +86,6 @@ def test_reaches_cheaper_containment_simple_1d_graph():
     )
 
 
-@pytest.mark.slow_test
 def test_reaches_new_containment_cg_stackpush_d2():
     graph_file = ContactGraphGeneratorParams.inc_graph_file_path_from_name(
         "cg_stackpush_d2"

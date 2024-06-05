@@ -1,5 +1,8 @@
 import logging
 
+import numpy as np
+from scipy.linalg import block_diag
+
 from large_gcs.algorithms.search_algorithm import SearchNode
 from large_gcs.contact.contact_set import ContactSet
 from large_gcs.domination_checkers.ah_containment_domination_checker import (
@@ -40,6 +43,39 @@ class AHContainmentLastPos(AHContainmentDominationChecker):
             # Assumes the cost variable is the last variable
             selected_indices.append(total_dims - 1)
         return create_selection_matrix(selected_indices, total_dims)
+
+    def get_nullspace_H_transformation(
+        self,
+        node: SearchNode,
+        full_dim: int,
+        ns_dim: int,
+    ):
+        """Get the transformation matrix that will project the polyhedron that
+        defines the whole path down to just the dimensions of the last vertex's
+        nullspace.
+
+        Can either include the epigraph (include the cost) or just the
+        dimensions of the vertex.
+        Note: Cost epigraph variable assumed to be the last decision variable in x.
+        """
+        S = self.get_H_transformation(node, full_dim)
+
+        Vs = block_diag(
+            *[
+                self._graph.vertices[name].convex_set.nullspace_set._V
+                for name in node.vertex_path
+            ]
+        )
+        x_0s = np.concatenate(
+            [
+                self._graph.vertices[name].convex_set.nullspace_set._x_0
+                for name in node.vertex_path
+            ]
+        )
+
+        T = S @ Vs
+        t = S @ x_0s
+        return T, t
 
 
 class ReachesNewLastPosContainment(AHContainmentLastPos):

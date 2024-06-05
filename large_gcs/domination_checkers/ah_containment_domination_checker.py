@@ -120,13 +120,16 @@ class AHContainmentDominationChecker(DominationChecker):
         return self._solve_containment_prog(prog)
 
     def _nullspace_polyhedron_and_transformation_from_HPoly_and_T(
-        self, h_poly: HPolyhedron, T: np.ndarray
+        self, h_poly: HPolyhedron, T: np.ndarray, t: np.ndarray = None
     ):
         nullspace_set = NullspaceSet.from_hpolyhedron(
             h_poly, should_reduce_inequalities=True
         )
         T_prime = T @ nullspace_set._V
-        t_prime = T @ nullspace_set._x_0
+        if t is None:
+            t_prime = T @ nullspace_set._x_0
+        else:
+            t_prime = T @ nullspace_set._x_0 + t
         return nullspace_set._set.A(), nullspace_set._set.b(), T_prime, t_prime
 
     def _nullspace_polyhedron_and_transformation_from_AbCdT(self, A, b, C, d, T):
@@ -171,11 +174,15 @@ class AHContainmentDominationChecker(DominationChecker):
             raise NotImplementedError()
             # prog = self.get_nullspace_path_mathematical_program(node)
         else:
-            prog = self.get_nullspace_path_constraint_mathematical_program(node)
+            prog, full_dim = self.get_nullspace_path_constraint_mathematical_program(
+                node
+            )
         h_poly = HPolyhedron(prog)
-        T_H = self.get_nullspace_H_transformation(node, h_poly.ambient_dimension())
+        T_H, t_H = self.get_nullspace_H_transformation(
+            node, full_dim=full_dim, ns_dim=h_poly.ambient_dimension()
+        )
         K, k, T, t = self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
-            h_poly, T_H
+            h_poly, T_H, t_H
         )
         X = pp.H_polytope(K, k)
         return pp.AH_polytope(t, T, X)
@@ -418,7 +425,7 @@ class AHContainmentDominationChecker(DominationChecker):
 
     def get_nullspace_path_constraint_mathematical_program(
         self, node: SearchNode
-    ) -> MathematicalProgram:
+    ) -> Tuple[MathematicalProgram, int]:
         # gcs vertices
         vertices = [self._graph.vertices[name].gcs_vertex for name in node.vertex_path]
         ns_sets: List[NullspaceSet] = [
@@ -426,6 +433,8 @@ class AHContainmentDominationChecker(DominationChecker):
             for name in node.vertex_path
         ]
         edges = [self._graph.edges[edge].gcs_edge for edge in node.edge_path]
+
+        full_v_dim = sum([v.ambient_dimension() for v in vertices])
 
         prog = MathematicalProgram()
         ns_vertex_vars = [
@@ -474,7 +483,7 @@ class AHContainmentDominationChecker(DominationChecker):
                 # logger.debug(f"ub: {ub}")
                 prog.AddLinearConstraint(A=A, lb=lb, ub=ub, vars=variables)
 
-        return prog
+        return prog, full_v_dim
 
     def get_path_constraint_mathematical_program(
         self, node: SearchNode
@@ -635,8 +644,9 @@ class AHContainmentDominationChecker(DominationChecker):
     def get_nullspace_H_transformation(
         self,
         node: SearchNode,
-        total_dims: int,
-    ):
+        full_dim: int,
+        ns_dim: int,
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Get the transformation matrix that will project the polyhedron that
         defines the whole path down to just the dimensions of the last vertex's
         nullspace.
@@ -658,9 +668,12 @@ class AHContainmentDominationChecker(DominationChecker):
             current_index += dim
         selected_indices = lam[-1]
         if self.include_cost_epigraph:
+            raise NotImplementedError()
             # Assumes the cost variable is the last variable
-            selected_indices.append(total_dims - 1)
-        return create_selection_matrix(selected_indices, total_dims)
+            selected_indices.append(ns_dim - 1)
+        T = create_selection_matrix(selected_indices, ns_dim)
+        t = np.zeros((T.shape[0], 1))
+        return T, t
 
     def get_H_transformation(
         self,
@@ -670,6 +683,10 @@ class AHContainmentDominationChecker(DominationChecker):
         """Get the transformation matrix that will project the polyhedron that
         defines the whole path down to just the dimensions of the selected
         vertex.
+
+        Note that the decision vairables are arranged:
+        [v1, v2, ..., v_end, ts, ... , ts,  cost]
+        where the ts are the slack variables for the l1 norm costs.
 
         Can either include the epigraph (include the cost) or just the
         dimensions of the vertex.
