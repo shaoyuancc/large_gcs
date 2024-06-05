@@ -130,6 +130,18 @@ class AHContainmentDominationChecker(DominationChecker):
         A_prime = A @ V
         b_prime = b - A @ x_0
 
+        # Create a boolean mask to identify rows to delete
+        delete_mask = np.zeros(len(A_prime), dtype=bool)
+        # Detect rows with very small A
+        for i, (a1, b1) in enumerate(zip(A_prime, b_prime)):
+            if np.allclose(a1, 0, atol=1e-3):
+                delete_mask[i] = True
+        # Filter out the rows to be deleted
+        A_prime = A_prime[~delete_mask]
+        b_prime = b_prime[~delete_mask]
+        X = HPolyhedron(A_prime, b_prime).ReduceInequalities()
+        A_prime, b_prime = X.A(), X.b()
+
         T_prime = T @ V
         t_prime = T @ x_0
 
