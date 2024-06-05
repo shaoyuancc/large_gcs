@@ -9,6 +9,7 @@ from large_gcs.contact.contact_set_decision_variables import ContactSetDecisionV
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.geometry_utils import HPolyhedronFromConstraints
+from large_gcs.geometry.nullspace_set import NullspaceSet
 from large_gcs.geometry.polyhedron import Polyhedron
 
 
@@ -27,6 +28,7 @@ class ContactPointSet(ConvexSet):
 
         self.vars = ContactSetDecisionVariables.from_objs_robs(objects, robots)
         self._point = DrakePoint(positions.flatten())
+        self._nullspace_set = NullspaceSet.from_point(self._point)
 
         self._id = id
 
@@ -65,6 +67,10 @@ class ContactPointSet(ConvexSet):
     @property
     def d(self):
         return self._point.x()
+
+    @property
+    def nullspace_set(self):
+        return self._nullspace_set
 
 
 class ContactSet(ConvexSet):
@@ -204,3 +210,7 @@ class ContactSet(ConvexSet):
     @property
     def d(self):
         return self._polyhedron.d
+
+    @property
+    def nullspace_set(self):
+        return self._polyhedron._nullspace_set

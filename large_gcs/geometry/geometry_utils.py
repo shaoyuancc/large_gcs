@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -173,3 +173,33 @@ def create_selection_matrix(x_indices, x_length):
         S[row, col] = 1
 
     return S
+
+
+def remove_rows_near_zero(A, b, c: Optional[np.array] = None, tol=1e-5):
+    """Remove rows from A and b and c for which A is near zero.
+
+    Parameters:
+    A (np.ndarray): The matrix A.
+    b (np.ndarray): The vector b.
+    tol (float): The tolerance for near zero.
+
+    Returns:
+    np.ndarray: The matrix A with rows near zero removed.
+    np.ndarray: The vector b with rows near zero removed.
+    """
+    # Create a boolean mask to identify rows to delete
+    delete_mask = np.zeros(len(A), dtype=bool)
+
+    # Detect rows with very small A
+    for i, a1 in enumerate(A):
+        if np.allclose(a1, 0, atol=tol):
+            delete_mask[i] = True
+
+    # Filter out the rows to be deleted
+    A = A[~delete_mask]
+    b = b[~delete_mask]
+    if c is not None:
+        c = c[~delete_mask]
+        return A, b, c
+    else:
+        return A, b

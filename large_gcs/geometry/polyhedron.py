@@ -69,7 +69,9 @@ class Polyhedron(ConvexSet):
         # logger.debug(f"H size before: {self._h_polyhedron.A().shape}")
         # self._h_polyhedron = self._h_polyhedron.ReduceInequalities(tol=0)
         # logger.debug(f"H size after: {self._h_polyhedron.A().shape}")
-        self._nullspace_set = NullspaceSet(self._h_polyhedron)
+        self._nullspace_set = NullspaceSet.from_hpolyhedron(
+            self._h_polyhedron, should_reduce_inequalities=False
+        )
 
     @classmethod
     def from_vertices(cls, vertices):
@@ -401,6 +403,10 @@ class Polyhedron(ConvexSet):
     @property
     def d(self):
         return self._d
+
+    @property
+    def nullspace_set(self):
+        return self._nullspace_set
 
     # The following properties rely on vertices and center being set,
     # they will not work for polyhedra with equality constraints.
