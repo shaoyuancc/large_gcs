@@ -35,9 +35,20 @@ logger = logging.getLogger(__name__)
 
 
 class AHContainmentDominationChecker(DominationChecker):
-    def __init__(self, graph: Graph, containment_condition: int = -1):
+    def __init__(
+        self,
+        graph: Graph,
+        containment_condition: int = -1,
+        construct_path_from_nullspaces=False,
+    ):
         super().__init__(graph=graph)
         self._containment_condition = containment_condition
+        self._construct_path_from_nullspaces = construct_path_from_nullspaces
+
+        if self._construct_path_from_nullspaces:
+            self._create_path_AH_polytope = (
+                self._create_path_AH_polytope_from_nullspace_sets
+            )
 
     def set_alg_metrics(self, alg_metrics: AlgMetrics):
         self._alg_metrics = alg_metrics
@@ -57,20 +68,18 @@ class AHContainmentDominationChecker(DominationChecker):
     ) -> bool:
         """Checks if a candidate path is dominated completely by any one of the
         alternate paths."""
-        # logger.debug(
-        #     f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"
-        #     f"\n via path: {candidate_node.vertex_path}"
-        # )
-        # AH_n = self._create_path_AH_polytope(candidate_node)
-        AH_n = self._create_path_AH_polytope_from_nullspace_sets(candidate_node)
+        logger.debug(
+            f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"
+            f"\n via path: {candidate_node.vertex_path}"
+        )
+        AH_n = self._create_path_AH_polytope(candidate_node)
         # logger.debug(f"{AH_n.P.H.shape}")
         for alt_n in alternate_nodes:
             logger.debug(
                 f"Checking if candidate node is dominated by alternate node with path:"
                 f"{alt_n.vertex_path}"
             )
-            # AH_alt = self._create_path_AH_polytope(alt_n)
-            AH_alt = self._create_path_AH_polytope_from_nullspace_sets(alt_n)
+            AH_alt = self._create_path_AH_polytope(alt_n)
             if self.is_contained_in(AH_n, AH_alt):
                 return True
         return False
@@ -170,6 +179,7 @@ class AHContainmentDominationChecker(DominationChecker):
         return AH_X, AH_Y
 
     def _create_path_AH_polytope_from_nullspace_sets(self, node: SearchNode):
+        logger.debug(f"_create_path_AH_polytope_from_nullspace_sets")
         if self.include_cost_epigraph:
             raise NotImplementedError()
             # prog = self.get_nullspace_path_mathematical_program(node)
@@ -189,6 +199,7 @@ class AHContainmentDominationChecker(DominationChecker):
 
     @profile_method
     def _create_path_AH_polytope(self, node: SearchNode):
+        logger.debug(f"_create_path_AH_polytope")
         # A, b, C, d = self.get_path_A_b_C_d(node)
         # total_dims = A.shape[1]
         if self.include_cost_epigraph:
@@ -218,7 +229,7 @@ class AHContainmentDominationChecker(DominationChecker):
         result: MathematicalProgramResult = solver.Solve(
             prog, solver_options=solver_options
         )
-        logger.debug(f"Solver name: {result.get_solver_id().name()}")
+        # logger.debug(f"Solver name: {result.get_solver_id().name()}")
         return result.is_success()
 
     @profile_method
