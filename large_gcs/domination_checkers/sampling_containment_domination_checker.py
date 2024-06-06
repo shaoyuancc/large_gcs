@@ -13,7 +13,18 @@ from large_gcs.domination_checkers.ah_containment_last_pos import (
     ReachesNewLastPosContainment,
 )
 from large_gcs.domination_checkers.domination_checker import DominationChecker
-from large_gcs.domination_checkers.sampling_domination_checker import SetSamples
+from large_gcs.domination_checkers.reaches_cheaper_containment import (
+    ReachesCheaperContainment,
+)
+from large_gcs.domination_checkers.reaches_cheaper_sampling import (
+    ReachesCheaperSampling,
+)
+from large_gcs.domination_checkers.reaches_new_containment import ReachesNewContainment
+from large_gcs.domination_checkers.reaches_new_sampling import ReachesNewSampling
+from large_gcs.domination_checkers.sampling_domination_checker import (
+    SamplingDominationChecker,
+    SetSamples,
+)
 from large_gcs.domination_checkers.sampling_last_pos import (
     ReachesCheaperLastPosSampling,
     ReachesNewLastPosSampling,
@@ -24,8 +35,8 @@ from large_gcs.graph.graph import Graph
 logger = logging.getLogger(__name__)
 
 
-class SamplingContainmentLastPosDominationChecker(
-    AHContainmentLastPos, SamplingLastPos
+class SamplingContainmentDominationChecker(
+    AHContainmentDominationChecker, SamplingDominationChecker
 ):
     def __init__(
         self,
@@ -137,6 +148,26 @@ class SamplingContainmentLastPosDominationChecker(
             ],
         }
         alg_metrics.update_method_call_structure(call_structure)
+
+
+class ReachesNewSamplingContainment(
+    SamplingContainmentDominationChecker, ReachesNewContainment, ReachesNewSampling
+):
+    pass
+
+
+class ReachesCheaperSamplingContainment(
+    SamplingContainmentDominationChecker,
+    ReachesCheaperContainment,
+    ReachesCheaperSampling,
+):
+    pass
+
+
+class SamplingContainmentLastPosDominationChecker(
+    SamplingContainmentDominationChecker, AHContainmentLastPos, SamplingLastPos
+):
+    pass
 
 
 class ReachesNewLastPosSamplingContainment(

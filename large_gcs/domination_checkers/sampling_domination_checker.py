@@ -399,6 +399,7 @@ class SamplingDominationChecker(DominationChecker):
     def _add_sample_to_graph(
         self, sample: np.ndarray, sample_vertex_name: str, candidate_node: SearchNode
     ) -> None:
+        # logger.debug(f"_add_sample_to_graph")
         self._graph.add_vertex(
             vertex=Vertex(convex_set=Point(sample)), name=sample_vertex_name
         )

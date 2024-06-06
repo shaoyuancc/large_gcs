@@ -27,6 +27,7 @@ class AHContainmentLastPos(AHContainmentDominationChecker):
         dimensions of the vertex.
         Note: Cost epigraph variable assumed to be the last decision variable in x.
         """
+        # logger.debug(f"get_H_transformation")
         # First, collect all the decision variables
         v_dims = [
             self._graph.vertices[name].convex_set.dim for name in node.vertex_path
@@ -50,6 +51,7 @@ class AHContainmentLastPos(AHContainmentDominationChecker):
         full_dim: int,
         ns_dim: int,
     ):
+        # logger.debug(f"get_nullspace_H_transformation")
         """Get the transformation matrix that will project the polyhedron that
         defines the whole path down to just the dimensions of the last vertex's
         nullspace.

@@ -1,0 +1,5 @@
+_target_: large_gcs.domination_checkers.sampling_containment_domination_checker.ReachesNewSamplingContainment
+
+num_samples_per_vertex: 1
+should_use_candidate_sol: false
+containment_condition: -1
