@@ -179,7 +179,7 @@ class AHContainmentDominationChecker(DominationChecker):
         return AH_X, AH_Y
 
     def _create_path_AH_polytope_from_nullspace_sets(self, node: SearchNode):
-        logger.debug(f"_create_path_AH_polytope_from_nullspace_sets")
+        # logger.debug(f"_create_path_AH_polytope_from_nullspace_sets")
         if self.include_cost_epigraph:
             raise NotImplementedError()
             # prog = self.get_nullspace_path_mathematical_program(node)

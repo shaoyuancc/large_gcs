@@ -24,6 +24,9 @@ save_to_wandb: true
 algorithm:
   should_invert_S: true
 
+domination_checker:
+  construct_path_from_nullspaces: false
+
 hydra:
   mode: MULTIRUN
   sweeper:
