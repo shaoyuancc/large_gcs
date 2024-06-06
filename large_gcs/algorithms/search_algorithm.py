@@ -132,6 +132,10 @@ class AlgMetrics:
             if f.name.startswith("_"):
                 continue
             attr = getattr(self, f.name)
+            if isinstance(attr, np.ndarray):
+                res[f.name] = attr.tolist()  # Convert numpy arrays to lists
+            elif isinstance(attr, defaultdict):
+                res[f.name] = dict(attr)  # Convert defaultdict to dict
             if isinstance(attr, dict):
                 # Convert the keys to strings if they are ints (it's creating problems for wandb)
                 res[f.name] = {
@@ -231,7 +235,7 @@ class AlgMetrics:
     def save(self, loc: Path) -> None:
         """Save metrics as a JSON file."""
         # Convert to dictionary and save to JSON
-        self_as_dict = asdict(self)
+        self_as_dict = self.to_dict()
         import json
 
         with open(loc, "w") as f:
