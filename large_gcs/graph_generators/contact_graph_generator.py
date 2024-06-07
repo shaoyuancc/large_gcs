@@ -26,6 +26,8 @@ class ContactGraphGeneratorParams:
     target_obj_pos: List = None
     target_rob_pos: List = None
     target_region_params: List[ContactRegionParams] = None
+    should_add_const_edge_cost: bool = True
+    should_use_l1_norm_vertex_cost: bool = False
 
     def __post_init__(self):
         self.source_obj_pos = np.array(self.source_obj_pos)
@@ -136,6 +138,8 @@ class ContactGraphGenerator:
             workspace=self._params.workspace,
             vertex_exclusion=None,
             vertex_inclusion=None,
+            should_add_const_edge_cost=self._params.should_add_const_edge_cost,
+            should_use_l1_norm_vertex_cost=self._params.should_use_l1_norm_vertex_cost,
         )
         if save_to_file:
             contact_graph.save_to_file(self._params.graph_file_path)
@@ -156,6 +160,8 @@ class ContactGraphGenerator:
             target_region_params=self._params.target_region_params,
             workspace=self._params.workspace,
             should_add_gcs=True,
+            should_add_const_edge_cost=self._params.should_add_const_edge_cost,
+            should_use_l1_norm_vertex_cost=self._params.should_use_l1_norm_vertex_cost,
         )
         if save_to_file:
             contact_graph.save_to_file(self._params.inc_graph_file_path)

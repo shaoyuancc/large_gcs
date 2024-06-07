@@ -63,6 +63,7 @@ class ContactGraph(Graph):
         # For loading a saved graph
         contact_set_mode_ids: List[List[str]] = None,
         edge_keys: List[str] = None,  # For loading a saved graph
+        should_add_const_edge_cost: bool = True,
         should_use_l1_norm_vertex_cost: bool = False,
     ):
         """
@@ -74,6 +75,13 @@ class ContactGraph(Graph):
         """
         Graph.__init__(self, workspace=workspace)
         assert self.workspace is not None, "Must specify workspace"
+        if not should_add_const_edge_cost:
+
+            def _create_single_empty_edge_cost(u: str, v: str) -> List[Cost]:
+                return []
+
+            self._create_single_edge_costs = _create_single_empty_edge_cost
+
         self._should_use_l1_norm_vertex_cost = should_use_l1_norm_vertex_cost
         if not should_use_l1_norm_vertex_cost:
             raise NotImplementedError("Only L1 norm vertex cost is supported")
