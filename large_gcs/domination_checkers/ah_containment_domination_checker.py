@@ -186,11 +186,12 @@ class AHContainmentDominationChecker(DominationChecker):
         return AH_X, AH_Y
 
     def _create_path_AH_polytope_from_nullspace_sets(self, node: SearchNode):
-        logger.debug(f"_create_path_AH_polytope_from_nullspace_sets")
+        # logger.debug(f"_create_path_AH_polytope_from_nullspace_sets")
 
         prog, full_dim = self.get_nullspace_path_mathematical_program(node)
         # logger.debug(f"full_dim: {full_dim}")
         h_poly = HPolyhedron(prog)
+        # logger.debug(f"path prog is empty: {h_poly.IsEmpty()}")
         T_H, t_H = self.get_nullspace_H_transformation(node, full_dim=full_dim)
         K, k, T, t = self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
             h_poly, T_H, t_H
@@ -198,18 +199,22 @@ class AHContainmentDominationChecker(DominationChecker):
         # logger.debug(f"K: {K.shape}, k: {k.shape}, T: {T.shape}, t: {t.shape}")
         # logger.debug(f"\nK: \n{K}, \nk: \n{k}, \nT: \n{T}, \nt: \n{t}")
         X = pp.H_polytope(K, k)
+        # logger.debug(f"X is empty: {not pp.check_non_empty(X)}")
         return pp.AH_polytope(t, T, X)
 
     @profile_method
     def _create_path_AH_polytope(self, node: SearchNode):
-        logger.debug(f"_create_path_AH_polytope")
+        # logger.debug(f"_create_path_AH_polytope")
+        # import pdb
+        # pdb.set_trace()
         # A, b, C, d = self.get_path_A_b_C_d(node)
         # total_dims = A.shape[1]
         if self.include_cost_epigraph:
-            prog = self.get_path_mathematical_program(node)
+            H, h = self.get_epigraph_matrices(node)
+            h_poly = HPolyhedron(H, h)
         else:
             prog = self.get_path_constraint_mathematical_program(node)
-        h_poly = HPolyhedron(prog)
+            h_poly = HPolyhedron(prog)
         # logger.debug(f"full_dim: {h_poly.ambient_dimension()}")
         T_H = self.get_H_transformation(node, h_poly.ambient_dimension())
         # K, k, T, t = self._nullspace_polyhedron_and_transformation_from_AbCdT(A, b, C, d, T_H)
@@ -441,7 +446,7 @@ class AHContainmentDominationChecker(DominationChecker):
         return big_A, big_b, big_C, big_d
 
     def get_nullspace_path_mathematical_program(
-        self, node: SearchNode
+        self, node: SearchNode, add_upper_bound=False, cost_upper_bound=500
     ) -> Tuple[MathematicalProgram, int]:
         """Assumes that the path is feasible."""
         # gcs vertices
@@ -491,7 +496,9 @@ class AHContainmentDominationChecker(DominationChecker):
                 for binding in v.GetCosts():
                     cost = binding.evaluator()
                     if isinstance(cost, L1NormCost):
+                        # logger.debug(f"Adding l1 norm cost for vertex {v_name}")
                         A = cost.A()
+                        # logger.debug(f"A:\n{A}")
                         l = prog.NewContinuousVariables(
                             A.shape[0], name=f"{v_name}_vertex_l1norm_cost"
                         )
@@ -499,14 +506,19 @@ class AHContainmentDominationChecker(DominationChecker):
                         A_prime = np.hstack((A @ ns_set.V, -np.eye(A.shape[0])))
                         variables = np.hstack((lam, l))
                         b_prime = -A @ ns_set.x_0
+
+                        # logger.debug(f"A_prime {A_prime.shape}, b_prime {b_prime.shape}")
+                        # logger.debug(f"\nA_prime\n{A_prime}\nb_prime\n{b_prime}")
                         prog.AddLinearConstraint(
                             A=A_prime,
                             lb=np.full_like(b_prime, -np.inf),
                             ub=b_prime,
                             vars=variables,
                         )
+                        A_prime = np.hstack((-A @ ns_set.V, -np.eye(A.shape[0])))
+                        b_prime = A @ ns_set.x_0
                         prog.AddLinearConstraint(
-                            A=-A_prime,
+                            A=A_prime,
                             lb=np.full_like(b_prime, -np.inf),
                             ub=b_prime,
                             vars=variables,
@@ -657,12 +669,20 @@ class AHContainmentDominationChecker(DominationChecker):
                 cost_b += cost.b()
                 cost_coeff_row += cost.a() @ S
 
-            prog.AddLinearConstraint(
-                A=cost_coeff_row,
-                lb=[-np.inf],
-                ub=[-cost_b],
-                vars=prog.decision_variables(),
-            )
+            if add_upper_bound:
+                prog.AddLinearConstraint(
+                    A=cost_coeff_row,
+                    lb=[-cost_upper_bound],
+                    ub=[-cost_b],
+                    vars=prog.decision_variables(),
+                )
+            else:
+                prog.AddLinearConstraint(
+                    A=cost_coeff_row,
+                    lb=[-np.inf],
+                    ub=[-cost_b],
+                    vars=prog.decision_variables(),
+                )
 
             # Full_v_dim is the hallucinated dimension of the full space path prog
             # N is the dim of the nullspace path prog
