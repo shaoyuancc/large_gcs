@@ -56,6 +56,13 @@ class AHContainmentDominationChecker(DominationChecker):
             "_is_dominated": [
                 "is_contained_in",
                 "_create_path_AH_polytope",
+                "_create_path_AH_polytope_from_nullspace_sets",
+            ],
+            "_create_path_AH_polytope": [
+                "_nullspace_polyhedron_and_transformation_from_HPoly_and_T",
+            ],
+            "_create_path_AH_polytope_from_nullspace_sets": [
+                "_nullspace_polyhedron_and_transformation_from_HPoly_and_T",
             ],
             "is_contained_in": [
                 "_solve_containment_prog",
@@ -128,9 +135,12 @@ class AHContainmentDominationChecker(DominationChecker):
 
         return self._solve_containment_prog(prog)
 
+    @profile_method
     def _nullspace_polyhedron_and_transformation_from_HPoly_and_T(
         self, h_poly: HPolyhedron, T: np.ndarray, t: np.ndarray = None
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        logger.debug(f"nullspace_polyhedron_and_transformation_from_HPoly_and_T")
+        logger.debug(f"ambient dim of h_poly: {h_poly.A().shape}")
         nullspace_set = NullspaceSet.from_hpolyhedron(
             h_poly, should_reduce_inequalities=True
         )
@@ -185,9 +195,11 @@ class AHContainmentDominationChecker(DominationChecker):
         AH_Y = pp.AH_polytope(t_y, T_y, Y)
         return AH_X, AH_Y
 
+    @profile_method
     def _create_path_AH_polytope_from_nullspace_sets(self, node: SearchNode):
-        # logger.debug(f"_create_path_AH_polytope_from_nullspace_sets")
-
+        logger.debug(f"create_path_AH_polytope_from_nullspace_sets")
+        # import pdb
+        # pdb.set_trace()
         prog, full_dim = self.get_nullspace_path_mathematical_program(node)
         # logger.debug(f"full_dim: {full_dim}")
         h_poly = HPolyhedron(prog)
@@ -204,7 +216,7 @@ class AHContainmentDominationChecker(DominationChecker):
 
     @profile_method
     def _create_path_AH_polytope(self, node: SearchNode):
-        # logger.debug(f"_create_path_AH_polytope")
+        logger.debug(f"create_path_AH_polytope")
         # import pdb
         # pdb.set_trace()
         # A, b, C, d = self.get_path_A_b_C_d(node)
@@ -243,7 +255,6 @@ class AHContainmentDominationChecker(DominationChecker):
         # logger.debug(f"Solver name: {result.get_solver_id().name()}")
         return result.is_success()
 
-    @profile_method
     def get_path_A_b_C_d(
         self, node: SearchNode
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -816,7 +827,6 @@ class AHContainmentDominationChecker(DominationChecker):
         X = HPolyhedron(prog)
         return X.A(), X.b()
 
-    @profile_method
     def get_epigraph_matrices(
         self, node: SearchNode, add_upper_bound=False, cost_upper_bound=1e4
     ):
@@ -861,7 +871,7 @@ class AHContainmentDominationChecker(DominationChecker):
         dimensions of the vertex.
         Note: Cost epigraph variable assumed to be the last decision variable in x.
         """
-        logger.debug(f"AHContainmentDominationChecker.get_nullspace_H_transformation")
+        # logger.debug(f"AHContainmentDominationChecker.get_nullspace_H_transformation")
         S = self.get_H_transformation(node, full_dim)
 
         Vs = scipy.linalg.block_diag(

@@ -462,6 +462,34 @@ def test_reaches_new_containment_cg_stackpush_d2():
         )
 
 
+def test_reaches_cheaper_containment_construct_from_ns_stuck_cg_stackpush_d2():
+    """Note: when tol is not set to 0 in NullspaceSet.from_hpolyhedron ReduceInequalities, then this gets stuck and runs forever. The problem is in FindRedundant."""
+    graph_file = ContactGraphGeneratorParams.inc_graph_file_path_from_name(
+        "cg_stackpush_d2"
+    )
+    cg = IncrementalContactGraph.load_from_file(
+        graph_file,
+        should_incl_simul_mode_switches=False,
+        should_add_const_edge_cost=True,
+        should_add_gcs=True,
+        should_use_l1_norm_vertex_cost=True,
+    )
+    domination_checker = ReachesCheaperContainment(
+        graph=cg, construct_path_from_nullspaces=True
+    )
+    domination_checker.set_alg_metrics(AlgMetrics())
+
+    # fmt: off
+    vertex_path = ['source', "('NC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f0-rob0_f2', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'NC|obj0_f0-rob0_f2', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('NC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_v0-rob0_f1', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'NC|obj0_f0-rob0_f2', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('NC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_v0-rob0_f1', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')"]
+    # fmt: on
+
+    # Load these two paths into the graph
+    cg.add_vertex_path_to_graph(vertex_path)
+
+    node = SearchNode.from_vertex_path(vertex_path)
+    assert domination_checker.is_dominated(candidate_node=node, alternate_nodes=[node])
+
+
 # @pytest.mark.slow_test
 # def test_reaches_new_containment_get_path_A_b_C_d_on_cg():
 #     graph_file = ContactGraphGeneratorParams.inc_graph_file_path_from_name(

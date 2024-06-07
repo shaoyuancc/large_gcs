@@ -9,6 +9,7 @@ from scipy.linalg import null_space
 
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.geometry_utils import remove_rows_near_zero
+from large_gcs.utils.utils import copy_pastable_str_from_np_array
 
 logger = logging.getLogger(__name__)
 AFFINE_SUBSPACE_TOL = 1e-9
@@ -28,6 +29,9 @@ class NullspaceSet(ConvexSet):
         should_reduce_inequalities: bool = False,
     ):
         # Find affine subspace of H x <= h
+        # logger.debug(f"IsEmpty: {h_polyhedron.IsEmpty()}, IsBounded: {h_polyhedron.IsBounded()}")
+        # logger.debug(f"Shape of A: {h_polyhedron.A().shape}, Shape of b: {h_polyhedron.b().shape}")
+        # logger.debug(f"\nA:\n{copy_pastable_str_from_np_array(h_polyhedron.A())}\nb:\n{copy_pastable_str_from_np_array(h_polyhedron.b())}")
         affine_subspace = AffineSubspace(h_polyhedron, tol=AFFINE_SUBSPACE_TOL)
         V = affine_subspace.basis()
 
@@ -39,15 +43,15 @@ class NullspaceSet(ConvexSet):
         H, h = h_polyhedron.A(), h_polyhedron.b()
         A_prime = H @ V
         b_prime = h - H @ x_0
-
         A_prime, b_prime = remove_rows_near_zero(
             A_prime, b_prime, tol=AFFINE_SUBSPACE_TOL
         )
-
         hpoly = HPolyhedron(A_prime, b_prime)
         if should_reduce_inequalities:
-            # logger.debug(f"A_prime before: {A_prime.shape}")
-            hpoly = hpoly.ReduceInequalities()
+            # logger.debug(f"IsEmpty: {hpoly.IsEmpty()}, IsBounded: {hpoly.IsBounded()}")
+            # logger.debug(f"Shape of A: {hpoly.A().shape}, Shape of b: {hpoly.b().shape}")
+            # logger.debug(f"\nA:\n{copy_pastable_str_from_np_array(hpoly.A())}\nb:\n{copy_pastable_str_from_np_array(hpoly.b())}")
+            hpoly = hpoly.ReduceInequalities(tol=0)
             # logger.debug(f"A_prime after: {self._set.A().shape}")
         ns_set = cls(hpoly)
         ns_set._V = V
@@ -90,7 +94,7 @@ class NullspaceSet(ConvexSet):
         hpoly = HPolyhedron(A_prime, b_prime)
         if should_reduce_inequalities:
             # logger.debug(f"A_prime before: {A_prime.shape}")
-            hpoly = hpoly.ReduceInequalities()
+            hpoly = hpoly.ReduceInequalities(tol=0)
             # logger.debug(f"A_prime after: {self._set.A().shape}")
         ns_set = cls(hpoly)
         ns_set._V = V
