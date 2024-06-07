@@ -1,7 +1,7 @@
 defaults:
   - algorithm: gcs_astar_reachability
   - cost_estimator: shortcut_edge
-  - domination_checker: reaches_cheaper_last_pos_sampling_containment
+  - domination_checker: reaches_cheaper_last_pos_sampling_containment_w_prune_s # reaches_cheaper_last_pos_sampling_containment
   - hydra: hydra
 
 graph_name: "cg_maze_b1"
@@ -23,7 +23,7 @@ save_to_wandb: true
 
 algorithm:
   should_invert_S: true
-  # load_checkpoint_log_dir: "outputs/2024-06-04/00-48-14"
+  # load_checkpoint_log_dir: "output/rebecca_checkpoint"
   # override_wall_clock_time: 50 # WARNING, use with caution
 
 domination_checker:

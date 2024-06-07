@@ -68,6 +68,9 @@ class AlgMetrics:
     n_Q: int = 0
     n_S: int = 0
     n_S_pruned: int = 0
+    _S_pruned_counts: DefaultDict[str, int] = field(
+        default_factory=lambda: defaultdict(int)
+    )
     method_times: DefaultDict[str, float] = field(
         default_factory=lambda: defaultdict(float)
     )

@@ -96,7 +96,6 @@ class GcsAstarReachability(SearchAlgorithm):
 
         # Visited dictionary
         self._S: dict[str, deque[SearchNode]] = defaultdict(deque)
-        self._S_pruned_counts: dict[str, int] = defaultdict(int)
         # Priority queue
         self._Q: list[SearchNode] = []
 
@@ -244,10 +243,9 @@ class GcsAstarReachability(SearchAlgorithm):
         ):
             # Path does not reach new areas, do not add to Q or S
             logger.debug(f"Not added to Q: Path to is dominated")
-            self._S_pruned_counts[n_next.vertex_name] += 1
+            self._alg_metrics._S_pruned_counts[n_next.vertex_name] += 1
             return
         logger.debug(f"Added to Q: Path not dominated")
-
         if (
             self._max_len_S_per_vertex != 0
             and len(self._S[n_next.vertex_name]) >= self._max_len_S_per_vertex
@@ -286,7 +284,10 @@ class GcsAstarReachability(SearchAlgorithm):
             # Histogram of paths per vertex
             # Preparing tracked and pruned counts
             tracked_counts = [len(self._S[v]) for v in self._S]
-            pruned_counts = [self._S_pruned_counts[v] for v in self._S_pruned_counts]
+            pruned_counts = [
+                self._alg_metrics._S_pruned_counts[v]
+                for v in self._alg_metrics._S_pruned_counts
+            ]
             hist_fig = self.alg_metrics.generate_tracked_pruned_paths_histogram(
                 tracked_counts, pruned_counts
             )
@@ -326,7 +327,7 @@ class GcsAstarReachability(SearchAlgorithm):
     @property
     def alg_metrics(self):
         self._alg_metrics.n_S = sum(len(lst) for lst in self._S.values())
-        self._alg_metrics.n_S_pruned = sum(self._S_pruned_counts.values())
+        self._alg_metrics.n_S_pruned = sum(self._alg_metrics._S_pruned_counts.values())
         return super().alg_metrics
 
     def save_checkpoint(self):
@@ -336,7 +337,6 @@ class GcsAstarReachability(SearchAlgorithm):
         checkpoint_data = {
             "Q": self._Q,
             "S": self._S,
-            "S_pruned_counts": self._S_pruned_counts,
             "expanded": self._expanded,
             "counter": next(self._counter) - 1,
             "step": self._step,
@@ -352,7 +352,6 @@ class GcsAstarReachability(SearchAlgorithm):
             checkpoint_data = pickle.load(f)
         self._Q = checkpoint_data["Q"]
         self._S = checkpoint_data["S"]
-        self._S_pruned_counts = checkpoint_data["S_pruned_counts"]
         self._expanded = checkpoint_data["expanded"]
         if self._tiebreak == TieBreak.FIFO or self._tiebreak == TieBreak.FIFO.name:
             self._counter = itertools.count(start=checkpoint_data["counter"], step=1)
