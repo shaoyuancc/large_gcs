@@ -159,13 +159,14 @@ class AlgMetrics:
             self._method_call_structure = call_structure
 
         # Note that this calculation will be wrong if a child method is called by two parents
-        called_methods = set()
-        for nested_methods in call_structure.values():
-            for nested_method in nested_methods:
-                assert (
-                    nested_method not in called_methods
-                ), f"Method {nested_method} is called by multiple parent methods."
-                called_methods.add(nested_method)
+        # But I disabled this check because I have a child method called by two parents but not in the same run (i.e. with different settings)
+        # called_methods = set()
+        # for nested_methods in call_structure.values():
+        #     for nested_method in nested_methods:
+        #         assert (
+        #             nested_method not in called_methods
+        #         ), f"Method {nested_method} is called by multiple parent methods."
+        #         called_methods.add(nested_method)
 
     @property
     def method_call_structure(self):

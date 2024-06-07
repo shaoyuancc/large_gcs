@@ -139,8 +139,9 @@ class AHContainmentDominationChecker(DominationChecker):
     def _nullspace_polyhedron_and_transformation_from_HPoly_and_T(
         self, h_poly: HPolyhedron, T: np.ndarray, t: np.ndarray = None
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        logger.debug(f"nullspace_polyhedron_and_transformation_from_HPoly_and_T")
-        logger.debug(f"ambient dim of h_poly: {h_poly.A().shape}")
+        logger.debug(
+            f"nullspace_polyhedron_and_transformation_from_HPoly_and_T: Shape of input h_poly: {h_poly.A().shape}"
+        )
         nullspace_set = NullspaceSet.from_hpolyhedron(
             h_poly, should_reduce_inequalities=True
         )

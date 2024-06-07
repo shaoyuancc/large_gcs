@@ -277,7 +277,7 @@ class GcsAstarReachability(SearchAlgorithm):
         )
         self._step += 1
         current_time = time.time()
-        PERIOD = 1800
+        PERIOD = 1200
 
         if self._vis_params is not None and (
             override_save or self._last_plots_save_time + PERIOD < current_time
