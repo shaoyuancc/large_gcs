@@ -1,10 +1,10 @@
 defaults:
   - algorithm: gcs_astar_reachability
   - cost_estimator: shortcut_edge
-  - domination_checker: reaches_cheaper_last_pos_sampling_containment
+  - domination_checker: reaches_cheaper_sampling_containment # reaches_cheaper_last_pos_sampling_containment
   - hydra: hydra
 
-graph_name: "cg_maze_b1"
+graph_name: "cg_trichal4"
 should_use_incremental_graph: true
 should_incl_simul_mode_switches: false
 should_add_const_edge_cost: true
@@ -25,10 +25,12 @@ algorithm:
   should_invert_S: true
 
 domination_checker:
-  construct_path_from_nullspaces: false
+  construct_path_from_nullspaces: true
 
 hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1
+      # graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1
+      # domination_checker:  reaches_cheaper_last_pos_sampling_containment, reaches_cheaper_sampling_containment
+      domination_checker.construct_path_from_nullspaces: true, false

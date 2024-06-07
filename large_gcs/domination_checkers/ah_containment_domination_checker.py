@@ -187,18 +187,11 @@ class AHContainmentDominationChecker(DominationChecker):
 
     def _create_path_AH_polytope_from_nullspace_sets(self, node: SearchNode):
         logger.debug(f"_create_path_AH_polytope_from_nullspace_sets")
-        if self.include_cost_epigraph:
-            raise NotImplementedError()
-            # prog = self.get_nullspace_path_mathematical_program(node)
-        else:
-            prog, full_dim = self.get_nullspace_path_constraint_mathematical_program(
-                node
-            )
+
+        prog, full_dim = self.get_nullspace_path_mathematical_program(node)
         # logger.debug(f"full_dim: {full_dim}")
         h_poly = HPolyhedron(prog)
-        T_H, t_H = self.get_nullspace_H_transformation(
-            node, full_dim=full_dim, ns_dim=h_poly.ambient_dimension()
-        )
+        T_H, t_H = self.get_nullspace_H_transformation(node, full_dim=full_dim)
         K, k, T, t = self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
             h_poly, T_H, t_H
         )
@@ -447,7 +440,7 @@ class AHContainmentDominationChecker(DominationChecker):
 
         return big_A, big_b, big_C, big_d
 
-    def get_nullspace_path_constraint_mathematical_program(
+    def get_nullspace_path_mathematical_program(
         self, node: SearchNode
     ) -> Tuple[MathematicalProgram, int]:
         """Assumes that the path is feasible."""
@@ -470,7 +463,10 @@ class AHContainmentDominationChecker(DominationChecker):
             )
             for ns_set, v_name in zip(ns_sets, node.vertex_path)
         ]
-        for v, ns_set, lam in zip(vertices, ns_sets, ns_vertex_vars):
+        ns_dim = sum([ns_set.dim for ns_set in ns_sets])
+        for v, v_name, ns_set, lam in zip(
+            vertices, node.vertex_path, ns_sets, ns_vertex_vars
+        ):
             # Handle the case where the affine subspace is a point
             if lam is None:
                 continue
@@ -490,7 +486,35 @@ class AHContainmentDominationChecker(DominationChecker):
                 A = constraint.GetDenseA() @ ns_set.V
                 prog.AddLinearConstraint(A=A, lb=lb, ub=ub, vars=lam)
 
-        for i, e in enumerate(edges):
+            if self.include_cost_epigraph:
+                # Vertex Costs
+                for binding in v.GetCosts():
+                    cost = binding.evaluator()
+                    if isinstance(cost, L1NormCost):
+                        A = cost.A()
+                        l = prog.NewContinuousVariables(
+                            A.shape[0], name=f"{v_name}_vertex_l1norm_cost"
+                        )
+                        prog.AddLinearCost(np.ones(l.shape), l)
+                        A_prime = np.hstack((A @ ns_set.V, -np.eye(A.shape[0])))
+                        variables = np.hstack((lam, l))
+                        b_prime = -A @ ns_set.x_0
+                        prog.AddLinearConstraint(
+                            A=A_prime,
+                            lb=np.full_like(b_prime, -np.inf),
+                            ub=b_prime,
+                            vars=variables,
+                        )
+                        prog.AddLinearConstraint(
+                            A=-A_prime,
+                            lb=np.full_like(b_prime, -np.inf),
+                            ub=b_prime,
+                            vars=variables,
+                        )
+                    else:
+                        raise NotImplementedError()
+
+        for i, (e, e_name) in enumerate(zip(edges, node.edge_path)):
             # u, v = node.vertex_path[i], node.vertex_path[i + 1]
             u_vars, v_vars = ns_vertex_vars[i], ns_vertex_vars[i + 1]
             u_set, v_set = ns_sets[i], ns_sets[i + 1]
@@ -517,6 +541,20 @@ class AHContainmentDominationChecker(DominationChecker):
                     A = Av @ v_set.V
                     prog.AddLinearConstraint(A=A, lb=lb, ub=ub, vars=v_vars)
 
+                if self.include_cost_epigraph:
+                    # Edge Costs
+                    for binding in e.GetCosts():
+                        cost = binding.evaluator()
+                        if isinstance(cost, L1NormCost):
+                            raise NotImplementedError()
+                        elif isinstance(cost, LinearCost):
+                            au, av = np.split(cost.a(), [u_set.x_0.size])
+                            a_prime = av @ v_set.V
+                            b_prime = au @ u_set.x_0 + av @ v_set.x_0 + cost.b()
+                            prog.AddLinearCost(a_prime, b_prime, v_vars)
+                        else:
+                            raise NotImplementedError()
+
             # u not a point, v is a point
             elif v_vars is None:
                 # Edge Constraints
@@ -534,6 +572,20 @@ class AHContainmentDominationChecker(DominationChecker):
                     ub = constraint.upper_bound() - Au @ u_set.x_0 - Av @ v_set.x_0
                     A = Au @ u_set.V
                     prog.AddLinearConstraint(A=A, lb=lb, ub=ub, vars=u_vars)
+
+                    if self.include_cost_epigraph:
+                        # Edge Costs
+                        for binding in e.GetCosts():
+                            cost = binding.evaluator()
+                            if isinstance(cost, L1NormCost):
+                                raise NotImplementedError()
+                            elif isinstance(cost, LinearCost):
+                                au, av = np.split(cost.a(), [u_set.x_0.size])
+                                a_prime = au @ u_set.V
+                                b_prime = au @ u_set.x_0 + av @ v_set.x_0 + cost.b()
+                                prog.AddLinearCost(a_prime, b_prime, u_vars)
+                            else:
+                                raise NotImplementedError()
 
             # Both are not points
             else:
@@ -564,6 +616,59 @@ class AHContainmentDominationChecker(DominationChecker):
                     # logger.debug(f"lb: {lb}")
                     # logger.debug(f"ub: {ub}")
                     prog.AddLinearConstraint(A=A, lb=lb, ub=ub, vars=variables)
+
+                if self.include_cost_epigraph:
+                    # Edge Costs
+                    e_vars = np.hstack((u_vars, v_vars))
+                    x_0s = np.concatenate((ns_sets[i].x_0, ns_sets[i + 1].x_0))
+                    Vs = scipy.linalg.block_diag(ns_sets[i].V, ns_sets[i + 1].V)
+                    for binding in e.GetCosts():
+                        cost = binding.evaluator()
+                        if isinstance(cost, L1NormCost):
+                            raise NotImplementedError()
+                        elif isinstance(cost, LinearCost):
+                            a_prime = cost.a() @ Vs
+                            b_prime = cost.a() @ x_0s + cost.b()
+                            prog.AddLinearCost(a_prime, b_prime, e_vars)
+                        else:
+                            raise NotImplementedError()
+
+        # Add cost epigraph variable
+        if self.include_cost_epigraph:
+            prog.NewContinuousVariables(1, name="cost")
+            N = len(prog.decision_variables())
+            # Add the epigraph cost as the final row
+            cost_coeff_row = np.zeros((1, N))
+            # Assumes the cost variable is the last variable
+            cost_coeff_row[0, -1] = -1
+            cost_b = 0
+            for binding in prog.GetAllCosts():
+                cost = binding.evaluator()
+                if not isinstance(cost, LinearCost):
+                    raise NotImplementedError(
+                        f"Only linear costs are supported for now, {cost} not supported"
+                    )
+                cost_var_indices = prog.FindDecisionVariableIndices(binding.variables())
+                S = create_selection_matrix(cost_var_indices, N)
+                # Linear cost is of the form a^T x + b
+                # Transforming it to cost_coeff_row x <=  - cost_b
+                # (1, N) (N, 1) = scalar
+                # which then becomes: cost in terms of all other variables + cost_b <= cost_var
+                cost_b += cost.b()
+                cost_coeff_row += cost.a() @ S
+
+            prog.AddLinearConstraint(
+                A=cost_coeff_row,
+                lb=[-np.inf],
+                ub=[-cost_b],
+                vars=prog.decision_variables(),
+            )
+
+            # Full_v_dim is the hallucinated dimension of the full space path prog
+            # N is the dim of the nullspace path prog
+            # ns_dim is the dim all all the nullspace vars
+            # N-ns_dim = number of l's for the cost and the epigraph variable
+            full_v_dim = N - ns_dim + full_v_dim
 
         return prog, full_v_dim
 
@@ -727,7 +832,6 @@ class AHContainmentDominationChecker(DominationChecker):
         self,
         node: SearchNode,
         full_dim: int,
-        ns_dim: int,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Get the transformation matrix that will project the polyhedron that
         defines the whole path down to just the dimensions of the last vertex's
@@ -753,6 +857,12 @@ class AHContainmentDominationChecker(DominationChecker):
             ]
         )
 
+        if self.include_cost_epigraph:
+            v_dim = len(x_0s)
+            n_additional_vars = full_dim - v_dim
+            # Assumes the cost variable is the last variable
+            Vs = scipy.linalg.block_diag(Vs, np.eye(n_additional_vars))
+            x_0s = np.concatenate((x_0s, np.zeros(n_additional_vars)))
         T = S @ Vs
         t = S @ x_0s
         return T, t

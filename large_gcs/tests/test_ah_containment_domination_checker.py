@@ -123,12 +123,10 @@ def test_nullspace_polyhedron_and_transformation_from_HPoly_and_T_correct_shapes
 
     node = SearchNode.from_vertex_path(cand_path)
     alt_node = SearchNode.from_vertex_path(alt_path)
-    prog, full_dim = (
-        domination_checker.get_nullspace_path_constraint_mathematical_program(node)
-    )
+    prog, full_dim = domination_checker.get_nullspace_path_mathematical_program(node)
     h_poly = HPolyhedron(prog)
     T_H, t_H = domination_checker.get_nullspace_H_transformation(
-        node, full_dim=full_dim, ns_dim=h_poly.ambient_dimension()
+        node, full_dim=full_dim
     )
     K, k, T, t = (
         domination_checker._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
@@ -169,12 +167,10 @@ def test_last_pos_nullspace_polyhedron_and_transformation_from_HPoly_and_T_corre
 
     node = SearchNode.from_vertex_path(cand_path)
     alt_node = SearchNode.from_vertex_path(alt_path)
-    prog, full_dim = (
-        domination_checker.get_nullspace_path_constraint_mathematical_program(node)
-    )
+    prog, full_dim = domination_checker.get_nullspace_path_mathematical_program(node)
     h_poly = HPolyhedron(prog)
     T_H, t_H = domination_checker.get_nullspace_H_transformation(
-        node, full_dim=full_dim, ns_dim=h_poly.ambient_dimension()
+        node, full_dim=full_dim
     )
     K, k, T, t = (
         domination_checker._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
