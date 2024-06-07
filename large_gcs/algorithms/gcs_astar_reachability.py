@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 import wandb
 from large_gcs.algorithms.search_algorithm import (
+    AlgMetrics,
     AlgVisParams,
     SearchAlgorithm,
     SearchNode,
@@ -46,6 +47,7 @@ class GcsAstarReachability(SearchAlgorithm):
         max_len_S_per_vertex: int = 0,  # 0 means no limit
         load_checkpoint_log_dir: Optional[str] = None,
         override_wall_clock_time: Optional[float] = None,
+        save_expansion_order: bool = False,
     ):
         if isinstance(graph, IncrementalContactGraph):
             assert (
@@ -73,6 +75,7 @@ class GcsAstarReachability(SearchAlgorithm):
             self.remove_node_from_S = self.remove_node_from_S_left
 
         self._load_checkpoint_log_dir = load_checkpoint_log_dir
+        self._save_expansion_order = save_expansion_order
 
         # For logging/metrics
         # Expanded set
@@ -161,6 +164,9 @@ class GcsAstarReachability(SearchAlgorithm):
         #     logger.debug(stat)
 
         n: SearchNode = self.pop_node_from_Q()
+
+        if self._save_expansion_order:
+            self._alg_metrics.expansion_order.append(n.vertex_path)
 
         # Check termination condition
         if n.vertex_name == self._graph.target_name:
@@ -353,7 +359,7 @@ class GcsAstarReachability(SearchAlgorithm):
         elif self._tiebreak == TieBreak.LIFO or self._tiebreak == TieBreak.LIFO.name:
             self._counter = itertools.count(start=checkpoint_data["counter"], step=-1)
         self._step = checkpoint_data["step"]
-        self._alg_metrics = checkpoint_data["alg_metrics"]
+        self._alg_metrics: AlgMetrics = checkpoint_data["alg_metrics"]
         if override_wall_clock_time is not None:
             self._alg_metrics.time_wall_clock = override_wall_clock_time
         self._cost_estimator.set_alg_metrics(self._alg_metrics)

@@ -50,3 +50,14 @@ def use_type_1_fonts_in_plots() -> None:
     plt.rcParams["pdf.use14corefonts"] = True
     plt.rcParams["text.usetex"] = True
     plt.rcParams["font.serif"] = "Computer Modern Roman"
+
+
+def all_lists_equal(lists):
+    if not lists:
+        return True  # An empty list of lists is considered equal
+
+    first_list = lists[0]
+    for lst in lists[1:]:
+        if lst != first_list:
+            return False
+    return True

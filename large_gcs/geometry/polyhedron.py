@@ -97,6 +97,7 @@ class Polyhedron(ConvexSet):
                 h_polyhedron.A(), h_polyhedron.b()
             )
         )
+        polyhedron.create_nullspace_set()
         return polyhedron
 
     @classmethod
@@ -168,11 +169,17 @@ class Polyhedron(ConvexSet):
             vertices = self.vertices
         ax.fill(*vertices.T, **kwargs)
 
-    def plot_transformation(self, T, **kwargs):
-        transformed_vertices = self.vertices @ T.T
+    def transform_vertices(self, T, t):
+        logger.debug(
+            f"T.shape: {T.shape}, t.shape: {t.shape}, vertices.shape: {self.vertices.shape}"
+        )
+        transformed_vertices = self.vertices @ T.T + t
+        return transformed_vertices
+
+    def plot_transformation(self, T, t, **kwargs):
+        transformed_vertices = self.vertices @ T.T + t
         # orders vertices counterclockwise
         hull = ConvexHull(transformed_vertices)
-
         if transformed_vertices.shape[1] == 2:
             transformed_vertices = transformed_vertices[hull.vertices]
             # Repeat the first vertex to close the polygon

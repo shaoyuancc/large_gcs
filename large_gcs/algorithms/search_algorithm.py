@@ -74,6 +74,7 @@ class AlgMetrics:
     method_counts: DefaultDict[str, int] = field(
         default_factory=lambda: defaultdict(int)
     )
+    expansion_order: List[str] = field(default_factory=list)
 
     def __post_init__(self):
         self._gcs_solve_times = np.empty((0,))

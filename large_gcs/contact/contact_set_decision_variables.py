@@ -70,6 +70,11 @@ class ContactSetDecisionVariables:
         """Extracts the last knot point vars_pos from vars_all."""
         return self.pos_from_all(vars_all)[:, :, -1].flatten()
 
+    def first_obj_first_pos_from_all(self, vars_all):
+        """Extracts the first knot point vars_pos of the first object from
+        vars_all."""
+        return self.pos_from_all(vars_all)[0, :, 0].flatten()
+
     @classmethod
     def from_objs_robs(cls, objects, robots):
         pos = np.array([body.vars_base_pos for body in objects + robots])

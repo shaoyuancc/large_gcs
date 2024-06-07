@@ -118,7 +118,7 @@ class NullspaceSet(ConvexSet):
     @classmethod
     def from_point(cls, point: DrakePoint):
         ns_set = cls(point)
-        ns_set._V = np.zeros((point.ambient_dimension(), point.ambient_dimension()))
+        ns_set._V = np.zeros((point.ambient_dimension(), 0))
         ns_set._x_0 = point.x()
         return ns_set
 
@@ -131,7 +131,7 @@ class NullspaceSet(ConvexSet):
 
     @property
     def dim(self):
-        return self._set.ambient_dimension()
+        return self._V.shape[1]
 
     @property
     def set(self) -> DrakeConvexSet:

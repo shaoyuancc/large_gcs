@@ -130,16 +130,23 @@ class AHContainmentDominationChecker(DominationChecker):
 
     def _nullspace_polyhedron_and_transformation_from_HPoly_and_T(
         self, h_poly: HPolyhedron, T: np.ndarray, t: np.ndarray = None
-    ):
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         nullspace_set = NullspaceSet.from_hpolyhedron(
             h_poly, should_reduce_inequalities=True
         )
-        T_prime = T @ nullspace_set._V
+        T_prime = T @ nullspace_set.V
         if t is None:
-            t_prime = T @ nullspace_set._x_0
+            t_prime = T @ nullspace_set.x_0
         else:
-            t_prime = T @ nullspace_set._x_0 + t
-        return nullspace_set._set.A(), nullspace_set._set.b(), T_prime, t_prime
+            t_prime = T @ nullspace_set.x_0 + t
+            # logger.debug(f"t_prime {t_prime.shape}, T {T.shape}, nullspace_set._x_0 {nullspace_set._x_0.shape}, t {t.shape}")
+        # logger.debug(f"nullspace H: {nullspace_set._set.A().shape}, h: {nullspace_set._set.b().shape}, T_prime: {T_prime.shape}, t_prime: {t_prime.shape}")
+        return (
+            nullspace_set._set.A(),
+            nullspace_set._set.b(),
+            T_prime,
+            t_prime,
+        )  # , nullspace_set._V, nullspace_set._x_0
 
     def _nullspace_polyhedron_and_transformation_from_AbCdT(self, A, b, C, d, T):
         A_invalid = A is None or A.shape[0] == 0
@@ -179,7 +186,7 @@ class AHContainmentDominationChecker(DominationChecker):
         return AH_X, AH_Y
 
     def _create_path_AH_polytope_from_nullspace_sets(self, node: SearchNode):
-        # logger.debug(f"_create_path_AH_polytope_from_nullspace_sets")
+        logger.debug(f"_create_path_AH_polytope_from_nullspace_sets")
         if self.include_cost_epigraph:
             raise NotImplementedError()
             # prog = self.get_nullspace_path_mathematical_program(node)
@@ -187,6 +194,7 @@ class AHContainmentDominationChecker(DominationChecker):
             prog, full_dim = self.get_nullspace_path_constraint_mathematical_program(
                 node
             )
+        # logger.debug(f"full_dim: {full_dim}")
         h_poly = HPolyhedron(prog)
         T_H, t_H = self.get_nullspace_H_transformation(
             node, full_dim=full_dim, ns_dim=h_poly.ambient_dimension()
@@ -194,6 +202,8 @@ class AHContainmentDominationChecker(DominationChecker):
         K, k, T, t = self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
             h_poly, T_H, t_H
         )
+        # logger.debug(f"K: {K.shape}, k: {k.shape}, T: {T.shape}, t: {t.shape}")
+        # logger.debug(f"\nK: \n{K}, \nk: \n{k}, \nT: \n{T}, \nt: \n{t}")
         X = pp.H_polytope(K, k)
         return pp.AH_polytope(t, T, X)
 
@@ -207,11 +217,14 @@ class AHContainmentDominationChecker(DominationChecker):
         else:
             prog = self.get_path_constraint_mathematical_program(node)
         h_poly = HPolyhedron(prog)
+        # logger.debug(f"full_dim: {h_poly.ambient_dimension()}")
         T_H = self.get_H_transformation(node, h_poly.ambient_dimension())
         # K, k, T, t = self._nullspace_polyhedron_and_transformation_from_AbCdT(A, b, C, d, T_H)
         K, k, T, t = self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
             h_poly, T_H
         )
+        # logger.debug(f"K: {K.shape}, k: {k.shape}, T: {T.shape}, t: {t.shape}")
+        # logger.debug(f"\nK: \n{K}, \nk: \n{k}, \nT: \n{T}, \nt: \n{t}")
         X = pp.H_polytope(K, k)
         return pp.AH_polytope(t, T, X)
 
@@ -225,7 +238,7 @@ class AHContainmentDominationChecker(DominationChecker):
         # solver_options.SetOption(
         #     CommonSolverOption.kPrintToConsole, 1
         # )
-        solver = ClpSolver()
+        solver = GurobiSolver()
         result: MathematicalProgramResult = solver.Solve(
             prog, solver_options=solver_options
         )
@@ -437,6 +450,7 @@ class AHContainmentDominationChecker(DominationChecker):
     def get_nullspace_path_constraint_mathematical_program(
         self, node: SearchNode
     ) -> Tuple[MathematicalProgram, int]:
+        """Assumes that the path is feasible."""
         # gcs vertices
         vertices = [self._graph.vertices[name].gcs_vertex for name in node.vertex_path]
         ns_sets: List[NullspaceSet] = [
@@ -449,14 +463,23 @@ class AHContainmentDominationChecker(DominationChecker):
 
         prog = MathematicalProgram()
         ns_vertex_vars = [
-            prog.NewContinuousVariables(ns_set.dim, name=f"{v_name}_ns_vars")
+            (
+                prog.NewContinuousVariables(ns_set.dim, name=f"{v_name}_ns_vars")
+                if ns_set.dim > 0
+                else None
+            )
             for ns_set, v_name in zip(ns_sets, node.vertex_path)
         ]
         for v, ns_set, lam in zip(vertices, ns_sets, ns_vertex_vars):
+            # Handle the case where the affine subspace is a point
+            if lam is None:
+                continue
+
             ns_set.set.AddPointInSetConstraints(prog, lam)
 
             # Vertex Constraints
             for binding in v.GetConstraints():
+                raise NotImplementedError()
                 constraint = binding.evaluator()
                 if not isinstance(constraint, LinearConstraint):
                     raise NotImplementedError(
@@ -468,31 +491,79 @@ class AHContainmentDominationChecker(DominationChecker):
                 prog.AddLinearConstraint(A=A, lb=lb, ub=ub, vars=lam)
 
         for i, e in enumerate(edges):
-            # Edge Constraints
-            for binding in e.GetConstraints():
-                constraint = binding.evaluator()
-                if not isinstance(constraint, LinearConstraint):
-                    raise NotImplementedError(
-                        f"Only linear constraints are supported for now, {constraint} not supported"
+            # u, v = node.vertex_path[i], node.vertex_path[i + 1]
+            u_vars, v_vars = ns_vertex_vars[i], ns_vertex_vars[i + 1]
+            u_set, v_set = ns_sets[i], ns_sets[i + 1]
+            # Both are points
+            if u_vars is None and v_vars is None:
+                continue
+            # u is a point, v not a point
+            elif u_vars is None:
+                # Edge Constraints
+                for binding in e.GetConstraints():
+                    constraint = binding.evaluator()
+                    if not isinstance(constraint, LinearConstraint):
+                        raise NotImplementedError(
+                            f"Only linear constraints are supported for now, {constraint} not supported"
+                        )
+                    Au, Av = (
+                        constraint.GetDenseA()[:, : u_set.x_0.size],
+                        constraint.GetDenseA()[:, u_set.x_0.size :],
                     )
-                variables = np.concatenate((ns_vertex_vars[i], ns_vertex_vars[i + 1]))
-                # logger.debug(f"Adding edge constraint for edge {i}")
-                x_0s = np.concatenate((ns_sets[i].x_0, ns_sets[i + 1].x_0))
-                # logger.debug(
-                #     f"ns_sets[{i}].V {ns_sets[i].V.shape}, ns_sets[{i+1}].V {ns_sets[i+1].V.shape}"
-                # )
-                Vs = scipy.linalg.block_diag(ns_sets[i].V, ns_sets[i + 1].V)
-                lb = constraint.lower_bound() - constraint.GetDenseA() @ x_0s
-                ub = constraint.upper_bound() - constraint.GetDenseA() @ x_0s
-                # logger.debug(
-                #     f"constraint.GetDenseA() {constraint.GetDenseA().shape}, Vs {Vs.shape}, lb {lb.shape}, ub {ub.shape}"
-                # )
-                A = constraint.GetDenseA() @ Vs
-                A, lb, ub = remove_rows_near_zero(A, lb, ub, AFFINE_SUBSPACE_TOL)
-                # logger.debug(f"A: {A.shape}")
-                # logger.debug(f"lb: {lb}")
-                # logger.debug(f"ub: {ub}")
-                prog.AddLinearConstraint(A=A, lb=lb, ub=ub, vars=variables)
+                    # logger.debug(f"Adding edge constraint for edge {i}")
+                    # logger.debug(f"Au {Au.shape}, Av {Av.shape}, u_set.x_0 {u_set.x_0.shape}, v_set.x_0 {v_set.x_0.shape}")
+                    lb = constraint.lower_bound() - Au @ u_set.x_0 - Av @ v_set.x_0
+                    ub = constraint.upper_bound() - Au @ u_set.x_0 - Av @ v_set.x_0
+                    A = Av @ v_set.V
+                    prog.AddLinearConstraint(A=A, lb=lb, ub=ub, vars=v_vars)
+
+            # u not a point, v is a point
+            elif v_vars is None:
+                # Edge Constraints
+                for binding in e.GetConstraints():
+                    constraint = binding.evaluator()
+                    if not isinstance(constraint, LinearConstraint):
+                        raise NotImplementedError(
+                            f"Only linear constraints are supported for now, {constraint} not supported"
+                        )
+                    Au, Av = (
+                        constraint.GetDenseA()[:, : u_set.x_0.size],
+                        constraint.GetDenseA()[:, u_set.x_0.size :],
+                    )
+                    lb = constraint.lower_bound() - Au @ u_set.x_0 - Av @ v_set.x_0
+                    ub = constraint.upper_bound() - Au @ u_set.x_0 - Av @ v_set.x_0
+                    A = Au @ u_set.V
+                    prog.AddLinearConstraint(A=A, lb=lb, ub=ub, vars=u_vars)
+
+            # Both are not points
+            else:
+                # Edge Constraints
+                for binding in e.GetConstraints():
+                    constraint = binding.evaluator()
+                    if not isinstance(constraint, LinearConstraint):
+                        raise NotImplementedError(
+                            f"Only linear constraints are supported for now, {constraint} not supported"
+                        )
+                    variables = np.concatenate(
+                        (ns_vertex_vars[i], ns_vertex_vars[i + 1])
+                    )
+                    # logger.debug(f"Adding edge constraint for edge {i}")
+                    x_0s = np.concatenate((ns_sets[i].x_0, ns_sets[i + 1].x_0))
+                    # logger.debug(
+                    #     f"ns_sets[{i}].V {ns_sets[i].V.shape}, ns_sets[{i+1}].V {ns_sets[i+1].V.shape}"
+                    # )
+                    Vs = scipy.linalg.block_diag(ns_sets[i].V, ns_sets[i + 1].V)
+                    lb = constraint.lower_bound() - constraint.GetDenseA() @ x_0s
+                    ub = constraint.upper_bound() - constraint.GetDenseA() @ x_0s
+                    # logger.debug(
+                    #     f"constraint.GetDenseA() {constraint.GetDenseA().shape}, Vs {Vs.shape}, lb {lb.shape}, ub {ub.shape}"
+                    # )
+                    A = constraint.GetDenseA() @ Vs
+                    A, lb, ub = remove_rows_near_zero(A, lb, ub, AFFINE_SUBSPACE_TOL)
+                    # logger.debug(f"A: {A.shape}")
+                    # logger.debug(f"lb: {lb}")
+                    # logger.debug(f"ub: {ub}")
+                    prog.AddLinearConstraint(A=A, lb=lb, ub=ub, vars=variables)
 
         return prog, full_v_dim
 
@@ -666,24 +737,24 @@ class AHContainmentDominationChecker(DominationChecker):
         dimensions of the vertex.
         Note: Cost epigraph variable assumed to be the last decision variable in x.
         """
-        # First, collect all the decision variables
-        ns_dims = [
-            self._graph.vertices[name].convex_set.nullspace_set.dim
-            for name in node.vertex_path
-        ]
-        current_index = 0
-        # Collect the indices of the decision variables for each vertex
-        lam = []
-        for dim in ns_dims:
-            lam.append(list(range(current_index, current_index + dim)))
-            current_index += dim
-        selected_indices = lam[-1]
-        if self.include_cost_epigraph:
-            raise NotImplementedError()
-            # Assumes the cost variable is the last variable
-            selected_indices.append(ns_dim - 1)
-        T = create_selection_matrix(selected_indices, ns_dim)
-        t = np.zeros((T.shape[0], 1))
+        logger.debug(f"AHContainmentDominationChecker.get_nullspace_H_transformation")
+        S = self.get_H_transformation(node, full_dim)
+
+        Vs = scipy.linalg.block_diag(
+            *[
+                self._graph.vertices[name].convex_set.nullspace_set._V
+                for name in node.vertex_path
+            ]
+        )
+        x_0s = np.concatenate(
+            [
+                self._graph.vertices[name].convex_set.nullspace_set._x_0
+                for name in node.vertex_path
+            ]
+        )
+
+        T = S @ Vs
+        t = S @ x_0s
         return T, t
 
     def get_H_transformation(
@@ -703,6 +774,7 @@ class AHContainmentDominationChecker(DominationChecker):
         dimensions of the vertex.
         Note: Cost epigraph variable assumed to be the last decision variable in x.
         """
+        # logger.debug(f"AHContainmentDominationChecker.get_H_transformation")
         # First, collect all the decision variables
         v_dims = [
             self._graph.vertices[name].convex_set.dim for name in node.vertex_path
@@ -717,6 +789,7 @@ class AHContainmentDominationChecker(DominationChecker):
         if self.include_cost_epigraph:
             # Assumes the cost variable is the last variable
             selected_indices.append(total_dims - 1)
+        # logger.debug(f"selected_indices: {selected_indices}")
         return create_selection_matrix(selected_indices, total_dims)
 
     @staticmethod
