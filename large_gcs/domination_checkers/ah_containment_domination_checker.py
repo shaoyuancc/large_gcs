@@ -82,9 +82,11 @@ class AHContainmentDominationChecker(DominationChecker):
         return False
 
     def _maybe_create_path_AH_polytope(self, node: SearchNode):
-        if node.ah_polyhedron is not None:
-            return node.ah_polyhedron
         if self._construct_path_from_nullspaces:
+            if node.ah_polyhedron_ns is not None:
+                return node.ah_polyhedron_ns
+            elif node.ah_polyhedron_fs is not None:
+                return node.ah_polyhedron_fs
             result, reduce_inequalities_succeeded = (
                 self._create_path_AH_polytope_from_nullspace_sets(node)
             )
@@ -95,7 +97,14 @@ class AHContainmentDominationChecker(DominationChecker):
                 result, reduce_inequalities_succeeded = (
                     self._create_path_AH_polytope_from_full_sets(node)
                 )
+                node.ah_polyhedron_fs = result
+            else:
+                node.ah_polyhedron_ns = result
         else:
+            if node.ah_polyhedron_fs is not None:
+                return node.ah_polyhedron_fs
+            elif node.ah_polyhedron_ns is not None:
+                return node.ah_polyhedron_ns
             result, reduce_inequalities_succeeded = (
                 self._create_path_AH_polytope_from_full_sets(node)
             )
@@ -106,7 +115,9 @@ class AHContainmentDominationChecker(DominationChecker):
                 result, reduce_inequalities_succeeded = (
                     self._create_path_AH_polytope_from_nullspace_sets(node)
                 )
-        node.ah_polyhedron = result
+                node.ah_polyhedron_ns = result
+            else:
+                node.ah_polyhedron_fs = result
         return result
 
     @profile_method

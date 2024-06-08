@@ -66,6 +66,32 @@ class SamplingContainmentDominationChecker(
         self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
     ) -> bool:
 
+        sample_is_dominated = self.sample_is_dominated(candidate_node, alternate_nodes)
+
+        if np.all(~sample_is_dominated):
+            return False
+
+        AH_n = self._maybe_create_path_AH_polytope(candidate_node)
+        logger.debug(
+            f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"
+            f"\n via path: {candidate_node.vertex_path}"
+        )
+        for alt_i, alt_n in enumerate(alternate_nodes):
+            if sample_is_dominated[alt_i]:
+                # Check whether candidate is contained in alternate
+                logger.debug(
+                    f"Checking if candidate node is dominated by alternate node with path:"
+                    f"{alt_n.vertex_path}"
+                )
+                # Might have been added based on the sample so AH Polyhedron might not have been created yet.
+                AH_alt = self._maybe_create_path_AH_polytope(alt_n)
+                if self.is_contained_in(AH_n, AH_alt):
+                    return True
+        return False
+
+    def sample_is_dominated(
+        self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
+    ) -> List[bool]:
         # Get single sample
         self._maybe_add_set_samples(candidate_node.vertex_name)
         sample = self._set_samples[candidate_node.vertex_name].samples[0]
@@ -108,27 +134,7 @@ class SamplingContainmentDominationChecker(
         # Clean up sample vertex
         self._graph.remove_vertex(sample_vertex_name)
         self._graph.set_target(self._target)
-
-        if np.all(~sample_is_dominated):
-            return False
-
-        AH_n = self._maybe_create_path_AH_polytope(candidate_node)
-        logger.debug(
-            f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"
-            f"\n via path: {candidate_node.vertex_path}"
-        )
-        for alt_i, alt_n in enumerate(alternate_nodes):
-            if sample_is_dominated[alt_i]:
-                # Check whether candidate is contained in alternate
-                logger.debug(
-                    f"Checking if candidate node is dominated by alternate node with path:"
-                    f"{alt_n.vertex_path}"
-                )
-                # Might have been added based on the sample so AH Polyhedron might not have been created yet.
-                AH_alt = self._maybe_create_path_AH_polytope(alt_n)
-                if self.is_contained_in(AH_n, AH_alt):
-                    return True
-        return False
+        return sample_is_dominated
 
     def set_alg_metrics(self, alg_metrics: AlgMetrics):
         self._alg_metrics = alg_metrics

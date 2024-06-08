@@ -44,48 +44,7 @@ class SamplingContainmentWPruneSDominationChecker(SamplingContainmentDominationC
         self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
     ) -> bool:
 
-        # Get single sample
-        self._maybe_add_set_samples(candidate_node.vertex_name)
-        sample = self._set_samples[candidate_node.vertex_name].samples[0]
-        # Before we project the first sample we need to init the graph
-        self._set_samples[candidate_node.vertex_name].init_graph_for_projection(
-            self._graph, candidate_node, self._alg_metrics
-        )
-        proj_sample = self._set_samples[candidate_node.vertex_name].project_single_gcs(
-            self._graph, candidate_node, sample
-        )
-        # Check whether the candidate is dominated by each of the alternate nodes for that sample
-
-        # Create a new vertex for the sample and add it to the graph
-        sample_vertex_name = f"{candidate_node.vertex_name}_sample_{0}"
-
-        self._add_sample_to_graph(
-            sample=proj_sample,
-            sample_vertex_name=sample_vertex_name,
-            candidate_node=candidate_node,
-        )
-
-        candidate_sol, suceeded = self._compute_candidate_sol(
-            candidate_node, sample_vertex_name
-        )
-        if not suceeded:
-            self._graph.remove_vertex(sample_vertex_name)
-            # This should never happen
-            self._graph.set_target(self._target)
-            return False
-
-        sample_is_dominated = np.full(len(alternate_nodes), False)
-
-        for alt_i, alt_n in enumerate(alternate_nodes):
-            # logger.debug(f"Checking alternate path {alt_i} of {len(alternate_nodes)} for sample {idx}")
-            alt_sol = self._solve_conv_res_to_sample(alt_n, sample_vertex_name)
-            sample_is_dominated[alt_i] = self._is_single_dominated(
-                candidate_sol, alt_sol
-            )
-
-        # Clean up sample vertex
-        self._graph.remove_vertex(sample_vertex_name)
-        self._graph.set_target(self._target)
+        sample_is_dominated = self.sample_is_dominated(candidate_node, alternate_nodes)
 
         AH_n = self._maybe_create_path_AH_polytope(candidate_node)
         logger.debug(

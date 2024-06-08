@@ -275,7 +275,8 @@ class SearchNode:
     vertex_path: List[str]
     parent: Optional["SearchNode"] = None
     sol: Optional[ShortestPathSolution] = None
-    ah_polyhedron: Optional[AH_polytope] = None
+    ah_polyhedron_ns: Optional[AH_polytope] = None
+    ah_polyhedron_fs: Optional[AH_polytope] = None
 
     def __lt__(self, other: "SearchNode"):
         return self.priority < other.priority
