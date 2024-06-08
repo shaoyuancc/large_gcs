@@ -45,24 +45,13 @@ class AHContainmentDominationChecker(DominationChecker):
         self._containment_condition = containment_condition
         self._construct_path_from_nullspaces = construct_path_from_nullspaces
 
-        if self._construct_path_from_nullspaces:
-            self._create_path_AH_polytope = (
-                self._create_path_AH_polytope_from_nullspace_sets
-            )
-
     def set_alg_metrics(self, alg_metrics: AlgMetrics):
         self._alg_metrics = alg_metrics
         call_structure = {
             "_is_dominated": [
                 "is_contained_in",
-                "_create_path_AH_polytope",
+                "_create_path_AH_polytope_from_full_sets",
                 "_create_path_AH_polytope_from_nullspace_sets",
-            ],
-            "_create_path_AH_polytope": [
-                "_nullspace_polyhedron_and_transformation_from_HPoly_and_T",
-            ],
-            "_create_path_AH_polytope_from_nullspace_sets": [
-                "_nullspace_polyhedron_and_transformation_from_HPoly_and_T",
             ],
             "is_contained_in": [
                 "_solve_containment_prog",
@@ -79,17 +68,46 @@ class AHContainmentDominationChecker(DominationChecker):
             f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"
             f"\n via path: {candidate_node.vertex_path}"
         )
-        AH_n = self._create_path_AH_polytope(candidate_node)
+        AH_n = self._maybe_create_path_AH_polytope(candidate_node)
         # logger.debug(f"{AH_n.P.H.shape}")
         for alt_n in alternate_nodes:
             logger.debug(
                 f"Checking if candidate node is dominated by alternate node with path:"
                 f"{alt_n.vertex_path}"
             )
-            AH_alt = self._create_path_AH_polytope(alt_n)
+            # Might have been added based on the sample so AH Polyhedron might not have been created yet.
+            AH_alt = self._maybe_create_path_AH_polytope(alt_n)
             if self.is_contained_in(AH_n, AH_alt):
                 return True
         return False
+
+    def _maybe_create_path_AH_polytope(self, node: SearchNode):
+        if node.ah_polyhedron is not None:
+            return node.ah_polyhedron
+        if self._construct_path_from_nullspaces:
+            result, reduce_inequalities_succeeded = (
+                self._create_path_AH_polytope_from_nullspace_sets(node)
+            )
+            if not reduce_inequalities_succeeded:
+                logger.warn(
+                    f"Failed to reduce inequalities for _create_path_AH_polytope_from_nullspace_sets so creating from full sets"
+                )
+                result, reduce_inequalities_succeeded = (
+                    self._create_path_AH_polytope_from_full_sets(node)
+                )
+        else:
+            result, reduce_inequalities_succeeded = (
+                self._create_path_AH_polytope_from_full_sets(node)
+            )
+            if not reduce_inequalities_succeeded:
+                logger.warn(
+                    f"Failed to reduce inequalities for _create_path_AH_polytope_from_full_sets so creating from nullspace sets"
+                )
+                result, reduce_inequalities_succeeded = (
+                    self._create_path_AH_polytope_from_nullspace_sets(node)
+                )
+        node.ah_polyhedron = result
+        return result
 
     @profile_method
     def is_contained_in(
@@ -135,14 +153,13 @@ class AHContainmentDominationChecker(DominationChecker):
 
         return self._solve_containment_prog(prog)
 
-    @profile_method
     def _nullspace_polyhedron_and_transformation_from_HPoly_and_T(
         self, h_poly: HPolyhedron, T: np.ndarray, t: np.ndarray = None
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, bool]:
         logger.debug(
             f"nullspace_polyhedron_and_transformation_from_HPoly_and_T: Shape of input h_poly: {h_poly.A().shape}"
         )
-        nullspace_set = NullspaceSet.from_hpolyhedron(
+        nullspace_set, reduce_inequalities_suceeded = NullspaceSet.from_hpolyhedron(
             h_poly, should_reduce_inequalities=True
         )
         T_prime = T @ nullspace_set.V
@@ -157,6 +174,7 @@ class AHContainmentDominationChecker(DominationChecker):
             nullspace_set._set.b(),
             T_prime,
             t_prime,
+            reduce_inequalities_suceeded,
         )  # , nullspace_set._V, nullspace_set._x_0
 
     def _nullspace_polyhedron_and_transformation_from_AbCdT(self, A, b, C, d, T):
@@ -206,18 +224,19 @@ class AHContainmentDominationChecker(DominationChecker):
         h_poly = HPolyhedron(prog)
         # logger.debug(f"path prog is empty: {h_poly.IsEmpty()}")
         T_H, t_H = self.get_nullspace_H_transformation(node, full_dim=full_dim)
-        K, k, T, t = self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
-            h_poly, T_H, t_H
+        K, k, T, t, reduce_inequalities_succeeded = (
+            self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
+                h_poly, T_H, t_H
+            )
         )
         # logger.debug(f"K: {K.shape}, k: {k.shape}, T: {T.shape}, t: {t.shape}")
         # logger.debug(f"\nK: \n{K}, \nk: \n{k}, \nT: \n{T}, \nt: \n{t}")
         X = pp.H_polytope(K, k)
-        # logger.debug(f"X is empty: {not pp.check_non_empty(X)}")
-        return pp.AH_polytope(t, T, X)
+        return pp.AH_polytope(t, T, X), reduce_inequalities_succeeded
 
     @profile_method
-    def _create_path_AH_polytope(self, node: SearchNode):
-        logger.debug(f"create_path_AH_polytope")
+    def _create_path_AH_polytope_from_full_sets(self, node: SearchNode):
+        logger.debug(f"create_path_AH_polytope_from_full_sets")
         # import pdb
         # pdb.set_trace()
         # A, b, C, d = self.get_path_A_b_C_d(node)
@@ -231,13 +250,13 @@ class AHContainmentDominationChecker(DominationChecker):
         # logger.debug(f"full_dim: {h_poly.ambient_dimension()}")
         T_H = self.get_H_transformation(node, h_poly.ambient_dimension())
         # K, k, T, t = self._nullspace_polyhedron_and_transformation_from_AbCdT(A, b, C, d, T_H)
-        K, k, T, t = self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
-            h_poly, T_H
+        K, k, T, t, reduce_inequalities_succeeded = (
+            self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(h_poly, T_H)
         )
         # logger.debug(f"K: {K.shape}, k: {k.shape}, T: {T.shape}, t: {t.shape}")
         # logger.debug(f"\nK: \n{K}, \nk: \n{k}, \nT: \n{T}, \nt: \n{t}")
         X = pp.H_polytope(K, k)
-        return pp.AH_polytope(t, T, X)
+        return pp.AH_polytope(t, T, X), reduce_inequalities_succeeded
 
     @profile_method
     def _solve_containment_prog(self, prog: MathematicalProgram):

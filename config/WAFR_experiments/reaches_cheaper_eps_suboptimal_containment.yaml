@@ -31,7 +31,5 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      graph_name: cg_trichal4
-      # graph_name: cg_trichal4, cg_stackpush_d2, cg_maze_b1
-      # domination_checker:  reaches_cheaper_last_pos_sampling_containment, reaches_cheaper_sampling_containment
-      domination_checker.construct_path_from_nullspaces: true, false
+      # graph_name: cg_simple_4
+      graph_name: cg_simple_4, cg_stackpush_d2, cg_maze_b1

@@ -216,7 +216,7 @@ class GcsAstarReachability(SearchAlgorithm):
             self._alg_metrics.n_vertices_revisited[0] += 1
         else:
             self._alg_metrics.n_vertices_visited[0] += 1
-        logger.debug(f"Exploring path (length {len(n.vertex_path)}) {n.vertex_path}")
+
         sol: ShortestPathSolution = self._cost_estimator.estimate_cost_on_graph(
             self._graph,
             edge,
@@ -234,6 +234,9 @@ class GcsAstarReachability(SearchAlgorithm):
         n_next = SearchNode.from_parent(child_vertex_name=edge.v, parent=n)
         n_next.sol = sol
         n_next.priority = sol.cost
+        logger.debug(
+            f"Exploring path (length {len(n_next.vertex_path)}) {n_next.vertex_path}"
+        )
 
         # If coming from source or going to target, do not check if path reaches new samples
         if (

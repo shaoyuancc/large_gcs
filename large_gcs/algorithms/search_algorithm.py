@@ -1,4 +1,5 @@
 import heapq as heap
+import logging
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -11,10 +12,13 @@ from typing import DefaultDict, Dict, List, Optional
 
 import numpy as np
 import plotly.graph_objects as go
+from pypolycontain.objects import AH_polytope
 
 import wandb
 from large_gcs.graph.graph import Edge, ShortestPathSolution
 from large_gcs.utils.utils import dict_to_dataclass
+
+logger = logging.getLogger(__name__)
 
 
 class TieBreak(Enum):
@@ -271,6 +275,7 @@ class SearchNode:
     vertex_path: List[str]
     parent: Optional["SearchNode"] = None
     sol: Optional[ShortestPathSolution] = None
+    ah_polyhedron: Optional[AH_polytope] = None
 
     def __lt__(self, other: "SearchNode"):
         return self.priority < other.priority
@@ -349,7 +354,10 @@ def profile_method(method):
         result = method(self, *args, **kwargs)  # Call the original method
         end_time = time.time()
         elapsed_time = end_time - start_time
-
+        if elapsed_time > 300:
+            logger.warning(
+                f"Method {method.__name__} took {elapsed_time:.2f} seconds to run."
+            )
         # Update the AlgMetrics with the elapsed time for the method
         self._alg_metrics.method_times[method.__name__] += elapsed_time
         self._alg_metrics.method_counts[method.__name__] += 1

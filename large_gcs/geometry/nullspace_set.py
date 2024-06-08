@@ -1,4 +1,5 @@
 import logging
+import multiprocessing
 
 import numpy as np
 from pydrake.all import AffineSubspace, ClpSolver
@@ -46,17 +47,39 @@ class NullspaceSet(ConvexSet):
         A_prime, b_prime = remove_rows_near_zero(
             A_prime, b_prime, tol=AFFINE_SUBSPACE_TOL
         )
-        hpoly = HPolyhedron(A_prime, b_prime)
+
         if should_reduce_inequalities:
             # logger.debug(f"IsEmpty: {hpoly.IsEmpty()}, IsBounded: {hpoly.IsBounded()}")
             # logger.debug(f"Shape of A: {hpoly.A().shape}, Shape of b: {hpoly.b().shape}")
             # logger.debug(f"\nA:\n{copy_pastable_str_from_np_array(hpoly.A())}\nb:\n{copy_pastable_str_from_np_array(hpoly.b())}")
-            hpoly = hpoly.ReduceInequalities(tol=0)
+            with multiprocessing.Pool(processes=1) as pool:
+                future = pool.apply_async(
+                    cls.reduce_inequalities, args=(A_prime, b_prime)
+                )
+                try:
+                    A_prime, b_prime = future.get(timeout=10)
+                    reduce_inequalties_succeeded = True
+                except multiprocessing.TimeoutError as e:
+                    reduce_inequalties_succeeded = False
+                    logger.error(f"Timeout error for reduce_inequalities: {e}")
+                finally:
+                    pool.terminate()
+                    pool.join()
             # logger.debug(f"A_prime after: {self._set.A().shape}")
+        hpoly = HPolyhedron(A_prime, b_prime)
         ns_set = cls(hpoly)
         ns_set._V = V
         ns_set._x_0 = x_0
-        return ns_set
+        if should_reduce_inequalities:
+            return ns_set, reduce_inequalties_succeeded
+        else:
+            return ns_set
+
+    @staticmethod
+    def reduce_inequalities(A: np.ndarray, b: np.ndarray):
+        hpoly = HPolyhedron(A, b)
+        hpoly = hpoly.ReduceInequalities(tol=0)
+        return hpoly.A(), hpoly.b()
 
     @classmethod
     def from_hpolyhedron_w_active_everywhere(

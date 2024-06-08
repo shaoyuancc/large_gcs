@@ -361,7 +361,7 @@ def test_reaches_new_polyhedrons_are_the_same_cg_trichal4():
         cg.add_vertex_path_to_graph(path)
         node = SearchNode.from_vertex_path(path)
         AH_poly_ns = dom_ns._create_path_AH_polytope_from_nullspace_sets(node)
-        AH_poly_fs = dom_fs._create_path_AH_polytope(node)
+        AH_poly_fs = dom_fs._maybe_create_path_AH_polytope(node)
         # They should be the same polyhedrons
         assert dom_fs.is_contained_in(AH_poly_ns, AH_poly_fs)
         assert dom_fs.is_contained_in(AH_poly_fs, AH_poly_ns)
@@ -392,7 +392,7 @@ def test_reaches_cheaper_polyhedrons_are_the_same_cg_trichal4():
         cg.add_vertex_path_to_graph(path)
         node = SearchNode.from_vertex_path(path)
         AH_poly_ns = dom_ns._create_path_AH_polytope_from_nullspace_sets(node)
-        AH_poly_fs = dom_fs._create_path_AH_polytope(node)
+        AH_poly_fs = dom_fs._maybe_create_path_AH_polytope(node)
         # They should be the same polyhedrons
         assert dom_fs.is_contained_in(AH_poly_ns, AH_poly_fs)
         assert dom_fs.is_contained_in(AH_poly_fs, AH_poly_ns)
@@ -425,7 +425,7 @@ def test_last_pos_polyhedrons_are_the_same_cg_trichal4():
         cg.add_vertex_path_to_graph(path)
         node = SearchNode.from_vertex_path(path)
         AH_poly_ns = dom_ns._create_path_AH_polytope_from_nullspace_sets(node)
-        AH_poly_fs = dom_fs._create_path_AH_polytope(node)
+        AH_poly_fs = dom_fs._maybe_create_path_AH_polytope(node)
         # They should be the same polyhedrons
         assert dom_fs.is_contained_in(AH_poly_ns, AH_poly_fs)
         assert dom_fs.is_contained_in(AH_poly_fs, AH_poly_ns)

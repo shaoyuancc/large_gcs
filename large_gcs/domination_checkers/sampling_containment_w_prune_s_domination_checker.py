@@ -87,7 +87,7 @@ class SamplingContainmentWPruneSDominationChecker(SamplingContainmentDominationC
         self._graph.remove_vertex(sample_vertex_name)
         self._graph.set_target(self._target)
 
-        AH_n = self._create_path_AH_polytope(candidate_node)
+        AH_n = self._maybe_create_path_AH_polytope(candidate_node)
         logger.debug(
             f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"
             f"\n via path: {candidate_node.vertex_path}"
@@ -95,7 +95,7 @@ class SamplingContainmentWPruneSDominationChecker(SamplingContainmentDominationC
         are_keeping = False
         alt_paths_to_prune = []
         for alt_i, alt_n in enumerate(alternate_nodes):
-            AH_alt = self._create_path_AH_polytope(alt_n)
+            AH_alt = self._maybe_create_path_AH_polytope(alt_n)
             if sample_is_dominated[alt_i] and not are_keeping:
                 # Check whether candidate is contained in alternate
                 logger.debug(

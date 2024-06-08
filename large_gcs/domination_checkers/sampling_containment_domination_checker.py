@@ -53,11 +53,6 @@ class SamplingContainmentDominationChecker(
         self._should_use_candidate_sol = should_use_candidate_sol
         self._construct_path_from_nullspaces = construct_path_from_nullspaces
 
-        if self._construct_path_from_nullspaces:
-            self._create_path_AH_polytope = (
-                self._create_path_AH_polytope_from_nullspace_sets
-            )
-
         if num_samples_per_vertex != 1:
             raise NotImplementedError()
         if should_use_candidate_sol:
@@ -117,7 +112,7 @@ class SamplingContainmentDominationChecker(
         if np.all(~sample_is_dominated):
             return False
 
-        AH_n = self._create_path_AH_polytope(candidate_node)
+        AH_n = self._maybe_create_path_AH_polytope(candidate_node)
         logger.debug(
             f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"
             f"\n via path: {candidate_node.vertex_path}"
@@ -129,7 +124,8 @@ class SamplingContainmentDominationChecker(
                     f"Checking if candidate node is dominated by alternate node with path:"
                     f"{alt_n.vertex_path}"
                 )
-                AH_alt = self._create_path_AH_polytope(alt_n)
+                # Might have been added based on the sample so AH Polyhedron might not have been created yet.
+                AH_alt = self._maybe_create_path_AH_polytope(alt_n)
                 if self.is_contained_in(AH_n, AH_alt):
                     return True
         return False
