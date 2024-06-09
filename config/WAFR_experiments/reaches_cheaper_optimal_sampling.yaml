@@ -15,6 +15,7 @@ should_use_l1_norm_vertex_cost: true
 cost_estimator:
   # USE L1 NORM SHORTCUT EDGE COST
   shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1_norm_cost_factory_under_obj_weighted
+  # shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1_norm_plus_switches_cost_factory_under
 
 save_visualization: true
 save_solution: true

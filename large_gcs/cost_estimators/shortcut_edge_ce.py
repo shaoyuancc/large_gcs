@@ -3,6 +3,10 @@ from typing import List
 
 from large_gcs.contact.contact_set import ContactPointSet, ContactSet
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
+from large_gcs.graph.contact_cost_constraint_factory import (
+    contact_shortcut_edge_l1_norm_plus_switches_cost_factory_over,
+    contact_shortcut_edge_l1_norm_plus_switches_cost_factory_under,
+)
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
 from large_gcs.utils.hydra_utils import get_function_from_string
 
@@ -54,20 +58,30 @@ class ShortcutEdgeCE(CostEstimator):
                 ) or isinstance(graph.vertices[neighbor], ContactPointSet):
                     # Only ContactSet and ContactPointSet have the vars attribute
                     # convex_sets in general do not.
-                    direct_edge_costs = self._shortcut_edge_cost_factory(
-                        u_vars=self._graph.vertices[neighbor].convex_set.vars,
-                        v_vars=self._graph.vertices[
-                            self._graph.target_name
-                        ].convex_set.vars,
-                        add_const_cost=self._add_const_cost,
-                    )
-                    # direct_edge_costs = contact_shortcut_edge_l1_norm_plus_switches_cost_factory_over(
-                    #     u_vars=self._graph.vertices[neighbor].convex_set.vars,
-                    #     v_vars=self._graph.vertices[
-                    #         self._graph.target_name
-                    #     ].convex_set.vars,
-                    #     n_switches=self._graph.num_modes_not_adj_to_target(neighbor),
-                    # )
+                    if (
+                        self._shortcut_edge_cost_factory
+                        is contact_shortcut_edge_l1_norm_plus_switches_cost_factory_under
+                        or self._shortcut_edge_cost_factory
+                        is contact_shortcut_edge_l1_norm_plus_switches_cost_factory_over
+                    ):
+                        direct_edge_costs = self._shortcut_edge_cost_factory(
+                            u_vars=self._graph.vertices[neighbor].convex_set.vars,
+                            v_vars=self._graph.vertices[
+                                self._graph.target_name
+                            ].convex_set.vars,
+                            n_switches=self._graph.num_modes_not_adj_to_target(
+                                neighbor
+                            ),
+                        )
+                    else:
+                        direct_edge_costs = self._shortcut_edge_cost_factory(
+                            u_vars=self._graph.vertices[neighbor].convex_set.vars,
+                            v_vars=self._graph.vertices[
+                                self._graph.target_name
+                            ].convex_set.vars,
+                            add_const_cost=self._add_const_cost,
+                        )
+
                 else:
                     direct_edge_costs = self._shortcut_edge_cost_factory(
                         self._graph.vertices[self._graph.target_name].convex_set.dim,
