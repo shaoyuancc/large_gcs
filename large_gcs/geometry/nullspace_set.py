@@ -57,7 +57,7 @@ class NullspaceSet(ConvexSet):
                     cls.reduce_inequalities, args=(A_prime, b_prime)
                 )
                 try:
-                    A_prime, b_prime = future.get(timeout=10)
+                    A_prime, b_prime = future.get(timeout=60)
                     reduce_inequalties_succeeded = True
                 except multiprocessing.TimeoutError as e:
                     reduce_inequalties_succeeded = False
