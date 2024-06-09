@@ -170,8 +170,7 @@ def _contact_shortcut_edge_l1_norm_plus_switches_cost_factory(
     total_dims = u_vars.all.size + v_vars.all.size
     # Constant cost for the edge
     a = np.zeros((total_dims, 1))
-    # We add 2 because if a shortcut is used it minimally replaces 2 edges
-    constant_cost = (2 + n_switches) * scaling_eps
+    constant_cost = (1 + n_switches) * scaling_eps
     costs.append(LinearCost(a, constant_cost))
 
     return costs
@@ -197,7 +196,7 @@ def contact_shortcut_edge_l1_norm_plus_switches_cost_factory_over(
 ) -> List[Cost]:
     # add_const_cost is ignored and assumed to be True because otherwise it doesn't make sense to add the constant costs for contact pair mode switches
     return _contact_shortcut_edge_l1_norm_plus_switches_cost_factory(
-        u_vars, v_vars, n_switches, n_switches, scaling_eps=OVERESTIMATE_EPS
+        u_vars, v_vars, n_switches, scaling_eps=OVERESTIMATE_EPS
     )
 
 

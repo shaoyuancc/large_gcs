@@ -61,6 +61,13 @@ class ShortcutEdgeCE(CostEstimator):
                         ].convex_set.vars,
                         add_const_cost=self._add_const_cost,
                     )
+                    # direct_edge_costs = contact_shortcut_edge_l1_norm_plus_switches_cost_factory_over(
+                    #     u_vars=self._graph.vertices[neighbor].convex_set.vars,
+                    #     v_vars=self._graph.vertices[
+                    #         self._graph.target_name
+                    #     ].convex_set.vars,
+                    #     n_switches=self._graph.num_modes_not_adj_to_target(neighbor),
+                    # )
                 else:
                     direct_edge_costs = self._shortcut_edge_cost_factory(
                         self._graph.vertices[self._graph.target_name].convex_set.dim,
