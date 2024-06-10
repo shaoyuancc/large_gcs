@@ -266,6 +266,7 @@ def test_removes_near_zero_rows_from_A_and_b():
     assert not P._null_space_polyhedron._has_equality_constraints
     P.get_samples(5)
 
+
 @pytest.mark.skip(reason="TODO fix test by finding the correct 0 measure contact set")
 def test_chebyshev_center_in_set_1():
     graph_file = ContactGraphGeneratorParams.inc_graph_file_path_from_name("cg_maze_b1")
@@ -301,6 +302,7 @@ def test_chebyshev_center_in_set_1():
 
     # prev_sample = set.MaybeGetFeasiblePoint()
     assert set.PointInSet(prev_sample, tol=0)
+
 
 @pytest.mark.skip(reason="TODO fix test by finding the correct 0 measure contact set")
 def test_chebyshev_center_in_set_2():
@@ -344,6 +346,7 @@ def test_chebyshev_center_in_set_2():
 
     # prev_sample = set.MaybeGetFeasiblePoint()
     assert set.PointInSet(prev_sample, tol=0)
+
 
 @pytest.mark.skip(reason="TODO fix test by finding the correct 0 measure contact set")
 def test_chebyshev_center_in_set_3():

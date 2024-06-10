@@ -1,19 +1,22 @@
-from large_gcs.graph.lower_bound_graph import LowerBoundGraph
-from large_gcs.graph_generators.contact_graph_generator import ContactGraphGenerator, ContactGraphGeneratorParams
-from large_gcs.graph.contact_graph import ContactGraph
-from large_gcs.graph_generators.contact_graph_generator import ContactGraphGeneratorParams
 import logging
+
+from large_gcs.graph.contact_graph import ContactGraph
+from large_gcs.graph.lower_bound_graph import LowerBoundGraph
+from large_gcs.graph_generators.contact_graph_generator import (
+    ContactGraphGenerator,
+    ContactGraphGeneratorParams,
+)
+
 logging.basicConfig(level=logging.WARN)
 logging.getLogger("large_gcs").setLevel(logging.DEBUG)
 logging.getLogger("large_gcs.geometry.convex_set").setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+
 
 def test_lbg_vertices_w_target_parent_are_0_cost():
-    graph_file = ContactGraphGeneratorParams.graph_file_path_from_name(
-    "cg_simple_1_1"
-    )
+    graph_file = ContactGraphGeneratorParams.graph_file_path_from_name("cg_simple_1_1")
     cg = ContactGraph.load_from_file(
         graph_file,
         should_use_l1_norm_vertex_cost=True,

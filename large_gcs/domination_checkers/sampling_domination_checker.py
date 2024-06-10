@@ -309,7 +309,6 @@ class SamplingDominationChecker(DominationChecker):
     def is_dominated(
         self, candidate_node: SearchNode, alternate_nodes: list[SearchNode]
     ) -> bool:
-
         is_dominated = True
         self._maybe_add_set_samples(candidate_node.vertex_name)
 

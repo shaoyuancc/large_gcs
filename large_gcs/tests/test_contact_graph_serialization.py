@@ -5,7 +5,9 @@ from large_gcs.contact.contact_pair_mode import NoContactPairMode
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.contact_graph import ContactGraph
-from large_gcs.graph_generators.contact_graph_generator import ContactGraphGeneratorParams
+from large_gcs.graph_generators.contact_graph_generator import (
+    ContactGraphGeneratorParams,
+)
 
 eps = 1e-6
 
@@ -39,11 +41,10 @@ def test_serialize_deserialize_contact_pair_mode():
     )
     assert contact_pair_mode_deserialized.params == params
 
+
 def test_load_cg_simple_1_1():
     for graph_name in ["cg_simple_1_1"]:
-        graph_file = ContactGraphGeneratorParams.graph_file_path_from_name(
-            graph_name
-        )
+        graph_file = ContactGraphGeneratorParams.graph_file_path_from_name(graph_name)
         cg = ContactGraph.load_from_file(
             graph_file,
             should_use_l1_norm_vertex_cost=True,

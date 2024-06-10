@@ -1,6 +1,9 @@
 import numpy as np
 
-from large_gcs.geometry.geometry_utils import order_vertices_counter_clockwise, unique_rows_with_tolerance_ignore_nan
+from large_gcs.geometry.geometry_utils import (
+    order_vertices_counter_clockwise,
+    unique_rows_with_tolerance_ignore_nan,
+)
 
 
 def test_unique_rows_with_tolerance_ignore_nan():
@@ -31,21 +34,18 @@ def test_unique_rows_with_tolerance_ignore_nan():
     )
     assert np.all(unique_arr == sol)
 
+
 def test_order_vertices_counter_clockwise():
-    vertices = np.array([
-        [2, 3],
-        [4, 5],
-        [1, 1],
-        [3, 2],
-        [5, 1]
-    ])
+    vertices = np.array([[2, 3], [4, 5], [1, 1], [3, 2], [5, 1]])
 
     sorted_vertices = order_vertices_counter_clockwise(vertices)
-    assert np.array_equal(sorted_vertices, np.array([[1, 1], [3, 2], [5, 1], [4, 5], [2, 3]]))
+    assert np.array_equal(
+        sorted_vertices, np.array([[1, 1], [3, 2], [5, 1], [4, 5], [2, 3]])
+    )
     # def plot_vertices(vertices):
     #     # Plotting the vertices
     #     plt.scatter(vertices[:, 0], vertices[:, 1])
-        
+
     #     # Adding labels to each vertex
     #     for i, vertex in enumerate(vertices):
     #         plt.text(vertex[0], vertex[1], str(i), fontsize=12, ha='right')

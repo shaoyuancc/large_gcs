@@ -116,7 +116,6 @@ def make_plot(figure_idx, filename=None):
     fig = plt.figure(figsize=(3, 1.5))
 
     if figure_idx == 0:
-
         # Generate x values
         x_vals = np.linspace(0, 10, 800)
 
@@ -160,7 +159,6 @@ def make_plot(figure_idx, filename=None):
             fig_legend.savefig("domination_legend.pdf")
 
     elif figure_idx == 1:
-
         # Generate x values
         x_vals = np.linspace(1, 9, 800)
 
@@ -189,7 +187,6 @@ def make_plot(figure_idx, filename=None):
         y_max = 50
 
     elif figure_idx == 2:
-
         # Generate x values
         x_vals = np.linspace(0, 6, 800)
 
@@ -217,7 +214,6 @@ def make_plot(figure_idx, filename=None):
         y_max = 50
 
     elif figure_idx == 3:
-
         # Generate x values
         x_vals = np.linspace(0, 10, 800)
 
@@ -238,7 +234,6 @@ def make_plot(figure_idx, filename=None):
         y_max = 30
 
     elif figure_idx == 4:
-
         # Generate x values
         x_vals = np.linspace(0, 10, 800)
 

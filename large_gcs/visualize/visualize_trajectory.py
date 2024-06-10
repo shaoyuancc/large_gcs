@@ -33,7 +33,6 @@ def plot_trajectory(
     keyframe_idxs: Optional[List[int]] = None,
     use_paper_params: bool = True,  # TODO(bernhardpg): Set to false
 ):
-
     if x_buffer is None:
         x_buffer = np.array([1.4, 1.4])
 

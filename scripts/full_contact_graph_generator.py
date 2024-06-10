@@ -3,24 +3,26 @@ import logging
 import os
 import time
 
-from matplotlib import pyplot as plt
 import numpy as np
+from matplotlib import pyplot as plt
 
 from large_gcs.contact.contact_regions_set import ContactRegionParams
 from large_gcs.graph_generators.contact_graph_generator import (
     ContactGraphGenerator,
     ContactGraphGeneratorParams,
 )
+
 # Ensure the backend is set for interactive plotting
 # plt.switch_backend('TkAgg')
 
 logger = logging.getLogger(__name__)
 
+
 def generate_graph(graph_name: str, incremental, preview):
     params = GRAPH_PARAMS.get(graph_name)
     if not params:
         raise ValueError(f"Unknown graph name: {graph_name}")
-    
+
     generator = ContactGraphGenerator(params)
     if preview:
         raise NotImplementedError("Previewing graphs is not yet implemented")
@@ -28,10 +30,10 @@ def generate_graph(graph_name: str, incremental, preview):
         plt.title(params.name)
         plt.show()
         return
-    
+
     start_time = time.time()
     logger.info(f"Starting graph creation of {params.name}")
-    
+
     if incremental:
         graph = generator.generate_incremental_contact_graph()
     else:
@@ -192,22 +194,19 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Generate contact graph")
     parser.add_argument(
-        "graph_names", 
-        type=str, 
-        nargs='+',  # This allows one or more graph names to be passed
-        help="Name(s) of the graph(s) to generate, or 'all' to generate all graphs"
+        "graph_names",
+        type=str,
+        nargs="+",  # This allows one or more graph names to be passed
+        help="Name(s) of the graph(s) to generate, or 'all' to generate all graphs",
     )
     parser.add_argument(
-        "-i", 
-        "--incremental", 
-        action="store_true", 
-        help="Generate incremental graphs"
+        "-i", "--incremental", action="store_true", help="Generate incremental graphs"
     )
     parser.add_argument(
-        "-p", 
-        "--preview", 
-        action="store_true", 
-        help="Plot the graphs and do not generate"
+        "-p",
+        "--preview",
+        action="store_true",
+        help="Plot the graphs and do not generate",
     )
     args = parser.parse_args()
     if not args.preview:
@@ -221,7 +220,10 @@ if __name__ == "__main__":
         graph_name_str = graph_name_str.replace(" ", "_")
 
         current_date_time = time.strftime("%Y-%m-%d_%H-%M-%S")
-        log_file_path = os.path.join(log_dir, f"{current_date_time}_{graph_name_str}{"_inc" if args.incremental else ""}.log")
+        log_file_path = os.path.join(
+            log_dir,
+            f"{current_date_time}_{graph_name_str}{'_inc' if args.incremental else ''}.log",
+        )
 
         logging.basicConfig(
             level=logging.INFO,
@@ -232,7 +234,7 @@ if __name__ == "__main__":
         logging.getLogger("drake").setLevel(logging.WARNING)
         np.set_printoptions(formatter={"float": lambda x: "{0:0.3f}".format(x)})
 
-    if 'all' in args.graph_names:
+    if "all" in args.graph_names:
         graph_names_to_generate = list(GRAPH_PARAMS.keys())
     else:
         graph_names_to_generate = args.graph_names

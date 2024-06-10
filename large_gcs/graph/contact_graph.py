@@ -486,7 +486,12 @@ class ContactGraph(Graph):
 
     ### PLOTTING AND ANIMATING ###
 
-    def plot(self, label_vertices_faces: bool = True, show_source:bool = True, show_target:bool = True):
+    def plot(
+        self,
+        label_vertices_faces: bool = True,
+        show_source: bool = True,
+        show_target: bool = True,
+    ):
         plt.figure()
         for body in self.obstacles:
             body.plot(label_vertices_faces=label_vertices_faces)

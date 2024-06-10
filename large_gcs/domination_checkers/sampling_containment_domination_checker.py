@@ -65,7 +65,6 @@ class SamplingContainmentDominationChecker(
     def is_dominated(
         self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
     ) -> bool:
-
         sample_is_dominated = self.sample_is_dominated(candidate_node, alternate_nodes)
 
         if np.all(~sample_is_dominated):

@@ -87,16 +87,18 @@ class AHContainmentDominationChecker(DominationChecker):
                 return node.ah_polyhedron_ns
             elif node.ah_polyhedron_fs is not None:
                 return node.ah_polyhedron_fs
-            result, reduce_inequalities_succeeded = (
-                self._create_path_AH_polytope_from_nullspace_sets(node)
-            )
+            (
+                result,
+                reduce_inequalities_succeeded,
+            ) = self._create_path_AH_polytope_from_nullspace_sets(node)
             if not reduce_inequalities_succeeded:
                 logger.warn(
                     f"Failed to reduce inequalities for _create_path_AH_polytope_from_nullspace_sets so creating from full sets"
                 )
-                result, reduce_inequalities_succeeded = (
-                    self._create_path_AH_polytope_from_full_sets(node)
-                )
+                (
+                    result,
+                    reduce_inequalities_succeeded,
+                ) = self._create_path_AH_polytope_from_full_sets(node)
                 node.ah_polyhedron_fs = result
             else:
                 node.ah_polyhedron_ns = result
@@ -105,16 +107,18 @@ class AHContainmentDominationChecker(DominationChecker):
                 return node.ah_polyhedron_fs
             elif node.ah_polyhedron_ns is not None:
                 return node.ah_polyhedron_ns
-            result, reduce_inequalities_succeeded = (
-                self._create_path_AH_polytope_from_full_sets(node)
-            )
+            (
+                result,
+                reduce_inequalities_succeeded,
+            ) = self._create_path_AH_polytope_from_full_sets(node)
             if not reduce_inequalities_succeeded:
                 logger.warn(
                     f"Failed to reduce inequalities for _create_path_AH_polytope_from_full_sets so creating from nullspace sets"
                 )
-                result, reduce_inequalities_succeeded = (
-                    self._create_path_AH_polytope_from_nullspace_sets(node)
-                )
+                (
+                    result,
+                    reduce_inequalities_succeeded,
+                ) = self._create_path_AH_polytope_from_nullspace_sets(node)
                 node.ah_polyhedron_ns = result
             else:
                 node.ah_polyhedron_fs = result
@@ -179,7 +183,9 @@ class AHContainmentDominationChecker(DominationChecker):
         else:
             t_prime = T @ nullspace_set.x_0 + t
             # logger.debug(f"t_prime {t_prime.shape}, T {T.shape}, nullspace_set._x_0 {nullspace_set._x_0.shape}, t {t.shape}")
-        logger.debug(f"nullspace H: {nullspace_set._set.A().shape}, h: {nullspace_set._set.b().shape}, T_prime: {T_prime.shape}, t_prime: {t_prime.shape}")
+        logger.debug(
+            f"nullspace H: {nullspace_set._set.A().shape}, h: {nullspace_set._set.b().shape}, T_prime: {T_prime.shape}, t_prime: {t_prime.shape}"
+        )
         return (
             nullspace_set._set.A(),
             nullspace_set._set.b(),
@@ -235,10 +241,14 @@ class AHContainmentDominationChecker(DominationChecker):
         h_poly = HPolyhedron(prog)
         # logger.debug(f"path prog is empty: {h_poly.IsEmpty()}")
         T_H, t_H = self.get_nullspace_H_transformation(node, full_dim=full_dim)
-        K, k, T, t, reduce_inequalities_succeeded = (
-            self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
-                h_poly, T_H, t_H
-            )
+        (
+            K,
+            k,
+            T,
+            t,
+            reduce_inequalities_succeeded,
+        ) = self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
+            h_poly, T_H, t_H
         )
         # logger.debug(f"K: {K.shape}, k: {k.shape}, T: {T.shape}, t: {t.shape}")
         # logger.debug(f"\nK: \n{K}, \nk: \n{k}, \nT: \n{T}, \nt: \n{t}")
@@ -261,9 +271,13 @@ class AHContainmentDominationChecker(DominationChecker):
         # logger.debug(f"full_dim: {h_poly.ambient_dimension()}")
         T_H = self.get_H_transformation(node, h_poly.ambient_dimension())
         # K, k, T, t = self._nullspace_polyhedron_and_transformation_from_AbCdT(A, b, C, d, T_H)
-        K, k, T, t, reduce_inequalities_succeeded = (
-            self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(h_poly, T_H)
-        )
+        (
+            K,
+            k,
+            T,
+            t,
+            reduce_inequalities_succeeded,
+        ) = self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(h_poly, T_H)
         # logger.debug(f"K: {K.shape}, k: {k.shape}, T: {T.shape}, t: {t.shape}")
         # logger.debug(f"\nK: \n{K}, \nk: \n{k}, \nT: \n{T}, \nt: \n{t}")
         X = pp.H_polytope(K, k)

@@ -39,11 +39,9 @@ logger = logging.getLogger(__name__)
 
 
 class SamplingContainmentWPruneSDominationChecker(SamplingContainmentDominationChecker):
-
     def is_dominated(
         self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
     ) -> bool:
-
         sample_is_dominated = self.sample_is_dominated(candidate_node, alternate_nodes)
 
         AH_n = self._maybe_create_path_AH_polytope(candidate_node)

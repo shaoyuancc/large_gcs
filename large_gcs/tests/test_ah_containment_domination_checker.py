@@ -31,7 +31,6 @@ logger = logging.getLogger(__name__)
 
 
 def test_reaches_new_containment_polyhedral_hor_vert_b_graph():
-
     G = create_polyhedral_hor_vert_b_graph()
     domination_checker = ReachesNewContainment(graph=G, containment_condition=-1)
     domination_checker.set_alg_metrics(AlgMetrics())
@@ -128,10 +127,13 @@ def test_nullspace_polyhedron_and_transformation_from_HPoly_and_T_correct_shapes
     T_H, t_H = domination_checker.get_nullspace_H_transformation(
         node, full_dim=full_dim
     )
-    K, k, T, t = (
-        domination_checker._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
-            h_poly, T_H, t_H
-        )
+    (
+        K,
+        k,
+        T,
+        t,
+    ) = domination_checker._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
+        h_poly, T_H, t_H
     )
     logger.debug(
         f"K: {K.shape}, k: {k.shape}, T: {T.shape}, t: {t.shape}, T_H: {T_H.shape}, t_H: {t_H.shape}"
@@ -172,10 +174,13 @@ def test_last_pos_nullspace_polyhedron_and_transformation_from_HPoly_and_T_corre
     T_H, t_H = domination_checker.get_nullspace_H_transformation(
         node, full_dim=full_dim
     )
-    K, k, T, t = (
-        domination_checker._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
-            h_poly, T_H, t_H
-        )
+    (
+        K,
+        k,
+        T,
+        t,
+    ) = domination_checker._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
+        h_poly, T_H, t_H
     )
     logger.debug(
         f"K: {K.shape}, k: {k.shape}, T: {T.shape}, t: {t.shape}, T_H: {T_H.shape}, t_H: {t_H.shape}"

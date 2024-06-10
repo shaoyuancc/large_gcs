@@ -9,9 +9,14 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from tqdm import tqdm
-import wandb
 
-from large_gcs.algorithms.search_algorithm import AlgVisParams, SearchAlgorithm, SearchNode, profile_method
+import wandb
+from large_gcs.algorithms.search_algorithm import (
+    AlgVisParams,
+    SearchAlgorithm,
+    SearchNode,
+    profile_method,
+)
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
 from large_gcs.graph.lower_bound_graph import LowerBoundGraph
 
@@ -117,7 +122,8 @@ class IxG(SearchAlgorithm):
         n_next = SearchNode.from_parent(child_vertex_name=edge.v, parent=n)
         self._graph.set_target(n_next.vertex_name)
         sol = self._graph.solve_convex_restriction(
-            active_edge_keys=n_next.edge_path, skip_post_solve=(not n_next.vertex_name == self._target_name)
+            active_edge_keys=n_next.edge_path,
+            skip_post_solve=(not n_next.vertex_name == self._target_name),
         )
         if not sol.is_success:
             logger.debug(f"Path not actually feasible")
@@ -137,9 +143,11 @@ class IxG(SearchAlgorithm):
             if n_next.vertex_name == self._target_name:
                 self._save_metrics(n_next, [], override_save=True)
                 return n_next.sol
-    
+
     @profile_method
-    def _solve_convex_restriction(self, active_edge_keys: List[str], skip_post_solve: bool = False):
+    def _solve_convex_restriction(
+        self, active_edge_keys: List[str], skip_post_solve: bool = False
+    ):
         sol = self._graph.solve_convex_restriction(active_edge_keys, skip_post_solve)
         self._alg_metrics.update_after_gcs_solve(sol.time)
         return sol

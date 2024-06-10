@@ -35,11 +35,9 @@ logger = logging.getLogger(__name__)
 
 
 class SamplingContainmentDoubleDominationChecker(SamplingContainmentDominationChecker):
-
     def is_dominated(
         self, candidate_node: SearchNode, alternate_nodes: List[SearchNode]
     ) -> bool:
-
         sample_is_dominated = self.sample_is_dominated(candidate_node, alternate_nodes)
 
         if np.all(~sample_is_dominated):
@@ -80,9 +78,10 @@ class SamplingContainmentDoubleDominationChecker(SamplingContainmentDominationCh
         self, node: SearchNode
     ) -> Tuple[pp.objects.AH_polytope, pp.objects.AH_polytope]:
         if node.ah_polyhedron_ns is None:
-            node.ah_polyhedron_ns, _ = (
-                self._create_path_AH_polytope_from_nullspace_sets(node)
-            )
+            (
+                node.ah_polyhedron_ns,
+                _,
+            ) = self._create_path_AH_polytope_from_nullspace_sets(node)
         if node.ah_polyhedron_fs is None:
             node.ah_polyhedron_fs, _ = self._create_path_AH_polytope_from_full_sets(
                 node
