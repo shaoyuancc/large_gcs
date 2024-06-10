@@ -19,14 +19,16 @@ logger = logging.getLogger(__name__)
 GRAPHS = ["cg_simple_1_1", "cg_simple_1", "cg_simple_4"]
 
 
-def generate_lbg(graph_name: str):
+def generate_lbg(graph_name: str, checkpoint: bool):
     graph_file = ContactGraphGeneratorParams.graph_file_path_from_name(graph_name)
     cg = ContactGraph.load_from_file(
         graph_file,
         should_use_l1_norm_vertex_cost=True,
     )
     # cg.plot()
-    lbg = LowerBoundGraph.generate_from_gcs(graph_name, cg, save_to_file=True)
+    lbg = LowerBoundGraph.generate_from_gcs(
+        graph_name, cg, save_to_file=True, start_from_checkpoint=checkpoint
+    )
 
 
 if __name__ == "__main__":
@@ -42,6 +44,12 @@ if __name__ == "__main__":
         type=str,
         nargs="+",  # This allows one or more graph names to be passed
         help="Name(s) of the graph(s) to generate, or 'all' to generate all graphs",
+    )
+    parser.add_argument(
+        "-c",
+        "--checkpoint",
+        action="store_true",
+        help="Continue from checkpoint",
     )
     args = parser.parse_args()
     # Create log directory relative to the script location
@@ -73,6 +81,6 @@ if __name__ == "__main__":
         graph_names_to_generate = args.graph_names
 
     for graph_name in graph_names_to_generate:
-        generate_lbg(graph_name)
+        generate_lbg(graph_name, args.checkpoint)
 
     logger.info(f"log saved to {log_file_path}")

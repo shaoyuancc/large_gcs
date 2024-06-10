@@ -1,5 +1,6 @@
 import logging
 import pickle
+from collections import defaultdict
 from copy import copy
 from dataclasses import dataclass, fields
 from pathlib import Path
@@ -37,7 +38,7 @@ class ShortestPathSolution:
     vertex_path: List[str]
     ambient_path: List[np.ndarray]
     # Flows along the edges (range [0, 1])
-    flows: List[float]
+    flows: Optional[List[float]] = None
     # Result of the optimization
     result: Optional[MathematicalProgramResult] = None
 
@@ -131,14 +132,17 @@ class Edge:
     key_suffix: Optional[str] = None
 
     def __post_init__(self):
-        if self.key_suffix:
-            self._key = f'("{self.u}", "{self.v}")_{self.key_suffix}'
-        else:
-            self._key = f'("{self.u}", "{self.v}")'
+        self._key = self.key_from_uv(self.u, self.v, self.key_suffix)
 
     @property
     def key(self):
         return self._key
+
+    @staticmethod
+    def key_from_uv(u: str, v: str, key_suffix: Optional[str] = None):
+        if key_suffix:
+            return f'("{u}", "{v}")_{key_suffix}'
+        return f'("{u}", "{v}")'
 
 
 @dataclass
@@ -175,6 +179,7 @@ class Graph:
         self._default_costs_constraints = default_costs_constraints
         self.vertices: Dict[str, Vertex] = {}
         self.edges: Dict[str, Edge] = {}
+        # self._adjacency_list: Dict[str, List[str]] = defaultdict(list)
         self._source_name = None
         self._target_name = None
 
@@ -317,14 +322,17 @@ class Graph:
                     e.gcs_edge.AddConstraint(binding)
 
         self.edges[e.key] = e
+        # self._adjacency_list[e.u].append(e.v)
         return e
 
     def remove_edge(self, edge_key: str, remove_from_gcs: bool = True):
         """Remove an edge from the graph."""
+        e = self.edges[edge_key]
         if remove_from_gcs:
-            self._gcs.RemoveEdge(self.edges[edge_key].gcs_edge)
+            self._gcs.RemoveEdge(e.gcs_edge)
 
         self.edges.pop(edge_key)
+        # self._adjacency_list[e.u].remove(e.v)
 
     def add_edges_from_vertex_names(
         self,
@@ -429,6 +437,51 @@ class Graph:
             self._post_solve(sol)
 
         return sol
+
+    def solve_convex_restrictions(
+        self,
+        active_edge_keys: List[List[str]],
+    ) -> List[ShortestPathSolution]:
+        """Solve multiple convex restrictions."""
+        raise NotImplementedError()
+        paths = [
+            [self.edges[edge_key] for edge_key in path] for path in active_edge_keys
+        ]
+        gcs_paths = [[edge.gcs_edge for edge in path] for path in paths]
+        result, var_maps = self._gcs.SolveConvexRestrictions(gcs_paths)
+
+        def get_vars_in_res(vars, curr_map):
+            return np.array([curr_map[var.get_id()] for var in vars.flatten()])
+
+        def get_vars_solution(vars, curr_map):
+            # NOTE: The result uses different internal variables, so we need to retrieve the original variables like so
+            # NOTE 2: If the vars are not in the map, that means that they are not on the path and should not be asked for!
+            vars_in_res = get_vars_in_res(vars, curr_map)
+            return result.GetSolution(vars_in_res)
+
+        sols = []
+        for e_path, gcs_path, var_map in zip(paths, gcs_paths, var_maps):
+            v_path = self._convert_active_edges_to_vertex_path(
+                e_path[0].u, e_path[-1].v, e_path
+            )
+            a_path = [
+                get_vars_solution(
+                    [self.vertices[v].gcs_vertex.x() for v in v_path], var_map
+                )
+            ]
+            cost = sum(
+                [self.vertices[v].gcs_vertex.GetSolutionCost(result) for v in v_path]
+            )
+            sols.append(
+                ShortestPathSolution(
+                    result.is_success(),  # NOTE THIS NEEDS TO BE FOR THE INDIVIDUAL PATH
+                    cost=cost,
+                    time=result.get_solver_details().optimizer_time,  # NOTE THIS IS FOR EVERY PATH
+                    vertex_path=v_path,
+                    ambient_path=a_path,
+                )
+            )
+        return sols
 
     def solve_factored_shortest_path(
         self, transition: str, targets: List[str], use_convex_relaxation=False
@@ -665,7 +718,9 @@ class Graph:
 
     @staticmethod
     def _convert_active_edges_to_vertex_path(
-        source_name, target_name, edges: List[Edge]
+        source_name,
+        target_name,
+        edges: List[Edge],
     ):
         # Create a dictionary where the keys are the vertices and the values are their neighbors
         neighbors = {e.u: e.v for e in edges}
