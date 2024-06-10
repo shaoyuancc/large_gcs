@@ -37,6 +37,21 @@ def scalar_proj_u_onto_v(u, v):
     v = np.array(v)
     return np.dot(u, v) / np.linalg.norm(v)
 
+def order_vertices_counter_clockwise(vertices):
+    # Step 1: Calculate the centroid
+    centroid = np.mean(vertices, axis=0)
+    
+    # Step 2: Calculate the angles of each vertex with respect to the centroid
+    def angle_from_centroid(vertex):
+        # Adjust for the coordinate system with (0,0) at bottom left-hand corner
+        adjusted_vertex = vertex - centroid
+        return np.arctan2(adjusted_vertex[1], adjusted_vertex[0])
+    
+    # Step 3: Sort the vertices based on the calculated angles in counter-clockwise order
+    angles = np.apply_along_axis(angle_from_centroid, 1, vertices)
+    sorted_indices = np.argsort(angles)  # Use ascending order for counter-clockwise
+    
+    return vertices[sorted_indices]
 
 def unique_rows_with_tolerance_ignore_nan(arr, tol=1e-5):
     # Filter out rows with any NaN values

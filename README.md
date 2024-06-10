@@ -31,24 +31,17 @@ export PYTHONPATH="$PROJECT_ROOT:$PYPOLYCONTAIN:$PYTHONPATH"
 export MOSEKLM_LICENSE_FILE="/path/to/mosek/license/mosek/mosek.lic"
 export GRB_LICENSE_FILE="/path/to/gurobi/license/gurobi.lic"
 ```
-
-Make sure to have graphviz installed on your computer. 
+### Additional libraries used
 On Ubuntu
 ```
 sudo apt install graphviz
+sudo apt-get install python3-tk # For interactive plotting in graph generator script
+sudo apt install ffmpeg # For saving animation videos
 ```
 On MacOS, run the following command:
 ```
 brew install graphviz
-```
-
-Install ffmpeg (for saving animation videos)
-On Ubuntu
-```
-sudo apt install ffmpeg
-```
-On MacOS
-```
+brew install python-tk 
 brew install ffmpeg
 ```
 

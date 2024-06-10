@@ -17,7 +17,7 @@ from pydrake.all import (
 from scipy.spatial import ConvexHull
 
 from large_gcs.geometry.convex_set import ConvexSet
-from large_gcs.geometry.geometry_utils import is_on_hyperplane
+from large_gcs.geometry.geometry_utils import is_on_hyperplane, order_vertices_counter_clockwise
 from large_gcs.geometry.nullspace_set import NullspaceSet
 
 logger = logging.getLogger(__name__)
@@ -48,9 +48,7 @@ class Polyhedron(ConvexSet):
                 logger.warning("Polyhedron is empty or 1D, skipping compute vertices")
                 return
 
-            vertices = VPolytope(HPolyhedron(H, h)).vertices().T
-            hull = ConvexHull(vertices)  # orders vertices counterclockwise
-            self._vertices = vertices[hull.vertices]
+            self._vertices = order_vertices_counter_clockwise(VPolytope(self._h_polyhedron).vertices().T)
             H, h = Polyhedron._reorder_A_b_by_vertices(H, h, self._vertices)
 
             self._h_polyhedron = HPolyhedron(H, h)
@@ -69,6 +67,9 @@ class Polyhedron(ConvexSet):
         # logger.debug(f"H size before: {self._h_polyhedron.A().shape}")
         # self._h_polyhedron = self._h_polyhedron.ReduceInequalities(tol=0)
         # logger.debug(f"H size after: {self._h_polyhedron.A().shape}")
+        if self._h_polyhedron.IsEmpty():
+            logger.warning("Polyhedron is empty, skipping nullspace set creation")
+            return
         self._nullspace_set = NullspaceSet.from_hpolyhedron(
             self._h_polyhedron, should_reduce_inequalities=False
         )
@@ -84,9 +85,13 @@ class Polyhedron(ConvexSet):
         # Verify that the vertices are in the same dimension
         assert len(set([v.size for v in vertices])) == 1
 
+        vertices = order_vertices_counter_clockwise(vertices)
+
         v_polytope = VPolytope(vertices.T)
         h_polyhedron = HPolyhedron(v_polytope)
-        polyhedron = cls(h_polyhedron.A(), h_polyhedron.b())
+        H, h = Polyhedron._reorder_A_b_by_vertices(h_polyhedron.A(), h_polyhedron.b(), vertices)
+
+        polyhedron = cls(H, h, should_compute_vertices=False)
         if polyhedron._vertices is None:
             polyhedron._vertices = vertices
             # Set center to be the mean of the vertices

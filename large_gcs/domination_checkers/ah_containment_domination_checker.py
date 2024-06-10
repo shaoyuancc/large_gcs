@@ -179,7 +179,7 @@ class AHContainmentDominationChecker(DominationChecker):
         else:
             t_prime = T @ nullspace_set.x_0 + t
             # logger.debug(f"t_prime {t_prime.shape}, T {T.shape}, nullspace_set._x_0 {nullspace_set._x_0.shape}, t {t.shape}")
-        # logger.debug(f"nullspace H: {nullspace_set._set.A().shape}, h: {nullspace_set._set.b().shape}, T_prime: {T_prime.shape}, t_prime: {t_prime.shape}")
+        logger.debug(f"nullspace H: {nullspace_set._set.A().shape}, h: {nullspace_set._set.b().shape}, T_prime: {T_prime.shape}, t_prime: {t_prime.shape}")
         return (
             nullspace_set._set.A(),
             nullspace_set._set.b(),

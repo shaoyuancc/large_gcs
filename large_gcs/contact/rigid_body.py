@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,6 +13,7 @@ from pydrake.all import (
 
 from large_gcs.geometry.polyhedron import Polyhedron
 
+logger = logging.getLogger(__name__)
 
 class MobilityType(Enum):
     STATIC = 1

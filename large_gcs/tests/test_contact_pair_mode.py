@@ -33,7 +33,7 @@ def test_create_static_face_movable_face_signed_dist_surrog_square():
         MobilityType.UNACTUATED,
     )
     contact_loc_a = ContactLocationFace(body_a, 3)
-    contact_loc_b = ContactLocationFace(body_b, 3)
+    contact_loc_b = ContactLocationFace(body_b, 1)
 
     # contact_loc_a.plot()
     # contact_loc_b.plot()
@@ -74,7 +74,7 @@ def test_create_static_face_movable_face_signed_dist_surrog_triangle():
         MobilityType.UNACTUATED,
     )
     contact_loc_a = ContactLocationFace(body_a, 0)
-    contact_loc_b = ContactLocationFace(body_b, 0)
+    contact_loc_b = ContactLocationFace(body_b, 1)
     # contact_loc_a.plot()
     # contact_loc_b.plot()
     # plt.show()
@@ -113,7 +113,7 @@ def test_create_static_face_movable_face_signed_dist_surrog_fails_not_opposing()
         Polyhedron.from_vertices(body_b_vert),
         MobilityType.UNACTUATED,
     )
-    contact_loc_b = ContactLocationFace(body_b, 3)
+    contact_loc_b = ContactLocationFace(body_b, 1)
     for i in range(3):
         contact_loc_a = ContactLocationFace(body_a, i)
         with pytest.raises(AssertionError):
@@ -135,7 +135,7 @@ def test_create_static_face_movable_vertex_signed_dist_surrog_square():
         MobilityType.UNACTUATED,
     )
     contact_loc_a = ContactLocationFace(body_a, 3)
-    contact_face_b = ContactLocationFace(body_b, 3)
+    contact_face_b = ContactLocationFace(body_b, 1)
     contact_locs_b = [
         ContactLocationVertex(body_b, i) for i in contact_face_b.adj_vertex_indices
     ]
@@ -176,7 +176,7 @@ def test_create_static_vert_movable_face_signed_dist_surrog_square():
         MobilityType.UNACTUATED,
     )
     contact_face_a = ContactLocationFace(body_a, 3)
-    contact_loc_b = ContactLocationFace(body_b, 3)
+    contact_loc_b = ContactLocationFace(body_b, 1)
     contact_locs_a = [
         ContactLocationVertex(body_a, i) for i in contact_face_a.adj_vertex_indices
     ]
@@ -216,7 +216,7 @@ def test_create_movable_face_face_signed_dist_surrog_triangle():
         MobilityType.ACTUATED,
     )
     contact_loc_a = ContactLocationFace(body_a, 0)
-    contact_loc_b = ContactLocationFace(body_b, 0)
+    contact_loc_b = ContactLocationFace(body_b, 1)
 
     exprs = create_movable_face_face_signed_dist_surrog_exprs(
         contact_loc_a, contact_loc_b
@@ -259,7 +259,7 @@ def test_create_movable_face_vert_signed_dist_surrog_triangle():
         MobilityType.ACTUATED,
     )
     contact_loc_a = ContactLocationFace(body_a, 0)
-    contact_loc_b = ContactLocationVertex(body_b, 0)
+    contact_loc_b = ContactLocationVertex(body_b, 1)
 
     exprs = create_movable_face_vert_signed_dist_surrog_exprs(
         contact_loc_a, contact_loc_b
@@ -302,7 +302,7 @@ def test_create_movable_vert_face_signed_dist_surrog_triangle():
         MobilityType.ACTUATED,
     )
     contact_loc_a = ContactLocationFace(body_a, 0)
-    contact_loc_b = ContactLocationVertex(body_b, 0)
+    contact_loc_b = ContactLocationVertex(body_b, 1)
 
     exprs = create_movable_face_vert_signed_dist_surrog_exprs(
         contact_loc_a, contact_loc_b
@@ -346,7 +346,7 @@ def test_create_static_face_movable_face_horizontal_bounds_square():
         MobilityType.UNACTUATED,
     )
     contact_loc_a = ContactLocationFace(body_a, 3)
-    contact_loc_b = ContactLocationFace(body_b, 3)
+    contact_loc_b = ContactLocationFace(body_b, 1)
 
     formulas = create_static_face_movable_face_horizontal_bounds_formulas(
         contact_loc_a, contact_loc_b

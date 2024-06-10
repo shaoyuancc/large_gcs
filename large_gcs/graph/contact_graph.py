@@ -339,6 +339,10 @@ class ContactGraph(Graph):
                 f"{len(sets_to_keep)} sets remain after filtering for inclusion sets"
             )
 
+        # Generate nullspace sets for each contact set
+        for contact_set in sets_to_keep:
+            contact_set._polyhedron.create_nullspace_set()
+
         sets_to_keep_ids = [str(contact_set.id) for contact_set in sets_to_keep]
         return sets_to_keep, sets_to_keep_ids
 
@@ -482,11 +486,11 @@ class ContactGraph(Graph):
 
     ### PLOTTING AND ANIMATING ###
 
-    def plot(self, label_vertices_faces: bool = True):
+    def plot(self, label_vertices_faces: bool = True, show_source:bool = True, show_target:bool = True):
         plt.figure()
         for body in self.obstacles:
             body.plot(label_vertices_faces=label_vertices_faces)
-        if self.source_pos is not None:
+        if self.source_pos is not None and show_source:
             for body, pos in zip(self.objects, self.source_pos[: self.n_objects]):
                 body.plot_at_position(
                     pos=pos,
@@ -499,13 +503,13 @@ class ContactGraph(Graph):
                     label_vertices_faces=label_vertices_faces,
                     color=BodyColor["robot"],
                 )
-        if self.target_pos is not None:
+        if self.target_pos is not None and show_target:
             for body, pos in zip(
                 self.objects + self.robots,
                 self.target_pos,
             ):
                 body.plot_at_position(pos=pos, color=BodyColor["target"])
-        elif self.target_region_params is not None:
+        elif self.target_region_params is not None and show_target:
             for region in self.target_regions:
                 region.plot(color=BodyColor["target"], alpha=0.2)
 

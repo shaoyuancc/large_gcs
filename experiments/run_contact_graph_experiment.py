@@ -17,6 +17,7 @@ from large_gcs.domination_checkers.domination_checker import DominationChecker
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.graph import ShortestPathSolution
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
+from large_gcs.graph.lower_bound_graph import LowerBoundGraph
 from large_gcs.graph_generators.contact_graph_generator import (
     ContactGraphGeneratorParams,
 )
@@ -24,6 +25,7 @@ from large_gcs.utils.hydra_utils import get_cfg_from_folder
 
 logger = logging.getLogger(__name__)
 
+BASELINE_ALGS = ["large_gcs.algorithms.ixg.IxG"]
 
 @hydra.main(version_base=None, config_path="../config", config_name="basic")
 def main(cfg: OmegaConf) -> None:
@@ -118,6 +120,9 @@ def main(cfg: OmegaConf) -> None:
                 num_samples_per_vertex=cfg.algorithm.num_samples_per_vertex,
                 vis_params=AlgVisParams(log_dir=full_log_dir),
             )
+    elif cfg.algorithm._target_ in BASELINE_ALGS:
+        lbg = LowerBoundGraph.load_from_name(cfg.graph_name)
+        alg = instantiate(cfg.algorithm, graph=cg, lbg=lbg, vis_params=AlgVisParams(log_dir=full_log_dir))
     else:
         cost_estimator: CostEstimator = instantiate(
             cfg.cost_estimator, graph=cg, add_const_cost=cfg.should_add_const_edge_cost
@@ -140,9 +145,11 @@ def main(cfg: OmegaConf) -> None:
         if "abstraction_model_generator" in cfg:
             model_name = cfg.abstraction_model_generator["_target_"].split(".")[-1]
             output_base = f"{alg.__class__.__name__}_" f"{model_name}_{cfg.graph_name}"
+        elif cfg.algorithm._target_ in BASELINE_ALGS:
+            output_base = f"{alg.__class__.__name__}_{cfg.graph_name}"
         else:
-            output_base = f"{alg.__class__.__name__}_"
-            f"{cost_estimator.finger_print}_{cfg.graph_name}"
+            output_base = (f"{alg.__class__.__name__}_" +
+            f"{cost_estimator.finger_print}_{cfg.graph_name}")
 
     if sol is not None and cfg.save_metrics:
         metrics_path = Path(full_log_dir) / f"{output_base}metrics.json"

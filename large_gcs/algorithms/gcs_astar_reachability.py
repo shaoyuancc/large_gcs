@@ -195,8 +195,6 @@ class GcsAstarReachability(SearchAlgorithm):
 
             early_terminate_sol = self._visit_neighbor(n, edge)
             if early_terminate_sol is not None:
-                logger.info(f"EARLY TERMINATION: Visited path to target.")
-                self._save_metrics(n, [], override_save=True)
                 return early_terminate_sol
 
     @profile_method
@@ -259,6 +257,8 @@ class GcsAstarReachability(SearchAlgorithm):
 
         # Early Termination
         if self._should_terminate_early and neighbor == self._target:
+            logger.info(f"EARLY TERMINATION: Visited path to target.")
+            self._save_metrics(n_next, [], override_save=True)
             return n_next.sol
 
     @profile_method
