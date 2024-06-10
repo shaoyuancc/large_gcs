@@ -179,7 +179,7 @@ class Graph:
         self._default_costs_constraints = default_costs_constraints
         self.vertices: Dict[str, Vertex] = {}
         self.edges: Dict[str, Edge] = {}
-        # self._adjacency_list: Dict[str, List[str]] = defaultdict(list)
+        self._adjacency_list: Dict[str, List[str]] = defaultdict(list)
         self._source_name = None
         self._target_name = None
 
@@ -322,7 +322,7 @@ class Graph:
                     e.gcs_edge.AddConstraint(binding)
 
         self.edges[e.key] = e
-        # self._adjacency_list[e.u].append(e.v)
+        self._adjacency_list[e.u].append(e.v)
         return e
 
     def remove_edge(self, edge_key: str, remove_from_gcs: bool = True):
@@ -332,7 +332,7 @@ class Graph:
             self._gcs.RemoveEdge(e.gcs_edge)
 
         self.edges.pop(edge_key)
-        # self._adjacency_list[e.u].remove(e.v)
+        self._adjacency_list[e.u].remove(e.v)
 
     def add_edges_from_vertex_names(
         self,
@@ -370,6 +370,10 @@ class Graph:
         """Get the outgoing edges of a vertex."""
         assert vertex_name in self.vertices
         return [edge for edge in self.edges.values() if edge.u == vertex_name]
+
+    def successors(self, vertex_name: str) -> List[str]:
+        """Get the successors of a vertex."""
+        return self._adjacency_list[vertex_name]
 
     def incoming_edges(self, vertex_name: str) -> List[Edge]:
         """Get the incoming edges of a vertex."""
@@ -443,42 +447,35 @@ class Graph:
         active_edge_keys: List[List[str]],
     ) -> List[ShortestPathSolution]:
         """Solve multiple convex restrictions."""
-        raise NotImplementedError()
         paths = [
             [self.edges[edge_key] for edge_key in path] for path in active_edge_keys
         ]
         gcs_paths = [[edge.gcs_edge for edge in path] for path in paths]
-        result, var_maps = self._gcs.SolveConvexRestrictions(gcs_paths)
-
-        def get_vars_in_res(vars, curr_map):
-            return np.array([curr_map[var.get_id()] for var in vars.flatten()])
-
-        def get_vars_solution(vars, curr_map):
-            # NOTE: The result uses different internal variables, so we need to retrieve the original variables like so
-            # NOTE 2: If the vars are not in the map, that means that they are not on the path and should not be asked for!
-            vars_in_res = get_vars_in_res(vars, curr_map)
-            return result.GetSolution(vars_in_res)
+        results: List[MathematicalProgramResult] = self._gcs.SolveConvexRestrictions(
+            gcs_paths
+        )
 
         sols = []
-        for e_path, gcs_path, var_map in zip(paths, gcs_paths, var_maps):
+        for e_path, result in zip(paths, results):
             v_path = self._convert_active_edges_to_vertex_path(
                 e_path[0].u, e_path[-1].v, e_path
             )
+            import pdb
+
+            pdb.set_trace()
             a_path = [
-                get_vars_solution(
-                    [self.vertices[v].gcs_vertex.x() for v in v_path], var_map
-                )
+                result.GetSolution(self.vertices[v].gcs_vertex.x()) for v in v_path
             ]
-            cost = sum(
-                [self.vertices[v].gcs_vertex.GetSolutionCost(result) for v in v_path]
-            )
+
             sols.append(
                 ShortestPathSolution(
-                    result.is_success(),  # NOTE THIS NEEDS TO BE FOR THE INDIVIDUAL PATH
-                    cost=cost,
-                    time=result.get_solver_details().optimizer_time,  # NOTE THIS IS FOR EVERY PATH
-                    vertex_path=v_path,
-                    ambient_path=a_path,
+                    result.is_success(),
+                    result.get_optimal_cost(),
+                    result.get_solver_details().optimizer_time,
+                    v_path,
+                    a_path,
+                    None,
+                    None,
                 )
             )
         return sols

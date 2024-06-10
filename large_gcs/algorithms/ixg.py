@@ -46,6 +46,7 @@ class IxG(SearchAlgorithm):
         self._Q = []
 
         self._lbg = lbg
+        self._lbg._graph = graph
 
         # For logging/metrics
         call_structure = {
@@ -72,6 +73,16 @@ class IxG(SearchAlgorithm):
         logger.info(f"Running {self.__class__.__name__}")
         sol: Optional[ShortestPathSolution] = None
         start_time = time.time()
+
+        # Update lbg with source and target
+        self._lbg.update_lbg(self._graph.source_name, self._graph.source)
+        self._lbg.update_lbg(self._target_name, self._graph.target)
+        update_duration = time.time() - start_time
+        logger.info(
+            f"Updated LBG with source and target in {update_duration:.2f} seconds"
+        )
+
+        self._lbg.run_dijkstra(self._graph.target_name)
 
         while sol == None and len(self._Q) > 0:
             sol = self._run_iteration()

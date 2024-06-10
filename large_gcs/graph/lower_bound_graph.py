@@ -4,12 +4,15 @@ import logging
 import os
 import time
 from collections import defaultdict, namedtuple
+from copy import copy
 from dataclasses import dataclass
+from multiprocessing import Pool
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from tqdm import tqdm
 
+from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.graph import Edge, Graph, Vertex
 
 logger = logging.getLogger(__name__)
@@ -52,6 +55,7 @@ class LowerBoundGraph:
         self._graph_name = graph_name
         self._source_name = source_name
         self._target_name = target_name
+        self._adjacency_list: Dict[str, List[str]] = defaultdict(list)
         self._parent_vertex_to_vertices: Dict[str, List[LBGVertexKey]] = defaultdict(
             list
         )
@@ -80,7 +84,9 @@ class LowerBoundGraph:
             start_time = time.time()
             lbg.generate_lbg_vertices_edges_from_triplets()
             if save_to_file:
-                lbg.save_to_file(lbg.lbg_file_path, is_checkpoint=True)
+                lbg.save_to_file(
+                    lbg.lbg_file_path_from_name(graph_name, is_checkpoint=True)
+                )
                 duration = time.time() - start_time
                 logger.info("Saved checkpoint after %.2f seconds", duration)
 
@@ -94,14 +100,108 @@ class LowerBoundGraph:
         logger.info(f"Vertices: {len(lbg._vertices)}, Edges: {len(lbg._edges)}")
 
         lbg.metrics["construction_time"] = duration
-        # lbg.run_dijkstra()
 
         if save_to_file:
             lbg.save_to_file(lbg.lbg_file_path)
         return lbg
 
+    def generate_lbg_vertices_edges_from_triplets(self):
+        # Remove Source and Target vertices from the graph
+        self._graph.remove_vertex(self._graph.source_name)
+        self._graph.remove_vertex(self._graph.target_name)
+
+        triplets, paths = self.enumerate_triplets()
+        # self.process_triplets_parallel(triplets, paths)
+        self.process_triplets(triplets, paths)
+
+    def enumerate_triplets(self):
+        # Build the set of non-zero cost lb edge triplets (pred, v, succ)
+        # Assumes edges between regions are bidirectional, only want to keep one direction
+        logger.debug(f"Enumerating Triplets for {self._graph.n_vertices} vertices...")
+        triplets = []
+        paths = []
+        for vertex in tqdm(self._graph.vertices, desc="Vertices"):
+            out_values = self._graph.successors(vertex)
+            for i in range(len(out_values)):
+                for j in range(i + 1, len(out_values)):
+                    if i == j or (out_values[j], vertex, out_values[i]) in triplets:
+                        continue
+                    active_edges = [
+                        Edge.key_from_uv(out_values[i], vertex),
+                        Edge.key_from_uv(vertex, out_values[j]),
+                    ]
+                    triplets.append((out_values[i], vertex, out_values[j]))
+                    paths.append(active_edges)
+        return triplets, paths
+
+    def process_triplets_parallel(self, triplets, paths):
+        logger.debug(f"Processing {len(triplets)} Triplets in parallel...")
+        batch_size = 100
+        total = len(triplets)
+        with tqdm(total=total, desc="Processing batches", unit="batch") as pbar:
+            for batch_start in range(0, total, batch_size):
+                batch_end = min(batch_start + batch_size, total)
+                batch_triplets = triplets[batch_start:batch_end]
+                batch_paths = paths[batch_start:batch_end]
+                batch_sols = self._graph.solve_convex_restrictions(batch_paths)
+
+                for (pred, vertex, succ), sol in zip(batch_triplets, batch_sols):
+
+                    if not sol.is_success:
+                        continue
+
+                    lbg_vertex_succ = LBGVertex(
+                        parent_triple=(pred, vertex, succ),
+                        point=self._graph.vertices[
+                            vertex
+                        ].convex_set.vars.last_pos_from_all(sol.ambient_path[1]),
+                    )
+                    lbg_vertex_pred = LBGVertex(
+                        parent_triple=(succ, vertex, pred),
+                        point=self._graph.vertices[
+                            pred
+                        ].convex_set.vars.last_pos_from_all(sol.ambient_path[0]),
+                    )
+                    self.add_vertex(lbg_vertex_pred)
+                    self.add_vertex(lbg_vertex_succ)
+                    self.add_edge(lbg_vertex_pred.key, lbg_vertex_succ.key, sol.cost)
+                    self.add_edge(lbg_vertex_succ.key, lbg_vertex_pred.key, sol.cost)
+                pbar.update(batch_end - batch_start)
+
+    def process_triplets(self, triplets, paths):
+        logger.debug(f"Processing {len(triplets)} Triplets...")
+        for (pred, vertex, succ), active_edges in tqdm(
+            zip(triplets, paths), total=len(triplets), desc="Triplets"
+        ):
+            self._graph.set_source(pred)
+            self._graph.set_target(succ)
+
+            sol = self._graph.solve_convex_restriction(
+                active_edge_keys=active_edges,
+                skip_post_solve=False,
+            )
+            if not sol.is_success:
+                continue
+
+            lbg_vertex_succ = LBGVertex(
+                parent_triple=(pred, vertex, succ),
+                point=self._graph.vertices[vertex].convex_set.vars.last_pos_from_all(
+                    sol.ambient_path[1]
+                ),
+            )
+            lbg_vertex_pred = LBGVertex(
+                parent_triple=(succ, vertex, pred),
+                point=self._graph.vertices[pred].convex_set.vars.last_pos_from_all(
+                    sol.ambient_path[0]
+                ),
+            )
+            self.add_vertex(lbg_vertex_pred)
+            self.add_vertex(lbg_vertex_succ)
+            self.add_edge(lbg_vertex_pred.key, lbg_vertex_succ.key, sol.cost)
+            self.add_edge(lbg_vertex_succ.key, lbg_vertex_pred.key, sol.cost)
+
     def generate_zero_cost_lbg_edges(self):
-        logger.debug("before zero cost edges: %d", len(self._edges))
+        count = 0
         # All lbg vertices with parent edge either u -> v or v -> u
         completed_edges = set()
         for parent_edge in self._graph.edges.values():
@@ -112,77 +212,65 @@ class LowerBoundGraph:
                 self._parent_edge_to_vertices[parent_edge.key]
                 + self._parent_edge_to_vertices[reverse_key]
             )
-            pairs = itertools.permutations(group, 2)
+            completed_edges.add(parent_edge.key)
+            completed_edges.add(reverse_key)
+            pairs = itertools.pairwise(group)
             for u_key, v_key in pairs:
                 self.add_edge(u_key, v_key, 0)
+                self.add_edge(v_key, u_key, 0)
+                count += 2
 
-        logger.debug("after zero cost edges: %d", len(self._edges))
+        logger.debug(f"Added {count} zero cost edges to LBG")
 
-    def generate_lbg_vertices_edges_from_triplets(self):
-        graph = self._graph
-
-        # Remove Source and Target vertices from the graph
-        graph.remove_vertex(graph.source_name)
-        graph.remove_vertex(graph.target_name)
-
-        lbg = self
-        logger.debug("Processing vertices of original graph...")
-        # Build the set of non-zero cost lb edge triplets (pred, v, succ)
-        # Assumes edges between regions are bidirectional, only want to keep one direction
-        triplets = []
-        for vertex in graph.vertices:
-            for incoming_edge in graph.incoming_edges(vertex):
-                for outgoing_edge in graph.outgoing_edges(vertex):
-                    pred = incoming_edge.u
-                    succ = outgoing_edge.v
-
-                    if pred == succ or (succ, vertex, pred) in triplets:
-                        continue
-                    triplets.append((pred, vertex, succ))
-
-        for pred, vertex, succ in tqdm(triplets, desc="Triplets"):
-            graph.set_source(pred)
-            graph.set_target(succ)
-            in_edge = Edge(pred, vertex)
-            out_edge = Edge(vertex, succ)
-            sol = graph.solve_convex_restriction(
-                active_edge_keys=[in_edge.key, out_edge.key],
-                skip_post_solve=False,
-            )
-            if not sol.is_success:
-                continue
-
-            lbg_vertex_succ = LBGVertex(
-                parent_triple=(pred, vertex, succ),
-                point=graph.vertices[vertex].convex_set.vars.last_pos_from_all(
-                    sol.ambient_path[1]
-                ),
-            )
-            lbg_vertex_pred = LBGVertex(
-                parent_triple=(succ, vertex, pred),
-                point=graph.vertices[pred].convex_set.vars.last_pos_from_all(
-                    sol.ambient_path[0]
-                ),
-            )
-            lbg.add_vertex(lbg_vertex_pred)
-            lbg.add_vertex(lbg_vertex_succ)
-            lbg.add_edge(lbg_vertex_pred.key, lbg_vertex_succ.key, sol.cost)
-            lbg.add_edge(lbg_vertex_succ.key, lbg_vertex_pred.key, sol.cost)
-
-    # def add_parent_source_target(source: Vertex, target: Vertex):
+    def update_lbg(self, parent_vertex_name: str, parent_vertex: Vertex):
+        """Assumes that there's no source and target already in the gcs
+        graph."""
+        logger.debug(f"Checking intersections with parent vertex")
+        v_names = self._graph.vertex_names
+        sets = [
+            (parent_vertex.convex_set.base_set, v.convex_set.base_set)
+            for v in self._graph.vertices.values()
+        ]
+        batch_size = 100
+        total = len(sets)
+        lbg_vertex = LBGVertex(
+            ("", "", parent_vertex_name), parent_vertex.convex_set.center
+        )
+        self.add_vertex(lbg_vertex)
+        with tqdm(total=total, desc="Processing batches", unit="batch") as pbar:
+            for batch_start in range(0, total, batch_size):
+                batch_end = min(batch_start + batch_size, total)
+                batch_v_names = v_names[batch_start:batch_end]
+                batch_sets = sets[batch_start:batch_end]
+                batch_intersections = []
+                with Pool() as pool:
+                    batch_intersections += list(
+                        pool.imap(ContactGraph._check_intersection, batch_sets)
+                    )
+                for v_name, intersection in zip(batch_v_names, batch_intersections):
+                    if intersection:
+                        u = self._parent_vertex_to_vertices[v_name][0]
+                        self.add_edge(u, lbg_vertex.key, 0)
+                        self.add_edge(lbg_vertex.key, u, 0)
+                pbar.update(batch_end - batch_start)
 
     def add_vertex(self, LBG_vertex: LBGVertex):
         self._vertices[LBG_vertex.key] = LBG_vertex
-        self._parent_vertex_to_vertices[LBG_vertex.parent_vertex].append(LBG_vertex)
+        self._parent_vertex_to_vertices[LBG_vertex.parent_vertex].append(LBG_vertex.key)
         self._parent_edge_to_vertices[LBG_vertex.parent_edge].append(LBG_vertex.key)
 
     def add_edge(self, u: LBGVertexKey, v: LBGVertexKey, cost: float):
         self._edges[(u, v)] = cost
+        self._adjacency_list[u].append(v)
 
     def outgoing_edges(self, v: str) -> List[Tuple[str, str]]:
         """Get the outgoing edges of a vertex."""
-        assert v in self._vertices
+        # assert v in self._vertices
         return [edge_key for edge_key in self._edges.keys() if edge_key[0] == v]
+        # return self._adjacency_list[v]
+
+    def successors(self, v: LBGVertexKey) -> List[LBGVertexKey]:
+        return self._adjacency_list[v]
 
     def incoming_edges(self, vertex_name: str) -> List[Tuple[str, str]]:
         """Get the incoming edges of a vertex."""
@@ -191,24 +279,24 @@ class LowerBoundGraph:
             edge_key for edge_key in self._edges.values() if edge_key[1] == vertex_name
         ]
 
-    def run_dijkstra(self) -> Tuple[float, List[str]]:
+    def run_dijkstra(self, parent_vertex_start) -> Tuple[float, List[str]]:
         start_time = time.time()
         self._g = {vertex: float("inf") for vertex in self._vertices.keys()}
         expanded = set()
         Q = []
-        for source in self._parent_vertex_to_vertices[self._target_name]:
-            self._g[source.key] = 0
-            heap.heappush(Q, (0, source.key, []))
+        for source in self._parent_vertex_to_vertices[parent_vertex_start]:
+            self._g[source] = 0
+            heap.heappush(Q, (0, source, []))
         while len(Q) > 0:
+            logger.debug(f"Q size: {len(Q)}")
             cost, vertex_key, path = heap.heappop(Q)
 
             if vertex_key in expanded:
                 continue
             expanded.add(vertex_key)
-            for u, neighbor in self.outgoing_edges(vertex_key):
+            for neighbor in self.successors(vertex_key):
                 if neighbor in expanded:
                     continue
-
                 edge_cost = self._edges[(vertex_key, neighbor)]
                 if self._g[neighbor] > self._g[vertex_key] + edge_cost:
                     self._g[neighbor] = self._g[vertex_key] + edge_cost
@@ -221,15 +309,17 @@ class LowerBoundGraph:
 
     def get_cost_to_go(self, gcs_vertex_name: str) -> float:
         lbg_vertex = self._parent_vertex_to_vertices[gcs_vertex_name][0]
-        return self._g[lbg_vertex.key]
+        return self._g[lbg_vertex]
 
-    def save_to_file(self, path: str, is_checkpoint=False):
+    def save_to_file(self, path: str):
         np.save(
             path,
             {
                 "vertices": self._vertices,
                 "edges": self._edges,
+                "adjacency_list": self._adjacency_list,
                 "parent_vertex_to_vertices": self._parent_vertex_to_vertices,
+                "parent_edge_to_vertices": self._parent_edge_to_vertices,
                 "g": self._g,
                 "graph_name": self._graph_name,
                 "source_name": self._source_name,
@@ -244,9 +334,11 @@ class LowerBoundGraph:
         lbg = cls(data["graph_name"], data["source_name"], data["target_name"])
         lbg._vertices = data["vertices"]
         lbg._edges = data["edges"]
+        lbg._adjacency_list = data["adjacency_list"]
+        lbg._parent_edge_to_vertices = data["parent_edge_to_vertices"]
         lbg._parent_vertex_to_vertices = data["parent_vertex_to_vertices"]
         lbg._g = data["g"]
-        # lbg.metrics = data["metrics"]
+        lbg.metrics = data["metrics"]
         return lbg
 
     @classmethod
