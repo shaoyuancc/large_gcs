@@ -286,9 +286,7 @@ class LowerBoundGraph:
             self._g[source] = 0
             heap.heappush(Q, (0, source, []))
         while len(Q) > 0:
-            logger.debug(f"Q size: {len(Q)}")
             cost, vertex_key, path = heap.heappop(Q)
-
             if vertex_key in expanded:
                 continue
             expanded.add(vertex_key)

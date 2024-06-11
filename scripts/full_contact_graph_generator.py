@@ -138,6 +138,23 @@ GRAPH_PARAMS = {
         should_add_const_edge_cost=True,
         should_use_l1_norm_vertex_cost=True,
     ),
+    "cg_simple_4_1": ContactGraphGeneratorParams(
+        name="cg_simple_4_1",
+        obs_vertices=[np.array([[0, 0], [2, 0], [2, 2], [0, 2]]) + np.array([-1, -1])],
+        obj_vertices=[np.array([[0, 0], [1, 0], [1, 1], [0, 1]])],
+        rob_vertices=[np.array([[0, 0], [0.5, 0], [0.5, 0.5], [0, 0.5]])],
+        source_obj_pos=[[-2, -2]],
+        source_rob_pos=[[2, 2]],
+        target_region_params=[
+            ContactRegionParams(
+                region_vertices=[[-3, -1], [-1, -1], [-1, 1], [-3, 1]], obj_indices=[0]
+            ),
+        ],
+        n_pos_per_set=2,
+        workspace=[[-3.5, 3.5], [-3.5, 3.5]],
+        should_add_const_edge_cost=True,
+        should_use_l1_norm_vertex_cost=True,
+    ),
     "cg_maze_b1": ContactGraphGeneratorParams(
         name="cg_maze_b1",
         obs_vertices=[

@@ -18,6 +18,14 @@ algorithm:
 
 hydra:
   mode: MULTIRUN
+  job_logging:
+    loggers:
+      large_gcs:
+        level: INFO
+      large_gcs.graph:
+        level: INFO
+      large_gcs.algorithms:
+        level: INFO
   sweeper:
     params:
-      # graph_name: cg_simple_4, cg_stackpush_d2, cg_maze_b1
+      graph_name: cg_simple_4 #, cg_maze_b1
