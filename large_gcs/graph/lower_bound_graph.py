@@ -124,8 +124,6 @@ class LowerBoundGraph:
             out_values = self._graph.successors(vertex)
             for i in range(len(out_values)):
                 for j in range(i + 1, len(out_values)):
-                    if i == j or (out_values[j], vertex, out_values[i]) in triplets:
-                        continue
                     active_edges = [
                         Edge.key_from_uv(out_values[i], vertex),
                         Edge.key_from_uv(vertex, out_values[j]),
