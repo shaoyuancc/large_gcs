@@ -17,6 +17,7 @@ from pydrake.all import (
     GraphOfConvexSets,
     GraphOfConvexSetsOptions,
     MathematicalProgramResult,
+    Parallelism,
     SolverOptions,
 )
 from tqdm import tqdm
@@ -451,18 +452,19 @@ class Graph:
             [self.edges[edge_key] for edge_key in path] for path in active_edge_keys
         ]
         gcs_paths = [[edge.gcs_edge for edge in path] for path in paths]
-        results: List[MathematicalProgramResult] = self._gcs.SolveConvexRestrictions(
-            gcs_paths
+
+        all_results: List[MathematicalProgramResult] = (
+            self._gcs.SolveConvexRestrictions(
+                active_edges=gcs_paths, parallelism=Parallelism(True)
+            )
         )
 
         sols = []
-        for e_path, result in zip(paths, results):
+        for e_path, result in zip(paths, all_results):
             v_path = self._convert_active_edges_to_vertex_path(
                 e_path[0].u, e_path[-1].v, e_path
             )
-            import pdb
-
-            pdb.set_trace()
+            # import pdb; pdb.set_trace()
             a_path = [
                 result.GetSolution(self.vertices[v].gcs_vertex.x()) for v in v_path
             ]

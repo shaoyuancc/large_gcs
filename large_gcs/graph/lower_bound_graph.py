@@ -111,8 +111,8 @@ class LowerBoundGraph:
         self._graph.remove_vertex(self._graph.target_name)
 
         triplets, paths = self.enumerate_triplets()
-        # self.process_triplets_parallel(triplets, paths)
-        self.process_triplets(triplets, paths)
+        self.process_triplets_parallel(triplets, paths)
+        # self.process_triplets(triplets, paths)
 
     def enumerate_triplets(self):
         # Build the set of non-zero cost lb edge triplets (pred, v, succ)
@@ -134,7 +134,7 @@ class LowerBoundGraph:
 
     def process_triplets_parallel(self, triplets, paths):
         logger.debug(f"Processing {len(triplets)} Triplets in parallel...")
-        batch_size = 100
+        batch_size = 4096
         total = len(triplets)
         with tqdm(total=total, desc="Processing batches", unit="batch") as pbar:
             for batch_start in range(0, total, batch_size):
@@ -142,9 +142,9 @@ class LowerBoundGraph:
                 batch_triplets = triplets[batch_start:batch_end]
                 batch_paths = paths[batch_start:batch_end]
                 batch_sols = self._graph.solve_convex_restrictions(batch_paths)
-
+                # import pdb; pdb.set_trace()
                 for (pred, vertex, succ), sol in zip(batch_triplets, batch_sols):
-
+                    # logger.debug(sol)
                     if not sol.is_success:
                         continue
 
