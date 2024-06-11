@@ -25,7 +25,10 @@ from large_gcs.utils.hydra_utils import get_cfg_from_folder
 
 logger = logging.getLogger(__name__)
 
-BASELINE_ALGS = ["large_gcs.algorithms.ixg.IxG"]
+BASELINE_ALGS = [
+    "large_gcs.algorithms.ixg.IxG",
+    "large_gcs.algorithms.ixg_star.IxGStar",
+]
 
 
 @hydra.main(version_base=None, config_path="../config", config_name="basic")

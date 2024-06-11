@@ -30,12 +30,14 @@ class IxG(SearchAlgorithm):
         lbg: LowerBoundGraph,
         eps: float = 1,
         vis_params: Optional[AlgVisParams] = None,
+        should_save_metrics: bool = True,
     ):
         super().__init__()
         self._graph = graph
         self._target_name = graph.target_name
         self._eps = eps
         self._vis_params = vis_params
+        self._should_save_metrics = should_save_metrics
         self._counter = itertools.count(start=0, step=1)
         # Stores the search node with the lowest cost to come found so far for each vertex
         self._S: dict[str, SearchNode] = {}
@@ -168,6 +170,8 @@ class IxG(SearchAlgorithm):
         logger.info(
             f"iter: {self._step}\n{self.alg_metrics}\nnow exploring node {n.vertex_name}'s {len(edges)} neighbors ({n.priority})"
         )
+        if not self._should_save_metrics:
+            return
         self._step += 1
         current_time = time.time()
         PERIOD = 1200

@@ -1,0 +1,23 @@
+defaults:
+  - algorithm: ixg_star
+  - hydra: hydra
+
+graph_name: "cg_simple_4"
+
+should_use_incremental_graph: false
+# USE L1 NORM VERTEX COST
+should_use_l1_norm_vertex_cost: true
+
+save_visualization: true
+save_solution: true
+save_metrics: true
+save_to_wandb: true
+
+algorithm:
+  eps: 1
+
+hydra:
+  mode: MULTIRUN
+  sweeper:
+    params:
+      # graph_name: cg_simple_4, cg_stackpush_d2, cg_maze_b1
