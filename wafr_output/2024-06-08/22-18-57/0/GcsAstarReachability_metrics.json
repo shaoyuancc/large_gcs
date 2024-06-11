@@ -1,0 +1,45 @@
+{
+    "n_vertices_expanded": {
+        "0": 136
+    },
+    "n_vertices_visited": {
+        "0": 824
+    },
+    "time_wall_clock": 19.004585027694702,
+    "n_gcs_solves": 16392,
+    "gcs_solve_time_total": 2.7903826236724854,
+    "gcs_solve_time_iter_mean": 0.0001702283201361936,
+    "gcs_solve_time_last_10_mean": 0.00015649795532226562,
+    "gcs_solve_time_iter_std": 8.628141348634444e-05,
+    "gcs_solve_time_iter_min": 2.09808349609375e-05,
+    "gcs_solve_time_iter_max": 0.0004420280456542969,
+    "n_vertices_reexpanded": {
+        "0": 393
+    },
+    "n_vertices_revisited": {
+        "0": 3728
+    },
+    "n_Q": 165,
+    "n_S": 694,
+    "n_S_pruned": 2275,
+    "method_times": {
+        "_generate_neighbors": 1.1135518550872803,
+        "_save_metrics": 0.6860427856445312,
+        "_is_dominated": 11.324322700500488,
+        "_visit_neighbor": 17.11144518852234,
+        "_run_iteration": 19.00373077392578,
+        "_maybe_add_set_samples": 0.0489351749420166,
+        "project_single_gcs": 1.3628313541412354,
+        "project_all_gcs": 0.0
+    },
+    "method_counts": {
+        "_generate_neighbors": 136,
+        "_save_metrics": 530,
+        "_is_dominated": 2968,
+        "_visit_neighbor": 4552,
+        "_run_iteration": 530,
+        "_maybe_add_set_samples": 2793,
+        "project_single_gcs": 2793
+    },
+    "expansion_order": []
+}

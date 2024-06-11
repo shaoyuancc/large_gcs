@@ -1,0 +1,20 @@
+algorithm:
+  _target_: large_gcs.algorithms.gcs_astar_reachability.GcsAstarReachability
+  should_terminate_early: false
+  should_invert_S: true
+cost_estimator:
+  _target_: large_gcs.cost_estimators.shortcut_edge_ce.ShortcutEdgeCE
+  shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted
+domination_checker:
+  _target_: large_gcs.domination_checkers.sampling_last_pos.ReachesCheaperLastPosSampling
+  num_samples_per_vertex: 1
+  should_use_candidate_sol: false
+graph_name: cg_stackpush_d2
+should_use_incremental_graph: true
+should_incl_simul_mode_switches: false
+should_add_const_edge_cost: true
+should_use_l1_norm_vertex_cost: true
+save_visualization: true
+save_solution: true
+save_metrics: true
+save_to_wandb: true

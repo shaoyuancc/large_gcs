@@ -167,3 +167,7 @@ output/
 outputs/
 multirun/
 wandb/
+
+# Large files
+example_graphs/cg_maze_b1_lbg_checkpoint.npy
+example_graphs/cg_maze_b1_lbg.npy

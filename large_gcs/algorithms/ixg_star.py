@@ -79,7 +79,7 @@ class IxGStar(SearchAlgorithm):
         start_time = time.time()
 
         ixg_sol = self._ixg.run()
-        if ixg_sol.is_success:
+        if ixg_sol is not None and ixg_sol.is_success:
             self._ub = ixg_sol.cost
         else:
             self._ub = np.inf
