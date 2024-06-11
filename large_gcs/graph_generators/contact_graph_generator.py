@@ -1,3 +1,4 @@
+import logging
 import os
 from dataclasses import dataclass
 from itertools import combinations
@@ -11,6 +12,8 @@ from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -164,7 +167,7 @@ class ContactGraphGenerator:
             should_use_l1_norm_vertex_cost=self._params.should_use_l1_norm_vertex_cost,
         )
         if save_to_file:
-            contact_graph.save_to_file(self._params.inc_graph_file_path)
+            contact_graph.save_only_inc_to_file(self._params.inc_graph_file_path)
 
         return contact_graph
 

@@ -2,7 +2,7 @@ defaults:
   - algorithm: ixg
   - hydra: hydra
 
-graph_name: "cg_simple_1"
+graph_name: "cg_simple_4"
 
 should_use_incremental_graph: false
 # USE L1 NORM VERTEX COST

@@ -509,7 +509,7 @@ class IncrementalContactGraph(ContactGraph):
 
     ### SERIALIZATION METHODS ###
 
-    def save_to_file(self, path: str):
+    def save_only_inc_to_file(self, path: str):
         if self.target_pos is None:
             target_pos_objs = None
             target_pos_robs = None

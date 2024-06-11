@@ -34,11 +34,33 @@ def generate_graph(graph_name: str, incremental, preview):
     start_time = time.time()
     logger.info(f"Starting graph creation of {params.name}")
 
-    if incremental:
-        graph = generator.generate_incremental_contact_graph()
-    else:
-        graph = generator.generate()
+    # if incremental:
+    #     graph = generator.generate_incremental_contact_graph()
+    # else:
+    # graph = generator.generate()
+    graph = generator.generate_incremental_contact_graph()
+    if not incremental:
+        Q = ["source"]
+        expanded = set()
+        while len(Q) > 0:
+            v = Q.pop()
+            if v in expanded or v == "target":
+                continue
+            expanded.add(v)
+            if len(expanded) % 100 == 0:
+                logger.info(f"Expanded {len(expanded)} vertices")
+            graph.generate_neighbors(v)
+            for u in graph.successors(v):
+                if u in expanded:
+                    continue
+                Q.append(u)
     end_time = time.time()
+    # HACK to make full contact graph from incremental graph
+    if not incremental:
+        graph.vertex_exclusion = None
+        graph.vertex_inclusion = None
+        graph._initialize_set_generation_variables()
+        graph.save_to_file(params.graph_file_path)
     logger.info(f"Graph creation took: {end_time - start_time} seconds")
     logger.info(
         f"duration in H:M:S {time.strftime('%H:%M:%S', time.gmtime(end_time - start_time))}"
