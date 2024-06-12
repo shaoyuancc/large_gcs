@@ -418,12 +418,56 @@ class Graph:
         solver_options: Optional[SolverOptions] = None,
     ) -> ShortestPathSolution:
         # logger.debug(f"active edge keys: {active_edge_keys}")
-        active_edges = [self.edges[edge_key] for edge_key in active_edge_keys]
-        gcs_edges = [edge.gcs_edge for edge in active_edges]
+        edge_path = [self.edges[edge_key] for edge_key in active_edge_keys]
+        vertex_name_path = self._convert_active_edges_to_vertex_path(
+            edge_path[0].u, edge_path[-1].v, edge_path
+        )
+        vertex_path = [self.vertices[vertex_name] for vertex_name in vertex_name_path]
+        # gcs_edges = [edge.gcs_edge for edge in edge_path]
+
+        # BUILD DUPLICATE DRAKE GCS GRAPH
+        gcs = GraphOfConvexSets()
+        gcs_vertex_path = []
+        for vertex_name, v in zip(vertex_name_path, vertex_path):
+            gcs_vertex = gcs.AddVertex(
+                self.vertices[vertex_name].convex_set.set, vertex_name
+            )
+            gcs_vertex_path.append(gcs_vertex)
+            # Add costs and constraints to gcs
+            if v.costs:
+                for cost in v.costs:
+                    binding = Binding[Cost](cost, gcs_vertex.x().flatten())
+                    gcs_vertex.AddCost(binding)
+            if v.constraints:
+                for constraint in v.constraints:
+                    binding = Binding[Constraint](constraint, gcs_vertex.x().flatten())
+                    gcs_vertex.AddConstraint(binding)
+        gcs_edge_path = []
+        for i, e in enumerate(edge_path):
+            gcs_edge = gcs.AddEdge(
+                u=gcs_vertex_path[i],
+                v=gcs_vertex_path[i + 1],
+                name=e.key,
+            )
+            gcs_edge_path.append(gcs_edge)
+            # Add costs and constraints to gcs edge
+            if e.costs:
+                for cost in e.costs:
+                    x = np.concatenate([gcs_edge.xu(), gcs_edge.xv()])
+                    binding = Binding[Cost](cost, x)
+                    gcs_edge.AddCost(binding)
+            if e.constraints:
+                for constraint in e.constraints:
+                    x = np.concatenate([gcs_edge.xu(), gcs_edge.xv()])
+                    binding = Binding[Constraint](constraint, x)
+                    gcs_edge.AddConstraint(binding)
+
         if solver_options is not None:
             self._gcs_options_wo_relaxation.solver_options = solver_options
-        result = self._gcs.SolveConvexRestriction(
-            gcs_edges,
+
+        # Now solve convex restriction on the duplicate graph
+        result = gcs.SolveConvexRestriction(
+            gcs_edge_path,
             self._gcs_options_wo_relaxation,
         )
         # logger.debug(f"solver options used: {self._gcs_options_wo_relaxation.solver_options.GetOptions(MosekSolver.id())}")
@@ -436,7 +480,7 @@ class Graph:
             )
         else:
             sol = self._parse_convex_restriction_result(
-                result, active_edges, should_return_result
+                result, vertex_name_path, gcs_vertex_path, should_return_result
             )
             # Optional post solve hook for subclasses
             self._post_solve(sol)
@@ -448,6 +492,7 @@ class Graph:
         active_edge_keys: List[List[str]],
     ) -> List[ShortestPathSolution]:
         """Solve multiple convex restrictions."""
+
         paths = [
             [self.edges[edge_key] for edge_key in path] for path in active_edge_keys
         ]
@@ -556,8 +601,9 @@ class Graph:
             result.is_success(), cost, time, vertex_path, ambient_path, flows, result
         )
 
+    @staticmethod
     def _parse_partial_convex_restriction_result(
-        self, result: MathematicalProgramResult, should_return_result: bool = False
+        result: MathematicalProgramResult, should_return_result: bool = False
     ) -> ShortestPathSolution:
         """Only return is_success, cost and time.
 
@@ -577,34 +623,26 @@ class Graph:
             result=result if should_return_result else None,
         )
 
+    @staticmethod
     def _parse_convex_restriction_result(
-        self,
         result: MathematicalProgramResult,
-        active_edges: List[Edge],
+        vertex_name_path: List[str],
+        gcs_vertex_path: List,
         should_return_result: bool = False,
     ) -> ShortestPathSolution:
         cost = result.get_optimal_cost()
         time = result.get_solver_details().optimizer_time
 
-        vertex_path = []
         ambient_path = []
         flows = []
         if result.is_success():
-            assert self.source_name is not None
-            assert self.target_name is not None
-            vertex_path = self._convert_active_edges_to_vertex_path(
-                self.source_name, self.target_name, active_edges
-            )
-
-            ambient_path = [
-                result.GetSolution(self.vertices[v].gcs_vertex.x()) for v in vertex_path
-            ]
+            ambient_path = [result.GetSolution(v.x()) for v in gcs_vertex_path]
 
         return ShortestPathSolution(
             result.is_success(),
             cost,
             time,
-            vertex_path,
+            vertex_name_path,
             ambient_path,
             flows,
             result=result if should_return_result else None,

@@ -100,7 +100,7 @@ class SetSamples:
         active_edges = node.edge_path
 
         sol = self._proj_graph.solve_convex_restriction(
-            active_edges, skip_post_solve=True, should_return_result=True
+            active_edges, skip_post_solve=False, should_return_result=False
         )
 
         self._alg_metrics.update_after_gcs_solve(sol.time)
@@ -115,9 +115,7 @@ class SetSamples:
             self._proj_graph.remove_vertex(node.vertex_name)
             return None
             # assert sol.is_success, "Failed to project sample"
-        proj_sample = sol.result.GetSolution(
-            self._proj_graph.vertices[node.vertex_name].gcs_vertex.x()
-        )
+        proj_sample = sol.ambient_path[-1]
 
         # Clean up the projection graph
         self._proj_graph.remove_vertex(node.vertex_name)
