@@ -80,7 +80,7 @@ def main() -> None:
         cfg = get_cfg_from_folder(path)
         cg = _construct_graph(cfg)
 
-        sol_files = list(path.glob("*_solution.pkl"))
+        sol_files = list(path.glob("*solution.pkl"))
         if not len(sol_files) == 1:
             raise RuntimeError(
                 f"Found more than one solution file in {path}."

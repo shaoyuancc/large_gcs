@@ -57,6 +57,7 @@ def plot_trajectory(
         # Make sure we plot until the end
         keyframe_idxs.append(n_steps)
     else:
+        # 15 is a magic number that seems to give ~good figures
         num_keyframes = int(np.ceil(n_steps / 15))
 
     fontsize = None
@@ -69,7 +70,7 @@ def plot_trajectory(
         # WAFR_experiments/trajectory_figures.yaml
         if num_keyframes == 8:  # cg_maze_b1
             num_keyframes = 6
-            keyframe_idxs = [0, 32, 50, 72, 86, 119]
+            keyframe_idxs = [0, 37, 50, 81, 102, 107]
             keyframe_idxs.append(n_steps)
             x_buffer = np.array([0.8, 0.8])
             y_buffer = np.array([1.4, 1.0])
