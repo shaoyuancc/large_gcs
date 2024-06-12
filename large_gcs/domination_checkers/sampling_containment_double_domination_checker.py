@@ -40,6 +40,10 @@ class SamplingContainmentDoubleDominationChecker(SamplingContainmentDominationCh
     ) -> bool:
         sample_is_dominated = self.sample_is_dominated(candidate_node, alternate_nodes)
 
+        # If the projection failed assume that the candidate is not feasible, and reject the path
+        if sample_is_dominated is None:
+            return True
+
         if np.all(~sample_is_dominated):
             return False
 

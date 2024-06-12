@@ -48,6 +48,7 @@ class GcsAstarReachability(SearchAlgorithm):
         load_checkpoint_log_dir: Optional[str] = None,
         override_wall_clock_time: Optional[float] = None,
         save_expansion_order: bool = False,
+        allow_cycles: bool = True,
     ):
         if isinstance(graph, IncrementalContactGraph):
             assert (
@@ -76,6 +77,7 @@ class GcsAstarReachability(SearchAlgorithm):
 
         self._load_checkpoint_log_dir = load_checkpoint_log_dir
         self._save_expansion_order = save_expansion_order
+        self._allow_cycles = allow_cycles
 
         # For logging/metrics
         # Expanded set
@@ -186,12 +188,16 @@ class GcsAstarReachability(SearchAlgorithm):
         self._save_metrics(n, edges)
 
         for edge in edges:
-            neighbor_in_path = any(
-                (self._graph.edges[e].u == edge.v or self._graph.edges[e].v == edge.v)
-                for e in n.edge_path
-            )
-            if neighbor_in_path:
-                continue
+            if not self._allow_cycles:
+                neighbor_in_path = any(
+                    (
+                        self._graph.edges[e].u == edge.v
+                        or self._graph.edges[e].v == edge.v
+                    )
+                    for e in n.edge_path
+                )
+                if neighbor_in_path:
+                    continue
 
             early_terminate_sol = self._visit_neighbor(n, edge)
             if early_terminate_sol is not None:

@@ -23,6 +23,7 @@ save_to_wandb: true
 
 algorithm:
   should_invert_S: true
+  allow_cycles: true
 
 domination_checker:
   construct_path_from_nullspaces: true
@@ -31,5 +32,5 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      graph_name: cg_stackpush_d2, cg_maze_b1
-      # graph_name: cg_simple_4, cg_stackpush_d2, cg_maze_b1
+      # graph_name: cg_stackpush_d2, cg_maze_b1
+      graph_name: cg_simple_4, cg_stackpush_d2, cg_maze_b1

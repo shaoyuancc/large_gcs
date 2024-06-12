@@ -26,10 +26,11 @@ class SamplingLastPos(SamplingDominationChecker):
     def _add_sample_to_graph(
         self, sample: ndarray, sample_vertex_name: str, candidate_node: SearchNode
     ) -> None:
-        # logger.debug(f"_add_sample_to_graph")
+        # logger.debug(f"_add_sample_to_graph in SamplingLastPos")
         contact_set: ContactSet = self._graph.vertices[
             candidate_node.vertex_name
         ].convex_set
+        # logger.debug(f"sample: {sample}")
         self._graph.add_vertex(
             vertex=Vertex(
                 convex_set=contact_set,

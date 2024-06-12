@@ -114,12 +114,12 @@ class IxG(SearchAlgorithm):
         self._save_metrics(n, edges)
         for edge in edges:
             # Not part of IxG, should replace solve_convex_restriction with something that can handle repeated vertices
-            neighbor_in_path = any(
-                (self._graph.edges[e].u == edge.v or self._graph.edges[e].v == edge.v)
-                for e in n.edge_path
-            )
-            if neighbor_in_path:
-                continue
+            # neighbor_in_path = any(
+            #     (self._graph.edges[e].u == edge.v or self._graph.edges[e].v == edge.v)
+            #     for e in n.edge_path
+            # )
+            # if neighbor_in_path:
+            #     continue
 
             # Check early termination condition
             sol = self._visit_neighbor(n, edge)

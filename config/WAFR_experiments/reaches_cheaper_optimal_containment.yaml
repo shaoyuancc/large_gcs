@@ -23,6 +23,7 @@ save_to_wandb: true
 
 algorithm:
   should_invert_S: true
+  allow_cycles: true
   # load_checkpoint_log_dir: "output/rebecca_checkpoint"
   # override_wall_clock_time: 50 # WARNING, use with caution
 

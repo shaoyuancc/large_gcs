@@ -198,6 +198,12 @@ class SetSamples:
 
         result = Solve(prog, solver_options=solver_options)
         if not result.is_success():
+            logger.error(
+                f"Failed to project sample for vertex {node.vertex_name}"
+                f"\nnum total samples for this vertex: {len(self.samples)}"
+                f"sample: {sample}"
+                f"vertex_path: {node.vertex_path}"
+            )
             return None
         return result.GetSolution(sample_vars)
 
@@ -298,8 +304,9 @@ class SamplingDominationChecker(DominationChecker):
         call_structure = {
             "_is_dominated": [
                 "_maybe_add_set_samples",
-                "project_single_gcs",
-                "project_all_gcs",
+                "project_single",
+                # "project_single_gcs",
+                # "project_all_gcs",
             ],
         }
         alg_metrics.update_method_call_structure(call_structure)
@@ -326,14 +333,14 @@ class SamplingDominationChecker(DominationChecker):
             self._set_samples[candidate_node.vertex_name].samples
         ):
             # logger.debug(f"Checking sample {idx}")
-            if (not self._should_use_candidate_sol and idx == 0) or (
-                self._should_use_candidate_sol and idx == 1
-            ):
-                # Before we project the first sample we need to init the graph
-                # logger.debug(f"Init graph for projection of samples")
-                self._set_samples[candidate_node.vertex_name].init_graph_for_projection(
-                    self._graph, candidate_node, self._alg_metrics
-                )
+            # if (not self._should_use_candidate_sol and idx == 0) or (
+            #     self._should_use_candidate_sol and idx == 1
+            # ):
+            #     # Before we project the first sample we need to init the graph
+            #     # logger.debug(f"Init graph for projection of samples")
+            #     self._set_samples[candidate_node.vertex_name].init_graph_for_projection(
+            #         self._graph, candidate_node, self._alg_metrics
+            #     )
 
             if self._should_use_candidate_sol and idx == 0:
                 # logger.debug(f"Using candidate sol as sample")
@@ -343,7 +350,11 @@ class SamplingDominationChecker(DominationChecker):
                 # logger.debug(f"Projecting sample {idx}")
                 proj_sample = self._set_samples[
                     candidate_node.vertex_name
-                ].project_single_gcs(self._graph, candidate_node, sample)
+                ].project_single(self._graph, candidate_node, sample)
+
+            if proj_sample is None:
+                # If the projection failed assume that the candidate is not feasible, and reject the path
+                return True
 
             # Create a new vertex for the sample and add it to the graph
             sample_vertex_name = f"{candidate_node.vertex_name}_sample_{idx}"

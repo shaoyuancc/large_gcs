@@ -44,6 +44,10 @@ class SamplingContainmentWPruneSDominationChecker(SamplingContainmentDominationC
     ) -> bool:
         sample_is_dominated = self.sample_is_dominated(candidate_node, alternate_nodes)
 
+        # If the projection failed assume that the candidate is not feasible, and reject the path
+        if sample_is_dominated is None:
+            return True
+
         AH_n = self._maybe_create_path_AH_polytope(candidate_node)
         logger.debug(
             f"Checking domination of candidate node terminating at vertex {candidate_node.vertex_name}"

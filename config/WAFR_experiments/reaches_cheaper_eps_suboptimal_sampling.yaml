@@ -23,6 +23,7 @@ save_to_wandb: true
 
 algorithm:
   should_invert_S: true
+  allow_cycles: true
 
 domination_checker:
   num_samples_per_vertex: 1

@@ -67,6 +67,10 @@ class SamplingContainmentDominationChecker(
     ) -> bool:
         sample_is_dominated = self.sample_is_dominated(candidate_node, alternate_nodes)
 
+        # If the projection failed assume that the candidate is not feasible, and reject the path
+        if sample_is_dominated is None:
+            return True
+
         if np.all(~sample_is_dominated):
             return False
 
@@ -94,13 +98,18 @@ class SamplingContainmentDominationChecker(
         # Get single sample
         self._maybe_add_set_samples(candidate_node.vertex_name)
         sample = self._set_samples[candidate_node.vertex_name].samples[0]
-        # Before we project the first sample we need to init the graph
-        self._set_samples[candidate_node.vertex_name].init_graph_for_projection(
-            self._graph, candidate_node, self._alg_metrics
-        )
-        proj_sample = self._set_samples[candidate_node.vertex_name].project_single_gcs(
+        # # Before we project the first sample we need to init the graph
+        # self._set_samples[candidate_node.vertex_name].init_graph_for_projection(
+        #     self._graph, candidate_node, self._alg_metrics
+        # )
+        proj_sample = self._set_samples[candidate_node.vertex_name].project_single(
             self._graph, candidate_node, sample
         )
+
+        # If the projection failed assume that the candidate is not feasible, and reject the path
+        if proj_sample is None:
+            return None
+
         # Check whether the candidate is dominated by each of the alternate nodes for that sample
 
         # Create a new vertex for the sample and add it to the graph

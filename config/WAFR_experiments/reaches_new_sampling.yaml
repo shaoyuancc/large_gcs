@@ -4,7 +4,7 @@ defaults:
   - domination_checker: reaches_new_last_pos_sampling
   - hydra: hydra
 
-graph_name: "cg_maze_b1"
+graph_name: "cg_simple_4"
 should_use_incremental_graph: true
 should_incl_simul_mode_switches: false
 should_add_const_edge_cost: true
@@ -24,6 +24,7 @@ save_to_wandb: true
 algorithm:
   should_invert_S: true
   should_terminate_early: true
+  should_allow_cycles: true
   # load_checkpoint_log_dir: "outputs/2024-06-04/00-48-14"
   # override_wall_clock_time: 50 # WARNING, use with caution
 

@@ -417,14 +417,14 @@ class Graph:
         should_return_result: bool = False,
         solver_options: Optional[SolverOptions] = None,
     ) -> ShortestPathSolution:
-        # logger.debug(f"active edge keys: {active_edge_keys}")
         edge_path = [self.edges[edge_key] for edge_key in active_edge_keys]
         vertex_name_path = self._convert_active_edges_to_vertex_path(
             edge_path[0].u, edge_path[-1].v, edge_path
         )
         vertex_path = [self.vertices[vertex_name] for vertex_name in vertex_name_path]
         # gcs_edges = [edge.gcs_edge for edge in edge_path]
-
+        # logger.debug(f"Solving convex restriction for vpath: {vertex_name_path}")
+        # logger.debug(f"Edge path: {active_edge_keys}")
         # BUILD DUPLICATE DRAKE GCS GRAPH
         gcs = GraphOfConvexSets()
         gcs_vertex_path = []
@@ -759,6 +759,11 @@ class Graph:
         target_name,
         edges: List[Edge],
     ):
+        v_path = [edges[0].u]
+        for e in edges:
+            v_path += [e.v]
+        return v_path
+
         # Create a dictionary where the keys are the vertices and the values are their neighbors
         neighbors = {e.u: e.v for e in edges}
         # Start with the source vertex
