@@ -59,13 +59,15 @@ def plot_trajectory(
     else:
         num_keyframes = int(np.ceil(n_steps / 15))
 
+    fontsize = None
+
     if use_paper_params:
         # NOTE: These are specific parameters that we use to get the
         # figures we want in the paper, and should be removed for
         # general use.
         # They are made to match the trajs generated from
         # WAFR_experiments/trajectory_figures.yaml
-        if num_keyframes == 9:  # cg_maze_b1
+        if num_keyframes == 8:  # cg_maze_b1
             num_keyframes = 6
             keyframe_idxs = [0, 32, 50, 72, 86, 119]
             keyframe_idxs.append(n_steps)
@@ -95,25 +97,29 @@ def plot_trajectory(
         elif num_keyframes == 7:  # STACK
             num_keyframes = 6
             # keyframe_idxs = [0, 32, 59, 70, 80, 95]
-            keyframe_idxs = [0, 16, 22, 35, 66, 81]
+            # keyframe_idxs = [0, 16, 22, 35, 66, 81]
+            keyframe_idxs = [0, 22, 36, 50, 61, 71]
             keyframe_idxs.append(n_steps)
             x_buffer = np.array([0.8, 0.8])
             y_buffer = np.array([1.0, 1.0])
 
             add_legend = True
             legend_loc = "upper left"
+            fontsize = 42
 
-        elif num_keyframes == 4:  # cg_trichal4
+        elif num_keyframes == 4:  # SIMPLE
             # Adjust these numbers to adjust what frames the keyframes start at:
-            keyframe_idxs = [0, 14, 28, 46]
+            # keyframe_idxs = [0, 14, 28, 46]
+            keyframe_idxs = [0, 17, 27, 52]
 
             # this step is needed for downstream code
             keyframe_idxs.append(n_steps)
-            y_buffer = np.array([1.2, 1.2])
-            x_buffer = np.array([1.5, 1.5])
+            y_buffer = np.array([0.7, 0.7])
+            x_buffer = np.array([1.2, 1.2])
 
             add_legend = True
             legend_loc = "upper left"
+            fontsize = 30
 
     ROBOT_COLOR = DARKSEAGREEN2.diffuse()
     OBSTACLE_COLOR = AZURE3.diffuse()
@@ -239,7 +245,7 @@ def plot_trajectory(
         custom_patches = [
             mpatches.Patch(color=color, label=label)
             for label, color in zip(
-                ["Static obstacles", "Unactuated object", "Actuated robot"],
+                ["Static obstacle", "Unactuated object", "Actuated robot"],
                 [OBSTACLE_COLOR, OBJECT_COLOR, ROBOT_COLOR],
             )
         ]
@@ -253,7 +259,7 @@ def plot_trajectory(
         fig.legend(
             handles=custom_patches,
             handlelength=2.5,
-            fontsize=42,
+            fontsize=fontsize,
             ncol=2,
             loc=legend_loc,  # type: ignore
         )
