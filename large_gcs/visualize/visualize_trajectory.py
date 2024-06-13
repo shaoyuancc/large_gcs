@@ -57,7 +57,10 @@ def plot_trajectory(
         # Make sure we plot until the end
         keyframe_idxs.append(n_steps)
     else:
+        # 15 is a magic number that seems to give ~good figures
         num_keyframes = int(np.ceil(n_steps / 15))
+
+    fontsize = None
 
     if use_paper_params:
         # NOTE: These are specific parameters that we use to get the
@@ -65,9 +68,9 @@ def plot_trajectory(
         # general use.
         # They are made to match the trajs generated from
         # WAFR_experiments/trajectory_figures.yaml
-        if num_keyframes == 9:  # cg_maze_b1
+        if num_keyframes == 8:  # cg_maze_b1
             num_keyframes = 6
-            keyframe_idxs = [0, 32, 50, 72, 86, 119]
+            keyframe_idxs = [0, 37, 50, 81, 102, 107]
             keyframe_idxs.append(n_steps)
             x_buffer = np.array([0.8, 0.8])
             y_buffer = np.array([1.4, 1.0])
@@ -95,25 +98,29 @@ def plot_trajectory(
         elif num_keyframes == 7:  # STACK
             num_keyframes = 6
             # keyframe_idxs = [0, 32, 59, 70, 80, 95]
-            keyframe_idxs = [0, 16, 22, 35, 66, 81]
+            # keyframe_idxs = [0, 16, 22, 35, 66, 81]
+            keyframe_idxs = [0, 22, 36, 50, 61, 71]
             keyframe_idxs.append(n_steps)
             x_buffer = np.array([0.8, 0.8])
             y_buffer = np.array([1.0, 1.0])
 
             add_legend = True
-            legend_loc = "upper left"
+            legend_loc = "upper center"
+            fontsize = 34
 
-        elif num_keyframes == 4:  # cg_trichal4
+        elif num_keyframes == 4:  # SIMPLE
             # Adjust these numbers to adjust what frames the keyframes start at:
-            keyframe_idxs = [0, 14, 28, 46]
+            # keyframe_idxs = [0, 14, 28, 46]
+            keyframe_idxs = [0, 17, 27, 52]
 
             # this step is needed for downstream code
             keyframe_idxs.append(n_steps)
-            y_buffer = np.array([1.2, 1.2])
-            x_buffer = np.array([1.5, 1.5])
+            y_buffer = np.array([0.5, 0.5])
+            x_buffer = np.array([1.2, 1.4])
 
             add_legend = True
-            legend_loc = "upper left"
+            legend_loc = "upper center"
+            fontsize = 24
 
     ROBOT_COLOR = DARKSEAGREEN2.diffuse()
     OBSTACLE_COLOR = AZURE3.diffuse()
@@ -239,7 +246,7 @@ def plot_trajectory(
         custom_patches = [
             mpatches.Patch(color=color, label=label)
             for label, color in zip(
-                ["Static obstacles", "Unactuated object", "Actuated robot"],
+                ["Static obstacle", "Unactuated object", "Actuated robot"],
                 [OBSTACLE_COLOR, OBJECT_COLOR, ROBOT_COLOR],
             )
         ]
@@ -252,18 +259,16 @@ def plot_trajectory(
         # Creating the custom legend
         fig.legend(
             handles=custom_patches,
-            handlelength=2.5,
-            fontsize=42,
-            ncol=2,
+            handlelength=1.5,
+            fontsize=fontsize,
+            ncol=4,
             loc=legend_loc,  # type: ignore
         )
 
     # Adjust layout to make room for the legend
     if add_legend:
-        if legend_loc == "upper left":
-            fig.tight_layout(rect=(0, 0, 1, 0.65))
-        elif legend_loc == "lower left":
-            fig.tight_layout(rect=(0, 0.3, 1, 1.0))
+        if legend_loc == "upper center":
+            fig.tight_layout(rect=(0, 0, 1, 1.1))
     else:
         fig.tight_layout()
 

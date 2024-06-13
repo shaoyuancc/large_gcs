@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 from omegaconf import DictConfig, OmegaConf
+from tqdm import tqdm
 
 from large_gcs.algorithms.search_algorithm import AlgMetrics
 from large_gcs.graph.contact_graph import ContactGraph
@@ -66,6 +67,9 @@ def main() -> None:
         print(f"The directory {data_dir} does not exist.")
         return
 
+    load_metrics = False
+    make_video = False
+
     # Iterate through the runs and generate figures
     for path in data_dir.iterdir():
         # We only care about the subfolders (which contain data for a run)
@@ -76,7 +80,7 @@ def main() -> None:
         cfg = get_cfg_from_folder(path)
         cg = _construct_graph(cfg)
 
-        sol_files = list(path.glob("*_solution.pkl"))
+        sol_files = list(path.glob("*solution.pkl"))
         if not len(sol_files) == 1:
             raise RuntimeError(
                 f"Found more than one solution file in {path}."
@@ -85,29 +89,38 @@ def main() -> None:
         sol_file = sol_files[0]
         sol = ShortestPathSolution.load(sol_file)
 
+        print("Finished loading solution file")
+        print("Generating neighbors in path...")
+
         # Generate all required neighbours in graph
         cg.set_target("target")
-        for v in sol.vertex_path:
+        for v in tqdm(sol.vertex_path):
             if v == "target":
                 continue
             cg.generate_neighbors(v)
 
-        metric_files = list(path.glob("*_metrics.json"))
-        if not len(metric_files) == 1:
-            raise RuntimeError(
-                f"Found more than one metric file in {path}."
-                f"This is not expected, so something is likely wrong."
-            )
-        metric_file = metric_files[0]
-        metrics = AlgMetrics.load(metric_file)
+        if load_metrics:
+            metric_files = list(path.glob("*_metrics.json"))
+            if not len(metric_files) == 1:
+                raise RuntimeError(
+                    f"Found more than one metric file in {path}."
+                    f"This is not expected, so something is likely wrong."
+                )
+            metric_file = metric_files[0]
+            metrics = AlgMetrics.load(metric_file)
 
+        print("Creating solution...")
         cg.contact_spp_sol = cg.create_contact_spp_sol(
             sol.vertex_path, sol.ambient_path
         )
-        # vid_file = path / "regenerated_video.mp4"
-        #
-        # anim = cg.animate_solution()
-        # anim.save(vid_file)
+
+        if make_video:
+            vid_file = path / "regenerated_video.mp4"
+
+            anim = cg.animate_solution()
+            anim.save(vid_file)
+
+        print("Generating figure...")
 
         cg.plot_solution(cg.contact_spp_sol, path / "traj_figure.pdf")
 
