@@ -105,8 +105,8 @@ def plot_trajectory(
             y_buffer = np.array([1.0, 1.0])
 
             add_legend = True
-            legend_loc = "upper left"
-            fontsize = 42
+            legend_loc = "upper center"
+            fontsize = 34
 
         elif num_keyframes == 4:  # SIMPLE
             # Adjust these numbers to adjust what frames the keyframes start at:
@@ -115,12 +115,12 @@ def plot_trajectory(
 
             # this step is needed for downstream code
             keyframe_idxs.append(n_steps)
-            y_buffer = np.array([0.7, 0.7])
-            x_buffer = np.array([1.2, 1.2])
+            y_buffer = np.array([0.5, 0.5])
+            x_buffer = np.array([1.2, 1.4])
 
             add_legend = True
-            legend_loc = "upper left"
-            fontsize = 30
+            legend_loc = "upper center"
+            fontsize = 24
 
     ROBOT_COLOR = DARKSEAGREEN2.diffuse()
     OBSTACLE_COLOR = AZURE3.diffuse()
@@ -259,18 +259,16 @@ def plot_trajectory(
         # Creating the custom legend
         fig.legend(
             handles=custom_patches,
-            handlelength=2.5,
+            handlelength=1.5,
             fontsize=fontsize,
-            ncol=2,
+            ncol=4,
             loc=legend_loc,  # type: ignore
         )
 
     # Adjust layout to make room for the legend
     if add_legend:
-        if legend_loc == "upper left":
-            fig.tight_layout(rect=(0, 0, 1, 0.65))
-        elif legend_loc == "lower left":
-            fig.tight_layout(rect=(0, 0.3, 1, 1.0))
+        if legend_loc == "upper center":
+            fig.tight_layout(rect=(0, 0, 1, 1.1))
     else:
         fig.tight_layout()
 
