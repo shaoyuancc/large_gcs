@@ -24,7 +24,7 @@ save_to_wandb: true
 algorithm:
   should_invert_S: true
   should_terminate_early: true
-  should_allow_cycles: true
+  allow_cycles: true
   # load_checkpoint_log_dir: "outputs/2024-06-04/00-48-14"
   # override_wall_clock_time: 50 # WARNING, use with caution
 

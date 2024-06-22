@@ -1,0 +1,31 @@
+defaults:
+  - algorithm: gcs_astar_reachability
+  - cost_estimator: shortcut_edge
+  - domination_checker: reaches_cheaper_sampling
+  - hydra: hydra
+
+graph_name: "problem_0"
+
+cost_estimator:
+  # USE L1 NORM SHORTCUT EDGE COST
+  shortcut_edge_cost_factory: large_gcs.graph.cfree_cost_constraint_factory.create_cfree_shortcut_edge_factory_under
+
+save_visualization: true
+save_solution: true
+save_metrics: true
+save_to_wandb: true
+
+algorithm:
+  should_invert_S: true
+  should_terminate_early: false
+  allow_cycles: false
+
+domination_checker:
+  num_samples_per_vertex: 1
+  should_use_candidate_sol: false
+
+# hydra:
+#   mode: MULTIRUN
+#   sweeper:
+#     params:
+#       graph_name: 

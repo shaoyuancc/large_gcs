@@ -84,7 +84,7 @@ class ShortcutEdgeCE(CostEstimator):
 
                 else:
                     direct_edge_costs = self._shortcut_edge_cost_factory(
-                        self._graph.vertices[self._graph.target_name].convex_set.dim,
+                        self._graph.vertices[neighbor].convex_set.dim,
                         add_const_cost=self._add_const_cost,
                     )
             edge_to_target = Edge(

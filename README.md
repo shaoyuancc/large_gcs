@@ -9,9 +9,9 @@ This repo uses Poetry for dependency management. To setup this project, first in
 poetry config virtualenvs.in-project true
 ```
 
-Then, configure poetry to setup a virtual environment that uses >= Python 3.12:
+Then, configure poetry to setup a virtual environment that uses >= Python 3.10:
 ```
-poetry env use python3.12
+poetry env use python3.10
 ```
 
 Next, install all the required dependencies to the virtual environment with the following command:
@@ -94,6 +94,11 @@ After running quickstart you can compare your results (which should appear in th
 ## Runing WAFR experiments
 ```
 python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR_experiments --config-dir config --config-name trajectory_figures 
+```
+
+## Running GGCS experiments
+```
+python3 experiments/run_ggcs_se3_maze_experiment.py --config-path ../config/ggcs_experiments --config-dir config --config-name reaches_new_sampling_ggcs
 ```
 
 ## Running multiple experiments

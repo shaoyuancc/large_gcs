@@ -5,8 +5,8 @@ job_logging:
     large_gcs.graph:
       level: INFO
     large_gcs.algorithms:
-      level: DEBUG
+      level: INFO
     large_gcs.cost_estimators:
       level: INFO
     large_gcs.domination_checkers:
-      level: DEBUG
+      level: INFO
