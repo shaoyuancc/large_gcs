@@ -444,7 +444,7 @@ def vertex_constraint_force_act_limits(
     raise NotImplementedError
 
 
-def vertex_constraint_last_pos_equality(
+def vertex_constraint_last_pos_equality_contact(
     vars: ContactSetDecisionVariables, sample: np.ndarray
 ) -> LinearEqualityConstraint:
     """Creates a constraint that enforces the last position of the vertex to be

@@ -1,14 +1,14 @@
 defaults:
   - algorithm: gcs_astar_reachability
   - cost_estimator: shortcut_edge
-  - domination_checker: reaches_new_sampling
+  - domination_checker: reaches_new_last_pos_sampling
   - hydra: hydra
 
 graph_name: "problem_1"
 
 cost_estimator:
   # USE L1 NORM SHORTCUT EDGE COST
-  shortcut_edge_cost_factory: large_gcs.graph.cfree_cost_constraint_factory.create_cfree_shortcut_edge_factory_over
+  shortcut_edge_cost_factory: large_gcs.graph.cfree_cost_constraint_factory.create_cfree_shortcut_edge_factory_translation_weighted_over
 
 save_visualization: true
 save_solution: true
@@ -24,8 +24,8 @@ domination_checker:
   num_samples_per_vertex: 1
   should_use_candidate_sol: false
 
-# hydra:
-#   mode: MULTIRUN
-#   sweeper:
-#     params:
-#       graph_name: 
+hydra:
+  mode: MULTIRUN
+  sweeper:
+    params:
+      graph_name: problem_2

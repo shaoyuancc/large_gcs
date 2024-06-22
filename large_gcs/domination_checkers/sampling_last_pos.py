@@ -4,12 +4,15 @@ from typing import Tuple
 from numpy import ndarray
 
 from large_gcs.algorithms.search_algorithm import SearchNode
-from large_gcs.contact.contact_set import ContactSet
+from large_gcs.contact.contact_set import ContactPointSet, ContactSet
 from large_gcs.domination_checkers.sampling_domination_checker import (
     SamplingDominationChecker,
 )
+from large_gcs.graph.cfree_cost_constraint_factory import (
+    vertex_constraint_last_pos_equality_cfree,
+)
 from large_gcs.graph.contact_cost_constraint_factory import (
-    vertex_constraint_last_pos_equality,
+    vertex_constraint_last_pos_equality_contact,
 )
 from large_gcs.graph.graph import ShortestPathSolution, Vertex
 
@@ -27,16 +30,20 @@ class SamplingLastPos(SamplingDominationChecker):
         self, sample: ndarray, sample_vertex_name: str, candidate_node: SearchNode
     ) -> None:
         # logger.debug(f"_add_sample_to_graph in SamplingLastPos")
-        contact_set: ContactSet = self._graph.vertices[
-            candidate_node.vertex_name
-        ].convex_set
+        convex_set = self._graph.vertices[candidate_node.vertex_name].convex_set
         # logger.debug(f"sample: {sample}")
+        if isinstance(convex_set, ContactSet) or isinstance(
+            convex_set, ContactPointSet
+        ):
+            con = vertex_constraint_last_pos_equality_contact(convex_set.vars, sample)
+        else:
+            # Assume that the convex set has 2 knot points and the last position is the second knot point i.e. the second half of the variables.
+            con = vertex_constraint_last_pos_equality_cfree(sample)
+
         self._graph.add_vertex(
             vertex=Vertex(
-                convex_set=contact_set,
-                constraints=[
-                    vertex_constraint_last_pos_equality(contact_set.vars, sample)
-                ],
+                convex_set=convex_set,
+                constraints=[con],
             ),
             name=sample_vertex_name,
         )
