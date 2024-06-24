@@ -1,8 +1,10 @@
+import ast
 import logging
 import os
 from pathlib import Path
 
 import hydra
+import numpy as np
 from hydra.core.hydra_config import HydraConfig
 from hydra.types import RunMode
 from hydra.utils import get_original_cwd, instantiate
@@ -73,7 +75,23 @@ def main(cfg: OmegaConf) -> None:
         wandb.run.log_code(root=os.path.join(os.environ["PROJECT_ROOT"], "large_gcs"))
 
     logger.info(cfg)
-    g = CFreeGraph.load_from_file(cfg.graph_name)
+
+    # Parse the input string to get the polyhedron indices and points
+    # source_list = ast.literal_eval(cfg.source.replace('np.pi', str(np.pi)))
+    # target_list = ast.literal_eval(cfg.target.replace('np.pi', str(np.pi)))
+    # source_list = list(cfg.source)
+    # target_list = list(cfg.target)
+
+    logger.info(f"source_list: {cfg.source}")
+    logger.info(f"target_list: {cfg.target}")
+
+    g = CFreeGraph.load_from_file(
+        graph_name=cfg.graph_name,
+        source=np.array(cfg.source.point),
+        target=np.array(cfg.target.point),
+        source_poly_idx=cfg.source.poly_idx,
+        target_poly_idx=cfg.target.poly_idx,
+    )
 
     cost_estimator: CostEstimator = instantiate(
         cfg.cost_estimator, graph=g, add_const_cost=False
@@ -103,14 +121,14 @@ def main(cfg: OmegaConf) -> None:
             )
 
     if sol is not None and cfg.save_metrics:
-        metrics_path = Path(full_log_dir) / f"{output_base}metrics.json"
+        metrics_path = Path(full_log_dir) / f"{output_base}_metrics.json"
         alg.save_alg_metrics(metrics_path)
 
         if cfg.save_to_wandb:
             wandb.save(str(metrics_path))  # type: ignore
 
     if sol is not None and cfg.save_solution:
-        sol_path = Path(full_log_dir) / f"{output_base}solution.pkl"
+        sol_path = Path(full_log_dir) / f"{output_base}_solution.pkl"
         sol.save(sol_path)
 
         if cfg.save_to_wandb:

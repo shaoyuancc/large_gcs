@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List, NamedTuple, Optional
 
 import matplotlib.pyplot as plt
+import numpy as np
 from omegaconf import OmegaConf
 
 from large_gcs.algorithms.search_algorithm import AlgMetrics
@@ -24,12 +25,20 @@ class SamplingSingleRunData(NamedTuple):
     num_samples: int
 
 
-class SamplingRunData:
+class GgcsSingleRunData(NamedTuple):
+    cost: float
+    wall_clock_time: float
+    num_paths_expanded: int
+    source: str
+    target: str
+
+
+class MultirunData:
     def __init__(self, run_data: List[SamplingSingleRunData | SingleRunData]) -> None:
         self.data = run_data
 
     @classmethod
-    def load_from_folder(cls, data_dir: Path) -> "SamplingRunData":
+    def load_from_folder(cls, data_dir: Path) -> "MultirunData":
         run_data = []
 
         all_runs_are_sampled = True
@@ -42,28 +51,26 @@ class SamplingRunData:
             # Load the config file for this run
             config_path = path / "config.yaml"
             if not config_path.is_file():
-                raise RuntimeError(
-                    f"The config file {
-                        config_path}"
-                    "does not exist."
-                )
+                raise RuntimeError(f"The config file {config_path}" f"does not exist.")
 
             cfg: DictConfig = OmegaConf.load(config_path)  # type: ignore
 
-            sol_files = list(path.glob("*_solution.pkl"))
+            sol_files = list(path.glob("*solution.pkl"))
             if not len(sol_files) == 1:
                 raise RuntimeError(
-                    f"Found more than one solution file in {path}."
+                    f"Found more or fewer than one solution file in {path}."
                     f"This is not expected, so something is likely wrong."
+                    f"{sol_files}"
                 )
             sol_file = sol_files[0]
             sol = ShortestPathSolution.load(sol_file)
 
-            metric_files = list(path.glob("*_metrics.json"))
+            metric_files = list(path.glob("*metrics.json"))
             if not len(metric_files) == 1:
                 raise RuntimeError(
-                    f"Found more than one metric file in {path}."
+                    f"Found more or fewer than one metric file in {path}."
                     f"This is not expected, so something is likely wrong."
+                    f"{metric_files}"
                 )
             metric_file = metric_files[0]
             metrics = AlgMetrics.load(metric_file)
@@ -75,7 +82,16 @@ class SamplingRunData:
                 metrics.n_vertices_expanded[HIERARCHY_IDX]  # type: ignore
                 + metrics.n_vertices_reexpanded[HIERARCHY_IDX]  # type: ignore
             )
-            if "num_samples_per_vertex" in cfg.domination_checker.keys():
+            if "source" in cfg.keys():
+                data = GgcsSingleRunData(
+                    sol.cost,
+                    metrics.time_wall_clock,
+                    n_paths_expanded,
+                    OmegaConf.to_container(cfg.source, resolve=False),
+                    OmegaConf.to_container(cfg.target, resolve=False),
+                )
+                all_runs_are_sampled = False
+            elif "num_samples_per_vertex" in cfg.domination_checker.keys():
                 num_samples = cfg.domination_checker.num_samples_per_vertex
 
                 data = SamplingSingleRunData(
@@ -132,7 +148,7 @@ class SamplingRunData:
         with open(output_path, "w") as f:
             json.dump(data_dict_list, f, indent=4)
 
-    def make_plot(
+    def make_sampling_comparison_plot(
         self,
         ah_baseline: Optional[SingleRunData] = None,
         output_path: Optional[Path] = None,

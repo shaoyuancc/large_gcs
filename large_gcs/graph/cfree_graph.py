@@ -27,6 +27,8 @@ class CFreeGraph(Graph):
         self,
         source: np.ndarray,
         target: np.ndarray,
+        source_poly_idx: int,
+        target_poly_idx: int,
         hpolys: List[HPolyhedron],
         adj_list: List,
     ) -> None:
@@ -67,12 +69,12 @@ class CFreeGraph(Graph):
         # Add edges from source and to target
         source_edge = Edge(
             "source",
-            "region_0",
+            f"region_{source_poly_idx}",
             constraints=[create_source_region_edge_constraint(base_dim)],
         )
         self.add_edge(edge=source_edge)
         target_edge = Edge(
-            "region_1",
+            f"region_{target_poly_idx}",
             "target",
             constraints=[create_region_target_edge_constraint(base_dim)],
         )
@@ -82,7 +84,14 @@ class CFreeGraph(Graph):
         self.set_target("target")
 
     @classmethod
-    def load_from_file(cls, graph_name: str) -> "CFreeGraph":
+    def load_from_file(
+        cls,
+        graph_name: str,
+        source: np.ndarray,
+        target: np.ndarray,
+        source_poly_idx: int,
+        target_poly_idx: int,
+    ) -> "CFreeGraph":
         base = os.path.join(
             os.environ["PROJECT_ROOT"], "example_graphs", f"{graph_name}"
         )
@@ -93,11 +102,14 @@ class CFreeGraph(Graph):
         with open(adj_file, "rb") as f:
             adj_list = pickle.load(f)
 
-        # TODO Do not hardcode this:
-        source = np.array([4.25, 0.25, 0.15, 0, 0, 0])
-        target = np.array([4.25, 4.25, 0.15, np.pi, np.pi, np.pi])
-
-        return cls(source=source, target=target, hpolys=regions, adj_list=adj_list)
+        return cls(
+            source=source,
+            target=target,
+            source_poly_idx=source_poly_idx,
+            target_poly_idx=target_poly_idx,
+            hpolys=regions,
+            adj_list=adj_list,
+        )
 
     @staticmethod
     def graph_file_path_from_name(name: str) -> str:

@@ -97,9 +97,21 @@ python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR
 ```
 
 ## Running GGCS experiments
+Configs for the GGCS experiments are located in `config/ggcs_experiments`
 ```
+
+To run an experiment:
 python3 experiments/run_ggcs_se3_maze_experiment.py --config-path ../config/ggcs_experiments --config-dir config --config-name reaches_new_sampling_ggcs
 ```
+
+This will produce output files in the folder `multirun/{current_date}/{current_time}`
+
+To aggregate multirun data run:
+```
+python3 scripts/process_multirun_data.py --dir  multirun/{date}/{time}
+```
+
+This will save a json file of the data from all the runs (`aggregated_run_data.json`) to the same multirun folder.
 
 ## Running multiple experiments
 

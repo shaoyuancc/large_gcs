@@ -3,8 +3,11 @@ defaults:
   - cost_estimator: shortcut_edge
   - domination_checker: reaches_new_last_pos_sampling
   - hydra: hydra
+  - source: point_6
+  - target: point_8
 
-graph_name: "problem_1"
+
+graph_name: "problem_3"
 
 cost_estimator:
   # USE L1 NORM SHORTCUT EDGE COST
@@ -13,7 +16,7 @@ cost_estimator:
 save_visualization: true
 save_solution: true
 save_metrics: true
-save_to_wandb: true
+save_to_wandb: false
 
 algorithm:
   should_invert_S: true
@@ -24,8 +27,14 @@ domination_checker:
   num_samples_per_vertex: 1
   should_use_candidate_sol: false
 
+
 hydra:
   mode: MULTIRUN
   sweeper:
-    params:
-      graph_name: problem_2
+    params: 
+      # Test with just 2 points
+      # source: point_6, point_8
+      # target: point_6, point_8
+      # Test with all 9 points
+      source: point_0, point_1, point_2, point_3, point_4, point_5, point_6, point_7, point_8
+      target: point_0, point_1, point_2, point_3, point_4, point_5, point_6, point_7, point_8

@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from large_gcs.visualize.plot_sampling_comparison import SamplingRunData, SingleRunData
+from large_gcs.visualize.multirun_data import MultirunData, SingleRunData
 
 
 def main() -> None:
@@ -31,11 +31,11 @@ def main() -> None:
         print(f"The directory {data_dir} does not exist.")
         return
 
-    run_data = SamplingRunData.load_from_folder(data_dir)
+    run_data = MultirunData.load_from_folder(data_dir)
 
     if args.ah_dir is not None:
         ah_comparison_data_dir = Path(args.ah_dir)
-        ah_run_data = SamplingRunData.load_from_folder(ah_comparison_data_dir)
+        ah_run_data = MultirunData.load_from_folder(ah_comparison_data_dir)
         ah_run_data.save(ah_comparison_data_dir / "aggregated_run_data.json")
 
         if (
@@ -48,9 +48,9 @@ def main() -> None:
             )
         ah_data = ah_run_data.data[0]
 
-        run_data.make_plot(ah_data)
+        run_data.make_sampling_comparison_plot(ah_data)
     else:
-        run_data.make_plot()
+        run_data.make_sampling_comparison_plot()
 
 
 if __name__ == "__main__":

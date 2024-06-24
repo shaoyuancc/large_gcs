@@ -163,14 +163,14 @@ def main(cfg: OmegaConf) -> None:
             )
 
     if sol is not None and cfg.save_metrics:
-        metrics_path = Path(full_log_dir) / f"{output_base}metrics.json"
+        metrics_path = Path(full_log_dir) / f"{output_base}_metrics.json"
         alg.save_alg_metrics(metrics_path)
 
         if cfg.save_to_wandb:
             wandb.save(str(metrics_path))  # type: ignore
 
     if sol is not None and cfg.save_solution:
-        sol_path = Path(full_log_dir) / f"{output_base}solution.pkl"
+        sol_path = Path(full_log_dir) / f"{output_base}_solution.pkl"
         sol.save(sol_path)
 
         if cfg.save_to_wandb:
