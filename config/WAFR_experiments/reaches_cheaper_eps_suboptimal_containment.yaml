@@ -1,5 +1,5 @@
 defaults:
-  - algorithm: gcs_astar_reachability
+  - algorithm: gcs_star
   - cost_estimator: shortcut_edge
   - domination_checker: reaches_cheaper_last_pos_sampling_containment
   - hydra: hydra

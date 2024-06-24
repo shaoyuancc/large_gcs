@@ -12,7 +12,6 @@ from large_gcs.domination_checkers.ah_containment_last_pos import (
     ReachesCheaperLastPosContainment,
     ReachesNewLastPosContainment,
 )
-from large_gcs.domination_checkers.domination_checker import DominationChecker
 from large_gcs.domination_checkers.reaches_cheaper_containment import (
     ReachesCheaperContainment,
 )

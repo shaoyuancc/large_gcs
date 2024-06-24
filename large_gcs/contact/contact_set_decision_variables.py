@@ -16,18 +16,6 @@ class ContactSetDecisionVariables:
     base_all: np.ndarray
 
     @classmethod
-    def from_factored_collision_free_body(cls, body: RigidBody):
-        empty = np.array([])
-        pos = body.vars_pos[np.newaxis, :]
-        return cls(
-            pos=pos,
-            force_act=empty,
-            force_mag_AB=empty,
-            all=pos.flatten(),
-            base_all=pos[:, 0].flatten(),
-        )
-
-    @classmethod
     def from_contact_pair_modes(
         cls,
         objects: List[RigidBody],

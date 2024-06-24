@@ -1,6 +1,6 @@
 defaults:
-  - algorithm: gcs_astar_convex_restriction
-  - cost_estimator: factored_collision_free #shortcut_edge
+  - algorithm: gcs_naive_astar
+  - cost_estimator: shortcut_edge
   - hydra: hydra
 
 graph_name: "cg_trichal2"
@@ -25,5 +25,4 @@ hydra:
     params:
       should_incl_simul_mode_switches: false, true
       should_add_const_edge_cost: false, true
-      cost_estimator: factored_collision_free, shortcut_edge
       graph_name: cg_trichal2, cg_trichal4, cg_maze_a2, cg_maze_a1

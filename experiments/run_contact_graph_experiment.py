@@ -9,8 +9,6 @@ from hydra.utils import get_original_cwd, instantiate
 from omegaconf import OmegaConf, open_dict
 
 import wandb
-from large_gcs.algorithms.gcs_hastar import GcsHAstar
-from large_gcs.algorithms.gcs_hastar_reachability import GcsHAstarReachability
 from large_gcs.algorithms.search_algorithm import AlgVisParams, SearchAlgorithm
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.domination_checkers.domination_checker import DominationChecker
@@ -80,15 +78,7 @@ def main(cfg: OmegaConf) -> None:
             graph_file,
             should_incl_simul_mode_switches=cfg.should_incl_simul_mode_switches,
             should_add_const_edge_cost=cfg.should_add_const_edge_cost,
-            should_add_gcs=(
-                True
-                if (
-                    "abstraction_model_generator" in cfg
-                    or cfg.algorithm._target_
-                    == "large_gcs.algorithms.gcs_astar_reachability.GcsAstarReachability"
-                )
-                else False
-            ),
+            should_add_gcs=True,
             should_use_l1_norm_vertex_cost=cfg.should_use_l1_norm_vertex_cost,
         )
     else:
@@ -108,23 +98,7 @@ def main(cfg: OmegaConf) -> None:
         if cfg.graph_name != checkpoint_cfg.graph_name:
             raise ValueError("Checkpoint graph name does not match current graph name.")
 
-    if "abstraction_model_generator" in cfg:
-        abs_model_generator = instantiate(cfg.abstraction_model_generator)
-        abs_model = abs_model_generator.generate(concrete_graph=cg)
-        if cfg.algorithm._target_ == "large_gcs.algorithms.gcs_hastar.GcsHAstar":
-            alg = GcsHAstar(
-                abs_model=abs_model, reexplore_levels=cfg.algorithm.reexplore_levels
-            )
-        elif (
-            cfg.algorithm._target_
-            == "large_gcs.algorithms.gcs_hastar_reachability.GcsHAstarReachability"
-        ):
-            alg = GcsHAstarReachability(
-                abs_model=abs_model,
-                num_samples_per_vertex=cfg.algorithm.num_samples_per_vertex,
-                vis_params=AlgVisParams(log_dir=full_log_dir),
-            )
-    elif cfg.algorithm._target_ in BASELINE_ALGS:
+    if cfg.algorithm._target_ in BASELINE_ALGS:
         lbg = LowerBoundGraph.load_from_name(cfg.graph_name)
         alg = instantiate(
             cfg.algorithm,
@@ -151,10 +125,7 @@ def main(cfg: OmegaConf) -> None:
 
     save_outputs = cfg.save_metrics or cfg.save_visualization or cfg.save_solution
     if save_outputs:
-        if "abstraction_model_generator" in cfg:
-            model_name = cfg.abstraction_model_generator["_target_"].split(".")[-1]
-            output_base = f"{alg.__class__.__name__}_" f"{model_name}_{cfg.graph_name}"
-        elif cfg.algorithm._target_ in BASELINE_ALGS:
+        if cfg.algorithm._target_ in BASELINE_ALGS:
             output_base = f"{alg.__class__.__name__}_{cfg.graph_name}"
         else:
             output_base = (
@@ -178,16 +149,11 @@ def main(cfg: OmegaConf) -> None:
 
     if sol is not None and cfg.save_visualization:
         vid_file = os.path.join(full_log_dir, f"{output_base}.mp4")
-        # graphviz_file = os.path.join(full_log_dir, f"{output_base}_visited_subgraph")
-        # gviz = alg._visited.graphviz()
-        # gviz.format = "pdf"
-        # gviz.render(graphviz_file, view=False)
 
         anim = cg.animate_solution()
         anim.save(vid_file)
         if cfg.save_to_wandb:
             wandb.log({"animation": wandb.Video(vid_file)})
-            # wandb.save(graphviz_file + ".pdf")
 
         # Generate both a png and a pdf
         traj_figure_file = Path(full_log_dir) / f"{output_base}_trajectory.pdf"

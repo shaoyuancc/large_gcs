@@ -4,7 +4,6 @@ import logging
 import os
 import time
 from collections import defaultdict, namedtuple
-from copy import copy
 from dataclasses import dataclass
 from multiprocessing import Pool
 from typing import Dict, List, Optional, Tuple

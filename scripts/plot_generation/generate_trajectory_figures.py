@@ -2,7 +2,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 from tqdm import tqdm
 
 from large_gcs.algorithms.search_algorithm import AlgMetrics
@@ -32,7 +32,7 @@ def _construct_graph(cfg: DictConfig) -> ContactGraph:
                 if (
                     "abstraction_model_generator" in cfg
                     or cfg.algorithm._target_
-                    == "large_gcs.algorithms.gcs_astar_reachability.GcsAstarReachability"
+                    == "large_gcs.algorithms.gcs_star.GcsAstarReachability"
                 )
                 else False
             ),

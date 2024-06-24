@@ -4,13 +4,12 @@ import multiprocessing
 import numpy as np
 from pydrake.all import AffineSubspace, ClpSolver
 from pydrake.all import ConvexSet as DrakeConvexSet
-from pydrake.all import GurobiSolver, HPolyhedron, MathematicalProgram, MosekSolver
+from pydrake.all import HPolyhedron, MathematicalProgram
 from pydrake.all import Point as DrakePoint
 from scipy.linalg import null_space
 
 from large_gcs.geometry.convex_set import ConvexSet
 from large_gcs.geometry.geometry_utils import remove_rows_near_zero
-from large_gcs.utils.utils import copy_pastable_str_from_np_array
 
 logger = logging.getLogger(__name__)
 AFFINE_SUBSPACE_TOL = 1e-9

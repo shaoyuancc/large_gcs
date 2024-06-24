@@ -1,5 +1,5 @@
 defaults:
-  - algorithm: gcs_astar_convex_restriction
+  - algorithm: gcs_naive_astar
   - cost_estimator: shortcut_edge
   - hydra: hydra
 

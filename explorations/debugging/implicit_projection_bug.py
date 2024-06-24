@@ -1,6 +1,6 @@
 import logging
 
-from large_gcs.algorithms.gcs_astar_reachability import GcsAstarReachability
+from large_gcs.algorithms.gcs_star import GcsStar
 from large_gcs.cost_estimators.shortcut_edge_ce import ShortcutEdgeCE
 from large_gcs.graph.contact_cost_constraint_factory import (
     contact_shortcut_edge_cost_factory_over_obj_weighted,
@@ -27,5 +27,5 @@ cost_estimator = ShortcutEdgeCE(
     cg,
     shortcut_edge_cost_factory=contact_shortcut_edge_cost_factory_over_obj_weighted,
 )
-alg = GcsAstarReachability(cg, cost_estimator, num_samples_per_vertex=5)
+alg = GcsStar(cg, cost_estimator, num_samples_per_vertex=5)
 sol: ShortestPathSolution = alg.run()

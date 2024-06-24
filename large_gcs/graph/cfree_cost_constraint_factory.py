@@ -1,5 +1,3 @@
-from typing import Optional
-
 import numpy as np
 import scipy
 from pydrake.all import L2NormCost, LinearEqualityConstraint

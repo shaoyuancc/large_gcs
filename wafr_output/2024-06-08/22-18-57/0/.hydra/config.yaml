@@ -1,5 +1,5 @@
 algorithm:
-  _target_: large_gcs.algorithms.gcs_astar_reachability.GcsAstarReachability
+  _target_: large_gcs.algorithms.gcs_star.GcsAstarReachability
   should_terminate_early: false
   should_invert_S: true
 cost_estimator:

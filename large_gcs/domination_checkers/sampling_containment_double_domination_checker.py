@@ -1,14 +1,12 @@
 import logging
 import multiprocessing
-import time
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import List, Tuple
 
 import numpy as np
 import pypolycontain as pp
 from pydrake.all import GurobiSolver, MathematicalProgram
 
-from large_gcs.algorithms.search_algorithm import AlgMetrics, SearchNode
+from large_gcs.algorithms.search_algorithm import SearchNode
 from large_gcs.domination_checkers.ah_containment_last_pos import (
     AHContainmentLastPos,
     ReachesCheaperLastPosContainment,

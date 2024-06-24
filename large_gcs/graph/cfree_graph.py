@@ -1,13 +1,11 @@
 import logging
 import os
 import pickle
-import pprint
-from typing import List, Optional
+from typing import List
 
 import numpy as np
 import scipy
-from numpy import ndarray
-from pydrake.all import CalcPairwiseIntersections, HPolyhedron
+from pydrake.all import HPolyhedron
 
 from large_gcs.geometry.point import Point
 from large_gcs.geometry.polyhedron import Polyhedron
@@ -17,7 +15,7 @@ from large_gcs.graph.cfree_cost_constraint_factory import (
     create_region_target_edge_constraint,
     create_source_region_edge_constraint,
 )
-from large_gcs.graph.graph import DefaultGraphCostsConstraints, Edge, Graph, Vertex
+from large_gcs.graph.graph import Edge, Graph, Vertex
 
 logger = logging.getLogger(__name__)
 

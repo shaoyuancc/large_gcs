@@ -1,5 +1,0 @@
-_target_: large_gcs.cost_estimators.factored_collision_free_ce.FactoredCollisionFreeCE
-
-add_transition_cost: true
-use_combined_gcs: true
-obj_multiplier: 100

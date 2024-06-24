@@ -1,8 +1,5 @@
 import logging
 
-import numpy as np
-from scipy.linalg import block_diag
-
 from large_gcs.algorithms.search_algorithm import SearchNode
 from large_gcs.contact.contact_set import ContactSet
 from large_gcs.domination_checkers.ah_containment_domination_checker import (

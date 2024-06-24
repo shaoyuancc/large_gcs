@@ -1,10 +1,9 @@
 import logging
 
-import numpy as np
 import pytest
 from pydrake.all import HPolyhedron
 
-from large_gcs.algorithms.gcs_astar_reachability import GcsAstarReachability
+from large_gcs.algorithms.gcs_star import GcsStar
 from large_gcs.algorithms.search_algorithm import AlgMetrics, SearchNode
 from large_gcs.cost_estimators.shortcut_edge_ce import ShortcutEdgeCE
 from large_gcs.domination_checkers.ah_containment_last_pos import (
@@ -15,7 +14,6 @@ from large_gcs.domination_checkers.reaches_cheaper_containment import (
     ReachesCheaperContainment,
 )
 from large_gcs.domination_checkers.reaches_new_containment import ReachesNewContainment
-from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.contact_cost_constraint_factory import (
     contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted,
 )
@@ -214,7 +212,7 @@ def test_construct_path_from_nullspaces_reaches_new_cg_trichal4():
             shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted,
             add_const_cost=True,
         )
-        alg = GcsAstarReachability(
+        alg = GcsStar(
             graph=cg,
             cost_estimator=cost_estimator,
             domination_checker=domination_checker,
@@ -252,7 +250,7 @@ def test_construct_path_from_nullspaces_reaches_cheaper_cg_trichal4():
             shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted,
             add_const_cost=True,
         )
-        alg = GcsAstarReachability(
+        alg = GcsStar(
             graph=cg,
             cost_estimator=cost_estimator,
             domination_checker=domination_checker,
@@ -290,7 +288,7 @@ def test_construct_path_from_nullspaces_reaches_new_last_pos_cg_trichal4():
             shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted,
             add_const_cost=True,
         )
-        alg = GcsAstarReachability(
+        alg = GcsStar(
             graph=cg,
             cost_estimator=cost_estimator,
             domination_checker=domination_checker,
@@ -328,7 +326,7 @@ def test_construct_path_from_nullspaces_reaches_cheaper_last_pos_cg_trichal4():
             shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted,
             add_const_cost=True,
         )
-        alg = GcsAstarReachability(
+        alg = GcsStar(
             graph=cg,
             cost_estimator=cost_estimator,
             domination_checker=domination_checker,

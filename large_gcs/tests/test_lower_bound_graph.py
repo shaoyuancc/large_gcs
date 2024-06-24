@@ -3,7 +3,6 @@ import logging
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.lower_bound_graph import LowerBoundGraph
 from large_gcs.graph_generators.contact_graph_generator import (
-    ContactGraphGenerator,
     ContactGraphGeneratorParams,
 )
 
@@ -11,8 +10,6 @@ logging.basicConfig(level=logging.WARN)
 logging.getLogger("large_gcs").setLevel(logging.DEBUG)
 logging.getLogger("large_gcs.geometry.convex_set").setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
-import matplotlib.pyplot as plt
-import numpy as np
 
 
 def test_lbg_vertices_w_target_parent_are_0_cost():

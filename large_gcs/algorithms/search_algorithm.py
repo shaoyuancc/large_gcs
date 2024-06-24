@@ -3,7 +3,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import dataclass, field, fields
 from enum import Enum
 from functools import wraps
 from math import inf

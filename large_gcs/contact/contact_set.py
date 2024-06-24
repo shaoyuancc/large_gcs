@@ -133,35 +133,6 @@ class ContactSet(ConvexSet):
             additional_base_constraints,
         )
 
-    @classmethod
-    def from_factored_collision_free_body(
-        cls,
-        contact_pair_modes: List[ContactPairMode],
-        body: RigidBody,
-        additional_constraints: List[Formula] = None,
-        additional_base_constraints: List[Formula] = None,
-    ):
-        vars = ContactSetDecisionVariables.from_factored_collision_free_body(body)
-        return cls(
-            vars,
-            contact_pair_modes,
-            additional_constraints,
-            additional_base_constraints,
-        )
-
-    # def plot_base_set(self):
-    #     full_A = self._polyhedron.A()
-    #     full_b = self._polyhedron.b()
-
-    #     base_set_polyhedron = Polyhedron(full_A, full_b)
-    #     print(f"full_A: {full_A}")
-    #     print(f"full_b: {full_b}")
-    #     vertices = base_set_polyhedron.vertices
-    #     print(f"vertices: {vertices}")
-    #     for i in range (0, base_set_polyhedron.dim, 2):
-    #         plt.fill(*vertices[:, i:i+2].T, alpha=0.5, label=f"body{i/2}")
-    #     plt.legend()
-
     def get_samples(self, n_samples=100):
         return self._polyhedron.get_samples(n_samples)
 

@@ -9,7 +9,6 @@ from typing import Dict, List, Optional, Tuple
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
-from graphviz import Digraph
 from pydrake.all import (
     Binding,
     Constraint,
@@ -864,16 +863,6 @@ class Graph:
         }
         options.update(kwargs)
         plt.plot(*np.array([x for x in path]).T, **options)
-
-    def graphviz(self):
-        vertex_labels = self.vertex_names
-
-        G = Digraph()
-        for label in vertex_labels:
-            G.node(label)
-        for u, v in self.edge_keys:
-            G.edge(u, v, "")
-        return G
 
     def edge_key_index(self, edge_key):
         return self.edge_keys.index(edge_key)

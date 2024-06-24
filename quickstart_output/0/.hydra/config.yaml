@@ -1,5 +1,5 @@
 algorithm:
-  _target_: large_gcs.algorithms.gcs_astar_reachability.GcsAstarReachability
+  _target_: large_gcs.algorithms.gcs_star.GcsAstarReachability
 cost_estimator:
   _target_: large_gcs.cost_estimators.shortcut_edge_ce.ShortcutEdgeCE
   shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted

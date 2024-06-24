@@ -5,8 +5,6 @@ import numpy as np
 import pypolycontain as pp
 import scipy
 from pydrake.all import (
-    AffineSubspace,
-    ClpSolver,
     Constraint,
     GurobiSolver,
     HPolyhedron,
@@ -16,8 +14,6 @@ from pydrake.all import (
     LinearEqualityConstraint,
     MathematicalProgram,
     MathematicalProgramResult,
-    MosekSolver,
-    Solve,
     SolverOptions,
 )
 

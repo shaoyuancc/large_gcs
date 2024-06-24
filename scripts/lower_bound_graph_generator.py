@@ -4,13 +4,10 @@ import os
 import time
 
 import numpy as np
-from matplotlib import pyplot as plt
 
-from large_gcs.contact.contact_regions_set import ContactRegionParams
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.lower_bound_graph import LowerBoundGraph
 from large_gcs.graph_generators.contact_graph_generator import (
-    ContactGraphGenerator,
     ContactGraphGeneratorParams,
 )
 

@@ -1,24 +1,13 @@
 import logging
 
-import numpy as np
-import pytest
-from pydrake.all import HPolyhedron
-
 from large_gcs.algorithms.search_algorithm import AlgMetrics, SearchNode
 from large_gcs.domination_checkers.ah_containment_last_pos import (
     ReachesNewLastPosContainment,
 )
-from large_gcs.domination_checkers.reaches_cheaper_containment import (
-    ReachesCheaperContainment,
-)
-from large_gcs.domination_checkers.reaches_new_containment import ReachesNewContainment
-from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 from large_gcs.graph_generators.contact_graph_generator import (
     ContactGraphGeneratorParams,
 )
-from large_gcs.graph_generators.hor_vert_gcs import create_polyhedral_hor_vert_b_graph
-from large_gcs.graph_generators.one_dimensional_gcs import create_simple_1d_graph
 
 logger = logging.getLogger(__name__)
 

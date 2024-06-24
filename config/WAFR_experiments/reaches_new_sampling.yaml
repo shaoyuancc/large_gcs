@@ -1,5 +1,5 @@
 defaults:
-  - algorithm: gcs_astar_reachability
+  - algorithm: gcs_star
   - cost_estimator: shortcut_edge
   - domination_checker: reaches_new_last_pos_sampling
   - hydra: hydra
@@ -19,7 +19,7 @@ cost_estimator:
 save_visualization: true
 save_solution: true
 save_metrics: true
-save_to_wandb: true
+save_to_wandb: false
 
 algorithm:
   should_invert_S: true
@@ -36,4 +36,5 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      graph_name: cg_simple_4, cg_stackpush_d2, cg_maze_b1
+      graph_name: cg_simple_4
+      # graph_name: cg_simple_4, cg_stackpush_d2, cg_maze_b1

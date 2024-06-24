@@ -5,9 +5,7 @@ from typing import List, Type
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
-import scipy
 from pydrake.all import (
-    AffineSubspace,
     DecomposeAffineExpressions,
     Formula,
     FormulaKind,

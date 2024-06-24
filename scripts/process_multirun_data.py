@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from large_gcs.visualize.multirun_data import MultirunData, SingleRunData
+from large_gcs.visualize.multirun_data import MultirunData
 
 
 def main() -> None:

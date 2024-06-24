@@ -1,3 +1,0 @@
-_target_: large_gcs.algorithms.gcs_astar_reachability.GcsAstarReachability
-
-should_terminate_early: false

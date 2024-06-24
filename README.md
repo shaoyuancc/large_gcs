@@ -34,13 +34,11 @@ export GRB_LICENSE_FILE="/path/to/gurobi/license/gurobi.lic"
 ### Additional libraries used
 On Ubuntu
 ```
-sudo apt install graphviz
 sudo apt-get install python3-tk # For interactive plotting in graph generator script
 sudo apt install ffmpeg # For saving animation videos
 ```
 On MacOS, run the following command:
 ```
-brew install graphviz
 brew install python-tk 
 brew install ffmpeg
 ```
@@ -52,7 +50,7 @@ pip install kaleido
 
 If you have problems with poetry, when in the virtual env shell, run the following:
 ```
-pip install numpy matplotlib ipykernel scipy graphviz black tqdm pytest wandb hydra-core omegaconf autoflake isort pdbpp plotly docformatter drake kaleido pre-commit
+pip install numpy matplotlib ipykernel scipy black tqdm pytest wandb hydra-core omegaconf autoflake isort pdbpp plotly docformatter drake kaleido pre-commit
 ```
 
 ## Running pre-commit hooks
@@ -98,9 +96,8 @@ python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR
 
 ## Running GGCS experiments
 Configs for the GGCS experiments are located in `config/ggcs_experiments`
-```
-
 To run an experiment:
+```
 python3 experiments/run_ggcs_se3_maze_experiment.py --config-path ../config/ggcs_experiments --config-dir config --config-name reaches_new_sampling_ggcs
 ```
 

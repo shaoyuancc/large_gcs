@@ -155,7 +155,7 @@ hydra:
       hydra: hydra
       domination_checker: reaches_cheaper_sampling
       cost_estimator: shortcut_edge
-      algorithm: gcs_astar_reachability
+      algorithm: gcs_star
       hydra/env: default
       hydra/callbacks: null
       hydra/job_logging: default

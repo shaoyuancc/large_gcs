@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from large_gcs.algorithms.gcs_astar_convex_restriction import GcsAstarConvexRestriction
+from large_gcs.algorithms.gcs_naive_astar import GcsNaiveAstar
 from large_gcs.algorithms.search_algorithm import ReexploreLevel
 from large_gcs.cost_estimators.shortcut_edge_ce import ShortcutEdgeCE
 from large_gcs.graph.contact_cost_constraint_factory import (
@@ -26,7 +26,7 @@ def test_shortcut_edge_conv_res_cg_simple_2():
         cg,
         shortcut_edge_cost_factory=contact_shortcut_edge_cost_factory_over_obj_weighted,
     )
-    gcs_astar = GcsAstarConvexRestriction(
+    gcs_astar = GcsNaiveAstar(
         cg,
         cost_estimator=cost_estimator,
         reexplore_level=ReexploreLevel.NONE,
@@ -67,7 +67,7 @@ def test_shortcut_edge_conv_res_cg_simple_2_inc():
         cg,
         shortcut_edge_cost_factory=contact_shortcut_edge_cost_factory_over_obj_weighted,
     )
-    gcs_astar = GcsAstarConvexRestriction(
+    gcs_astar = GcsNaiveAstar(
         cg,
         cost_estimator=cost_estimator,
         reexplore_level=ReexploreLevel.NONE,
@@ -113,7 +113,7 @@ def test_shortcut_edge_conv_res_cg_simple_3_inc():
         cg,
         shortcut_edge_cost_factory=contact_shortcut_edge_cost_factory_over_obj_weighted,
     )
-    gcs_astar = GcsAstarConvexRestriction(
+    gcs_astar = GcsNaiveAstar(
         cg,
         cost_estimator=cost_estimator,
         reexplore_level=ReexploreLevel.NONE,
@@ -200,7 +200,7 @@ def test_shortcut_edge_conv_res_cg_trichal2():
         cg,
         shortcut_edge_cost_factory=contact_shortcut_edge_cost_factory_over_obj_weighted,
     )
-    gcs_astar = GcsAstarConvexRestriction(
+    gcs_astar = GcsNaiveAstar(
         cg,
         cost_estimator=cost_estimator,
         reexplore_level=ReexploreLevel.NONE,

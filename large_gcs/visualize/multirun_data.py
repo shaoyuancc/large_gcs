@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import List, NamedTuple, Optional
 
 import matplotlib.pyplot as plt
-import numpy as np
 from omegaconf import OmegaConf
 
 from large_gcs.algorithms.search_algorithm import AlgMetrics

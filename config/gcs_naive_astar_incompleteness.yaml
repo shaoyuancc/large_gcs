@@ -1,6 +1,6 @@
 defaults:
-  - algorithm: gcs_astar_convex_restriction
-  - cost_estimator: shortcut_edge # factored_collision_free #shortcut_edge
+  - algorithm: gcs_naive_astar
+  - cost_estimator: shortcut_edge
   - hydra: hydra
 
 graph_name: "cg_trichal5"

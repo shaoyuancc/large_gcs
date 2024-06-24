@@ -28,11 +28,9 @@ logger = logging.getLogger(__name__)
 # tracemalloc.start()
 
 
-class GcsAstarReachability(SearchAlgorithm):
+class GcsStar(SearchAlgorithm):
     """
-    Note:
-    - Use with factored_collision_free cost estimator not yet implemented.
-    In particular, this doesn't use a subgraph, but operates directly on the graph.
+    Note: this doesn't use a subgraph, but operates directly on the graph.
     """
 
     def __init__(

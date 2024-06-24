@@ -1,17 +1,20 @@
 defaults:
-  - algorithm: gcs_astar
-  - cost_estimator: shortcut_edge #factored_collision_free #shortcut_edge
+  - algorithm: gcs_naive_astar
+  - cost_estimator: shortcut_edge
   - hydra: hydra
 
-graph_name: "cg_trichal4"
+graph_name: "cg_maze_a2" # "cg_trichal2"
 should_use_incremental_graph: true
 should_incl_simul_mode_switches: false
 should_add_const_edge_cost: false
 
 # cost_estimator:
+#   obj_multiplier: 100
+#   use_combined_gcs: true
 #   shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted"
-# contact_shortcut_edge_cost_factory_over_obj_weighted
-# contact_shortcut_edge_cost_factory_under
+algorithm:
+  reexplore_level: 'NONE'
+  tiebreak: 'FIFO'
 
 save_visualization: true
-save_to_wandb: true
+save_to_wandb: false
