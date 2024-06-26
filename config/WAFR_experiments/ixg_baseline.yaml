@@ -25,4 +25,4 @@ hydra:
         level: INFO
   sweeper:
     params:
-      graph_name: cg_simple_4, cg_maze_b1
+      graph_name: cg_simple_4 #, cg_maze_b1

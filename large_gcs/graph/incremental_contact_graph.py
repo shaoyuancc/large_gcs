@@ -16,7 +16,7 @@ from large_gcs.contact.contact_set_decision_variables import ContactSetDecisionV
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.contact_graph import ContactGraph
-from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution, Vertex
+from large_gcs.graph.graph import Edge, Graph, Vertex
 
 logger = logging.getLogger(__name__)
 
@@ -289,39 +289,7 @@ class IncrementalContactGraph(ContactGraph):
             ),
         )
 
-    def solve_shortest_path(self, use_convex_relaxation=False) -> ShortestPathSolution:
-        if self._should_add_gcs:
-            return super().solve_shortest_path(use_convex_relaxation)
-        else:
-            raise ValueError(
-                f"Incremental graph should_add_gcs is False. Must set to True in order to solve."
-            )
-
-    def solve_factored_shortest_path(
-        self, transition: str, targets: List[str], use_convex_relaxation=False
-    ) -> ShortestPathSolution:
-        if self._should_add_gcs:
-            return super().solve_factored_shortest_path(
-                transition, targets, use_convex_relaxation
-            )
-        else:
-            raise ValueError(
-                f"Incremental graph should_add_gcs is False. Must set to True in order to solve."
-            )
-
-    def solve_factored_partial_convex_restriction(
-        self, active_edges: List[str], transition: str, targets: List[str]
-    ) -> ShortestPathSolution:
-        if self._should_add_gcs:
-            return super().solve_factored_partial_convex_restriction(
-                active_edges, transition, targets
-            )
-        else:
-            raise ValueError(
-                f"Incremental graph should_add_gcs is False. Must set to True in order to solve."
-            )
-
-    def generate_neighbors(self, u_vertex_name: str) -> None:
+    def generate_successors(self, u_vertex_name: str) -> None:
         """Generates neighbors and adds them to the graph, also adds edges from
         vertex to neighbors."""
         if u_vertex_name == self.source_name:

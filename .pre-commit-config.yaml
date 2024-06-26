@@ -1,9 +1,9 @@
 repos:
-# -   repo: https://github.com/PyCQA/autoflake
-#     rev: v2.2.0
-#     hooks:
-#       - id: autoflake
-#         args: ["--remove-unused-variables"]  # Only remove unused variables
+-   repo: https://github.com/PyCQA/autoflake
+    rev: v2.2.0
+    hooks:
+      - id: autoflake
+        args: ["--remove-unused-variables", "--remove-all-unused-imports", "--recursive", "--in-place"]  # Only remove unused variables
 -   repo: https://github.com/PyCQA/docformatter
     rev: v1.4  # Use the latest stable release
     hooks:

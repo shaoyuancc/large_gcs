@@ -1,3 +1,3 @@
 _target_: large_gcs.algorithms.ixg_star.IxGStar
 
-eps: 1
+heuristic_inflation_factor: 1

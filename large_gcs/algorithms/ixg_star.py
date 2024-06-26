@@ -1,74 +1,46 @@
-import itertools
 import logging
-import os
 import time
-from collections import defaultdict
-from typing import List, Optional
+from typing import Optional
 
 import numpy as np
 
-import wandb
 from large_gcs.algorithms.ixg import IxG
 from large_gcs.algorithms.search_algorithm import (
     AlgVisParams,
-    SearchAlgorithm,
     SearchNode,
+    TieBreak,
     profile_method,
 )
-from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
+from large_gcs.graph.graph import Graph, ShortestPathSolution
 from large_gcs.graph.lower_bound_graph import LowerBoundGraph
 
 logger = logging.getLogger(__name__)
 
 
-class IxGStar(SearchAlgorithm):
+class IxGStar(IxG):
     def __init__(
         self,
         graph: Graph,
         lbg: LowerBoundGraph,
-        eps: float = 1,
+        heuristic_inflation_factor: float = 1,
         vis_params: Optional[AlgVisParams] = None,
+        tiebreak: TieBreak = TieBreak.FIFO,
     ):
-        super().__init__()
-        self._graph = graph
-        self._target_name = graph.target_name
-        self._eps = eps
-        self._vis_params = vis_params
-        self._counter = itertools.count(start=0, step=1)
-        # Stores the search node with the lowest cost to come found so far for each vertex
-        self._S: dict[str, SearchNode] = {}
-        # Stores the cost to come found so far for each vertex
-        self._g: dict[str, float] = defaultdict(lambda: np.inf)
-        self._expanded = set()
-        self._visited = set()
-        # Priority queue
-        self._Q = []
-
-        self._lbg = lbg
-        self._lbg._graph = graph
-
-        # For logging/metrics
-        call_structure = {
-            "_run_iteration": [
-                "_visit_neighbor",
-                "_save_metrics",
-            ]
-        }
-        self._alg_metrics.update_method_call_structure(call_structure)
-        self._last_plots_save_time = time.time()
-        self._step = 0
-
-        self._ixg = IxG(graph, lbg, eps, vis_params=None, should_save_metrics=False)
-
-        start_node = SearchNode(
-            priority=0,
-            vertex_name=self._graph.source_name,
-            edge_path=[],
-            vertex_path=[self._graph.source_name],
-            sol=None,
+        super().__init__(
+            graph=graph,
+            lbg=lbg,
+            heuristic_inflation_factor=heuristic_inflation_factor,
+            vis_params=vis_params,
+            tiebreak=tiebreak,
         )
-        self._g[self._graph.source_name] = 0
-        self.push_node_on_Q(start_node)
+        # Initialization is exactly the same except we also initialize IxG
+        self._ixg = IxG(
+            graph,
+            lbg,
+            heuristic_inflation_factor,
+            vis_params=None,
+            should_save_metrics=False,
+        )
 
     def run(self):
         logger.info(f"Running {self.__class__.__name__}")
@@ -77,7 +49,7 @@ class IxGStar(SearchAlgorithm):
 
         ixg_sol = self._ixg.run()
         if ixg_sol is not None and ixg_sol.is_success:
-            self._ub = ixg_sol.cost
+            self._ub = ixg_sol.cost * self._heuristic_inflation_factor
         else:
             self._ub = np.inf
 
@@ -108,34 +80,15 @@ class IxGStar(SearchAlgorithm):
             self._save_metrics(n, [], override_save=True)
             return n.sol
 
-        # Allow reexpansions
-        if n.vertex_name in self._expanded:
-            self._alg_metrics.n_vertices_reexpanded[0] += 1
-        else:
-            self._expanded.add(n.vertex_name)
-            self._alg_metrics.n_vertices_expanded[0] += 1
+        self.update_expanded(n)
 
         edges = self._graph.outgoing_edges(n.vertex_name)
         self._save_metrics(n, edges)
         for edge in edges:
-            # Not part of IxG, should replace solve_convex_restriction with something that can handle repeated vertices
-            # neighbor_in_path = any(
-            #     (self._graph.edges[e].u == edge.v or self._graph.edges[e].v == edge.v)
-            #     for e in n.edge_path
-            # )
-            # if neighbor_in_path:
-            #     continue
-
-            self._visit_neighbor(n, edge)
+            self._explore_successor(n, edge)
 
     @profile_method
-    def _visit_neighbor(self, n: SearchNode, edge) -> None:
-        # This is actually not how visited is defined, should change this next time.
-        if edge.v in self._visited:
-            self._alg_metrics.n_vertices_revisited[0] += 1
-        else:
-            self._alg_metrics.n_vertices_visited[0] += 1
-            self._visited.add(edge.v)
+    def _explore_successor(self, n: SearchNode, edge) -> None:
         n_next = SearchNode.from_parent(child_vertex_name=edge.v, parent=n)
         self._graph.set_target(n_next.vertex_name)
         sol = self._graph.solve_convex_restriction(
@@ -150,60 +103,17 @@ class IxGStar(SearchAlgorithm):
         else:
             logger.debug(f"Path is feasible")
 
-        lb = sol.cost + self._eps * self._lbg.get_cost_to_go(n_next.vertex_name)
+        lb = sol.cost + self._heuristic_inflation_factor * self._lbg.get_cost_to_go(
+            n_next.vertex_name
+        )
 
-        if lb < self._eps * self._ub:
+        if lb < self._ub:
             self._g[n_next.vertex_name] = sol.cost
             n_next.sol = sol
             # Get priority from LBG
             n_next.priority = lb
             self.push_node_on_Q(n_next)
-
-    @profile_method
-    def _solve_convex_restriction(
-        self, active_edge_keys: List[str], skip_post_solve: bool = False
-    ):
-        sol = self._graph.solve_convex_restriction(active_edge_keys, skip_post_solve)
-        self._alg_metrics.update_after_gcs_solve(sol.time)
-        return sol
-
-    @profile_method
-    def _save_metrics(self, n: SearchNode, edges: List[Edge], override_save=False):
-        logger.info(
-            f"iter: {self._step}\n{self.alg_metrics}\nnow exploring node {n.vertex_name}'s {len(edges)} neighbors ({n.priority})"
-        )
-        self._step += 1
-        current_time = time.time()
-        PERIOD = 1200
-
-        if self._vis_params is not None and (
-            override_save or self._last_plots_save_time + PERIOD < current_time
-        ):
-            log_dir = self._vis_params.log_dir
-            # Pie chart of method times
-            pie_fig = self._alg_metrics.generate_method_time_piechart()
-            pie_fig.write_image(os.path.join(log_dir, "method_times_pie_chart.png"))
-
-            # checkpoint_path_str = self.save_checkpoint()
-
-            if wandb.run is not None:
-                # Log the Plotly figure and other metrics to wandb
-                wandb.log(
-                    {
-                        "method_times_pie_chart": wandb.Plotly(pie_fig),
-                    },
-                    step=self._step,
-                )
-                # wandb.save(checkpoint_path_str)
-            self._last_plots_save_time = current_time
-        self.log_metrics_to_wandb(n.priority)
-
-    def log_metrics_to_wandb(self, total_estimated_cost: float):
-        if wandb.run is not None:  # not self._S
-            wandb.log(
-                {
-                    "total_estimated_cost": total_estimated_cost,
-                    "alg_metrics": self.alg_metrics.to_dict(),
-                },
-                self._step,
-            )
+            self.add_node_to_S(n_next)
+            self.update_visited(n_next)
+        else:
+            self.update_pruned(n_next)

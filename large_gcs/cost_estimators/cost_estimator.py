@@ -11,9 +11,6 @@ class CostEstimator(ABC):
     def set_alg_metrics(self, alg_metrics: AlgMetrics):
         self._alg_metrics = alg_metrics
 
-    def setup_subgraph(self, subgraph: Graph):
-        """Setup the subgraph for use by the cost estimator."""
-
     @abstractmethod
     def estimate_cost(
         self, subgraph: Graph, edge: Edge, **kwargs

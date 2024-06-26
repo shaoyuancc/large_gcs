@@ -1,12 +1,9 @@
 import logging
 from typing import List
 
+from large_gcs.algorithms.search_algorithm import SearchNode
 from large_gcs.contact.contact_set import ContactPointSet, ContactSet
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
-from large_gcs.graph.contact_cost_constraint_factory import (
-    contact_shortcut_edge_l1_norm_plus_switches_cost_factory_over,
-    contact_shortcut_edge_l1_norm_plus_switches_cost_factory_under,
-)
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
 from large_gcs.utils.hydra_utils import get_function_from_string
 
@@ -40,63 +37,54 @@ class ShortcutEdgeCE(CostEstimator):
     def estimate_cost_on_graph(
         self,
         graph: Graph,
-        edge: Edge,
-        active_edges: List[Edge] = None,
+        successor: str,
+        node: SearchNode,
+        heuristic_inflation_factor: float,
         solve_convex_restriction: bool = False,
         use_convex_relaxation: bool = False,
     ) -> ShortestPathSolution:
-        neighbor = edge.v
 
         # Check if this neighbor is the target to see if shortcut edge is required
-        add_shortcut_edge = neighbor != self._graph.target_name
+        add_shortcut_edge = successor != self._graph.target_name
+        edge_to_successor = Edge.key_from_uv(node.vertex_name, successor)
         if add_shortcut_edge:
             # Add an edge from the neighbor to the target
             direct_edge_costs = None
             if self._shortcut_edge_cost_factory:
                 if isinstance(
-                    graph.vertices[neighbor].convex_set, ContactSet
-                ) or isinstance(graph.vertices[neighbor], ContactPointSet):
+                    graph.vertices[successor].convex_set, ContactSet
+                ) or isinstance(graph.vertices[successor], ContactPointSet):
                     # Only ContactSet and ContactPointSet have the vars attribute
                     # convex_sets in general do not.
-                    if (
-                        self._shortcut_edge_cost_factory
-                        is contact_shortcut_edge_l1_norm_plus_switches_cost_factory_under
-                        or self._shortcut_edge_cost_factory
-                        is contact_shortcut_edge_l1_norm_plus_switches_cost_factory_over
-                    ):
-                        direct_edge_costs = self._shortcut_edge_cost_factory(
-                            u_vars=self._graph.vertices[neighbor].convex_set.vars,
-                            v_vars=self._graph.vertices[
-                                self._graph.target_name
-                            ].convex_set.vars,
-                            n_switches=self._graph.num_modes_not_adj_to_target(
-                                neighbor
-                            ),
-                        )
-                    else:
-                        direct_edge_costs = self._shortcut_edge_cost_factory(
-                            u_vars=self._graph.vertices[neighbor].convex_set.vars,
-                            v_vars=self._graph.vertices[
-                                self._graph.target_name
-                            ].convex_set.vars,
-                            add_const_cost=self._add_const_cost,
-                        )
+                    direct_edge_costs = self._shortcut_edge_cost_factory(
+                        u_vars=self._graph.vertices[successor].convex_set.vars,
+                        v_vars=self._graph.vertices[
+                            self._graph.target_name
+                        ].convex_set.vars,
+                        heuristic_inflation_factor=heuristic_inflation_factor,
+                        add_const_cost=self._add_const_cost,
+                    )
 
                 else:
                     direct_edge_costs = self._shortcut_edge_cost_factory(
-                        self._graph.vertices[neighbor].convex_set.dim,
+                        self._graph.vertices[successor].convex_set.dim,
+                        heuristic_inflation_factor=heuristic_inflation_factor,
                         add_const_cost=self._add_const_cost,
                     )
+
             edge_to_target = Edge(
-                u=neighbor,
+                u=successor,
                 v=self._graph.target_name,
                 key_suffix="shortcut",
                 costs=direct_edge_costs,
             )
             graph.add_edge(edge_to_target)
-            conv_res_active_edges = active_edges + [edge.key, edge_to_target.key]
+            conv_res_active_edges = node.edge_path + [
+                edge_to_successor,
+                edge_to_target.key,
+            ]
         else:
-            conv_res_active_edges = active_edges + [edge.key]
+            conv_res_active_edges = node.edge_path + [edge_to_successor]
 
         if solve_convex_restriction:
             # If used shortcut edge, do not parse the full result since we won't use the solution.

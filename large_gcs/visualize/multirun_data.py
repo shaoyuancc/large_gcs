@@ -74,12 +74,8 @@ class MultirunData:
             metric_file = metric_files[0]
             metrics = AlgMetrics.load(metric_file)
 
-            # for hierarchical methods, we will have more entries.
-            # For this method, we only have one.
-            HIERARCHY_IDX = str(0)
             n_paths_expanded = (
-                metrics.n_vertices_expanded[HIERARCHY_IDX]  # type: ignore
-                + metrics.n_vertices_reexpanded[HIERARCHY_IDX]  # type: ignore
+                metrics.n_vertices_expanded + metrics.n_vertices_reexpanded
             )
             if "source" in cfg.keys():
                 data = GgcsSingleRunData(

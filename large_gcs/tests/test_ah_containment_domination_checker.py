@@ -15,7 +15,7 @@ from large_gcs.domination_checkers.reaches_cheaper_containment import (
 )
 from large_gcs.domination_checkers.reaches_new_containment import ReachesNewContainment
 from large_gcs.graph.contact_cost_constraint_factory import (
-    contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted,
+    contact_shortcut_edge_l1_norm_cost_factory_obj_weighted,
 )
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 from large_gcs.graph_generators.contact_graph_generator import (
@@ -209,7 +209,7 @@ def test_construct_path_from_nullspaces_reaches_new_cg_trichal4():
         domination_checker.set_alg_metrics(AlgMetrics())
         cost_estimator = ShortcutEdgeCE(
             graph=cg,
-            shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted,
+            shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_obj_weighted,
             add_const_cost=True,
         )
         alg = GcsStar(
@@ -217,6 +217,7 @@ def test_construct_path_from_nullspaces_reaches_new_cg_trichal4():
             cost_estimator=cost_estimator,
             domination_checker=domination_checker,
             save_expansion_order=True,
+            heuristic_inflation_factor=10,
         )
         alg.run()
         expansion_orders.append(alg.alg_metrics.expansion_order)
@@ -247,7 +248,7 @@ def test_construct_path_from_nullspaces_reaches_cheaper_cg_trichal4():
         domination_checker.set_alg_metrics(AlgMetrics())
         cost_estimator = ShortcutEdgeCE(
             graph=cg,
-            shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted,
+            shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_obj_weighted,
             add_const_cost=True,
         )
         alg = GcsStar(
@@ -255,6 +256,7 @@ def test_construct_path_from_nullspaces_reaches_cheaper_cg_trichal4():
             cost_estimator=cost_estimator,
             domination_checker=domination_checker,
             save_expansion_order=True,
+            heuristic_inflation_factor=10,
         )
         alg.run()
         expansion_orders.append(alg.alg_metrics.expansion_order)
@@ -285,7 +287,7 @@ def test_construct_path_from_nullspaces_reaches_new_last_pos_cg_trichal4():
         domination_checker.set_alg_metrics(AlgMetrics())
         cost_estimator = ShortcutEdgeCE(
             graph=cg,
-            shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted,
+            shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_obj_weighted,
             add_const_cost=True,
         )
         alg = GcsStar(
@@ -293,6 +295,7 @@ def test_construct_path_from_nullspaces_reaches_new_last_pos_cg_trichal4():
             cost_estimator=cost_estimator,
             domination_checker=domination_checker,
             save_expansion_order=True,
+            heuristic_inflation_factor=10,
         )
         alg.run()
         expansion_orders.append(alg.alg_metrics.expansion_order)
@@ -323,7 +326,7 @@ def test_construct_path_from_nullspaces_reaches_cheaper_last_pos_cg_trichal4():
         domination_checker.set_alg_metrics(AlgMetrics())
         cost_estimator = ShortcutEdgeCE(
             graph=cg,
-            shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted,
+            shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_obj_weighted,
             add_const_cost=True,
         )
         alg = GcsStar(
@@ -331,6 +334,7 @@ def test_construct_path_from_nullspaces_reaches_cheaper_last_pos_cg_trichal4():
             cost_estimator=cost_estimator,
             domination_checker=domination_checker,
             save_expansion_order=True,
+            heuristic_inflation_factor=10,
         )
         alg.run()
         expansion_orders.append(alg.alg_metrics.expansion_order)
@@ -491,82 +495,3 @@ def test_reaches_cheaper_containment_construct_from_ns_stuck_cg_stackpush_d2():
 
     node = SearchNode.from_vertex_path(vertex_path)
     assert domination_checker.is_dominated(candidate_node=node, alternate_nodes=[node])
-
-
-# @pytest.mark.slow_test
-# def test_reaches_new_containment_get_path_A_b_C_d_on_cg():
-#     graph_file = ContactGraphGeneratorParams.inc_graph_file_path_from_name(
-#         "cg_stackpush_d2"
-#     )
-#     cg = IncrementalContactGraph.load_from_file(
-#         graph_file,
-#         should_incl_simul_mode_switches=False,
-#         should_add_const_edge_cost=True,
-#         should_add_gcs=True,
-#         should_use_l1_norm_vertex_cost=True,
-#     )
-#     domination_checker = ReachesNewContainment(graph=cg, containment_condition=-1)
-#     domination_checker.set_alg_metrics(AlgMetrics())
-
-#     # fmt: off
-#     candidate_vertex_path = ['source', "('NC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f0-rob0_f2', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'NC|obj0_f0-rob0_f2', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('NC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'NC|obj0_f0-rob0_f2', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('NC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'IC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'IC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'IC|obs0_f3-obj1_v1', 'IC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'IC|obs0_f3-obj1_v1', 'NC|obs0_f2-obj2_f0', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'NC|obs0_f2-obj1_f0', 'NC|obs0_f2-obj2_f0', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f2-obj0_f0', 'NC|obs0_f2-obj1_f0', 'NC|obs0_f2-obj2_f0', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f2-obj0_f0', 'IC|obs0_f2-obj1_f0', 'NC|obs0_f2-obj2_f0', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f2-obj0_f0', 'IC|obs0_f2-obj1_f0', 'NC|obs0_f1-obj2_f3', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')"]
-#     # fmt: on
-
-#     # Load these two paths into the graph
-#     for v in candidate_vertex_path:
-#         cg.generate_neighbors(v)
-
-#     # Compare two alternate methods and make sure they produce the same results
-#     for i in range(2, len(candidate_vertex_path), 5):
-#         n1 = SearchNode.from_vertex_path(candidate_vertex_path[:i])
-#         A, b, C, d = domination_checker.get_path_A_b_C_d(n1)
-#         H_n, h_n = domination_checker.get_feasibility_matrices_via_prog(n1)
-#         A_n, b_n, C_n, d_n = Polyhedron.get_separated_inequality_equality_constraints(
-#             H_n, h_n
-#         )
-#         assert np.allclose(A_n, A)
-#         assert np.allclose(b_n, b)
-
-#         # Check whether A_n and A are effectively the same
-#         X = HPolyhedron(A_n, b_n)
-#         Y = HPolyhedron(A, b)
-#         assert not X.IsEmpty()
-#         assert not Y.IsEmpty()
-#         assert Y.ContainedIn(X, tol=1e-6)
-#         assert X.ContainedIn(Y, tol=1e-6)
-
-#         # Check whether C_n and C are effectively the same
-#         X = HPolyhedron(np.vstack([C_n, -C_n]), np.hstack([d_n, -d_n]))
-#         Y = HPolyhedron(np.vstack([C, -C]), np.hstack([d, -d]))
-#         assert not X.IsEmpty()
-#         assert not Y.IsEmpty()
-#         assert Y.ContainedIn(X)
-#         assert X.ContainedIn(Y)
-
-
-# def test_reaches_new_containment_cg_stackpush_d2():
-#     graph_file = ContactGraphGeneratorParams.inc_graph_file_path_from_name("cg_stackpush_d2")
-#     cg = IncrementalContactGraph.load_from_file(
-#         graph_file,
-#         should_incl_simul_mode_switches=False,
-#         should_add_const_edge_cost=True,
-#         should_add_gcs=True,
-#         should_use_l1_norm_vertex_cost=True,
-#     )
-#     domination_checker = ReachesNewContainment(graph=cg, containment_condition=-1)
-
-#     # fmt: off
-#     candidate_vertex_path = ['source', "('NC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f0-rob0_f2', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'NC|obj0_f0-rob0_f2', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('NC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'NC|obj0_f0-rob0_f2', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('NC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'IC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'IC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'IC|obs0_f3-obj1_v1', 'IC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'IC|obs0_f3-obj1_v1', 'NC|obs0_f2-obj2_f0', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'NC|obs0_f2-obj1_f0', 'NC|obs0_f2-obj2_f0', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f2-obj0_f0', 'NC|obs0_f2-obj1_f0', 'NC|obs0_f2-obj2_f0', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f2-obj0_f0', 'IC|obs0_f2-obj1_f0', 'NC|obs0_f2-obj2_f0', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f2-obj0_f0', 'IC|obs0_f2-obj1_f0', 'NC|obs0_f1-obj2_f3', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')"]
-#     alt_vertex_path = ['source', "('NC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f0-rob0_f2', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'NC|obj0_f0-rob0_f2', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('NC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'NC|obj0_f0-rob0_f2', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('NC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'NC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'NC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'IC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'NC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'IC|obs0_f3-obj1_v1', 'NC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'IC|obs0_f3-obj1_v1', 'IC|obs0_f3-obj2_v1', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'IC|obs0_f3-obj1_v1', 'NC|obs0_f2-obj2_f0', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f3-obj0_v1', 'NC|obs0_f2-obj1_f0', 'NC|obs0_f2-obj2_f0', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f2-obj0_f0', 'NC|obs0_f2-obj1_f0', 'NC|obs0_f2-obj2_f0', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f2-obj0_f0', 'NC|obs0_f2-obj1_f0', 'NC|obs0_f1-obj2_f3', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')", "('IC|obs0_f2-obj0_f0', 'IC|obs0_f2-obj1_f0', 'NC|obs0_f1-obj2_f3', 'NC|obs0_f3-rob0_v1', 'IC|obj0_f1-obj1_f3', 'NC|obj0_f1-obj2_f3', 'IC|obj0_f3-rob0_f1', 'IC|obj1_f1-obj2_f3', 'NC|obj1_f0-rob0_f2', 'NC|obj2_f0-rob0_f2')"]
-#     # fmt: on
-
-#     # Load these two paths into the graph
-#     for v in candidate_vertex_path + alt_vertex_path:
-#         cg.generate_neighbors(v)
-
-#     # Check that subpaths of the candidate path are contained within themselves
-#     for i in range(1, len(candidate_vertex_path)):
-#         candidate_node = SearchNode.from_vertex_path(candidate_vertex_path[:i])
-#         assert domination_checker.is_dominated(
-#             candidate_node=candidate_node, alternate_nodes=[candidate_node]
-#         )

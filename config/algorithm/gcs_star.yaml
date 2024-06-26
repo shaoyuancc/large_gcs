@@ -1,3 +1,0 @@
-_target_: large_gcs.algorithms.gcs_star.GcsStar
-
-should_terminate_early: false

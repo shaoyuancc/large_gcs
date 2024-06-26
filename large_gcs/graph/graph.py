@@ -37,8 +37,6 @@ class ShortestPathSolution:
     # List of vertex names and discrete coordinates in the path
     vertex_path: List[str]
     ambient_path: List[np.ndarray]
-    # Flows along the edges (range [0, 1])
-    flows: Optional[List[float]] = None
     # Result of the optimization
     result: Optional[MathematicalProgramResult] = None
 
@@ -366,22 +364,34 @@ class Graph:
         assert vertex_name in self.vertices
         self._target_name = vertex_name
 
-    def outgoing_edges(self, vertex_name: str) -> List[Edge]:
-        """Get the outgoing edges of a vertex."""
-        assert vertex_name in self.vertices
-        return [edge for edge in self.edges.values() if edge.u == vertex_name]
-
     def successors(self, vertex_name: str) -> List[str]:
         """Get the successors of a vertex."""
         return self._adjacency_list[vertex_name]
 
+    def outgoing_edges(self, vertex_name: str) -> List[Edge]:
+        """Get the outgoing edges of a vertex.
+
+        Note that this is an expensive call and should not be used in
+        the loop of a search algorithm.
+        """
+        assert vertex_name in self.vertices
+        return [edge for edge in self.edges.values() if edge.u == vertex_name]
+
     def incoming_edges(self, vertex_name: str) -> List[Edge]:
-        """Get the incoming edges of a vertex."""
+        """Get the incoming edges of a vertex.
+
+        Note that this is an expensive call and should not be used in
+        the loop of a search algorithm.
+        """
         assert vertex_name in self.vertices
         return [edge for edge in self.edges.values() if edge.v == vertex_name]
 
     def incident_edges(self, vertex_name: str) -> List[Edge]:
-        """Get the incident edges of a vertex."""
+        """Get the incident edges of a vertex.
+
+        Note that this is an expensive call and should not be used in
+        the loop of a search algorithm.
+        """
         assert vertex_name in self.vertices
         return [
             edge
@@ -417,14 +427,13 @@ class Graph:
         solver_options: Optional[SolverOptions] = None,
     ) -> ShortestPathSolution:
         edge_path = [self.edges[edge_key] for edge_key in active_edge_keys]
-        vertex_name_path = self._convert_active_edges_to_vertex_path(
-            edge_path[0].u, edge_path[-1].v, edge_path
-        )
+        vertex_name_path = self._convert_conv_res_edges_to_vertex_path(edge_path)
         vertex_path = [self.vertices[vertex_name] for vertex_name in vertex_name_path]
         # gcs_edges = [edge.gcs_edge for edge in edge_path]
         # logger.debug(f"Solving convex restriction for vpath: {vertex_name_path}")
         # logger.debug(f"Edge path: {active_edge_keys}")
-        # BUILD DUPLICATE DRAKE GCS GRAPH
+
+        # BUILD DUPLICATE DRAKE GCS GRAPH (Workaround to allow for cycles)
         gcs = GraphOfConvexSets()
         gcs_vertex_path = []
         for vertex_name, v in zip(vertex_name_path, vertex_path):
@@ -469,9 +478,7 @@ class Graph:
             gcs_edge_path,
             self._gcs_options_wo_relaxation,
         )
-        # logger.debug(f"solver options used: {self._gcs_options_wo_relaxation.solver_options.GetOptions(MosekSolver.id())}")
         self._gcs_options_wo_relaxation.solver_options = SolverOptions()
-        # logger.debug(f"is_success: {result.is_success()}")
 
         if skip_post_solve:
             sol = self._parse_partial_convex_restriction_result(
@@ -490,7 +497,11 @@ class Graph:
         self,
         active_edge_keys: List[List[str]],
     ) -> List[ShortestPathSolution]:
-        """Solve multiple convex restrictions."""
+        """Solve multiple convex restrictions.
+
+        Note that to use this, have to use Drake built from this source: https://github.com/shaoyuancc/drake/tree/parallelize-convex-restrictions.
+        This is used in generating the lower bound graph.
+        """
 
         paths = [
             [self.edges[edge_key] for edge_key in path] for path in active_edge_keys
@@ -505,10 +516,7 @@ class Graph:
 
         sols = []
         for e_path, result in zip(paths, all_results):
-            v_path = self._convert_active_edges_to_vertex_path(
-                e_path[0].u, e_path[-1].v, e_path
-            )
-            # import pdb; pdb.set_trace()
+            v_path = self._convert_conv_res_edges_to_vertex_path(e_path)
             a_path = [
                 result.GetSolution(self.vertices[v].gcs_vertex.x()) for v in v_path
             ]
@@ -526,79 +534,8 @@ class Graph:
             )
         return sols
 
-    def solve_factored_shortest_path(
-        self, transition: str, targets: List[str], use_convex_relaxation=False
-    ) -> ShortestPathSolution:
-        assert self._source_name is not None
-
-        result = self._gcs.SolveFactoredShortestPath(
-            self.vertices[self._source_name].gcs_vertex,
-            self.vertices[transition].gcs_vertex,
-            [self.vertices[target].gcs_vertex for target in targets],
-            (
-                self._gcs_options_convex_relaxation
-                if use_convex_relaxation
-                else self._gcs_options_wo_relaxation
-            ),
-        )
-
-        sol = self._parse_factored_result(result, transition, targets)
-
-        # Optional post solve hook for subclasses
-        self._post_solve(sol)
-
-        return sol
-
-    def solve_factored_partial_convex_restriction(
-        self,
-        active_edges: List[str],
-        transition: str,
-        targets: List[str],
-    ) -> ShortestPathSolution:
-        result = self._gcs.SolveFactoredPartialConvexRestriction(
-            [self.edges[edge_key].gcs_edge for edge_key in active_edges],
-            self.vertices[transition].gcs_vertex,
-            [self.vertices[target].gcs_vertex for target in targets],
-            # self._gcs_options_wo_relaxation,
-        )
-
-        sol = self._parse_factored_result(result, transition, targets)
-
-        # Optional post solve hook for subclasses
-        self._post_solve(sol)
-
-        return sol
-
     def _post_solve(self, sol: ShortestPathSolution):
         """Optional post solve hook for subclasses."""
-
-    def _parse_factored_result(
-        self, result: MathematicalProgramResult, transition_name: str, target_names: str
-    ) -> ShortestPathSolution:
-        cost = result.get_optimal_cost()
-        time = result.get_solver_details().optimizer_time
-        vertex_path = []
-        ambient_path = []
-        flows = []
-        if result.is_success():
-            flow_variables = [e.phi() for e in self._gcs.Edges()]
-            flows = [result.GetSolution(p) for p in flow_variables]
-            edge_path = []
-            for k, flow in enumerate(flows):
-                if flow >= 0.99:
-                    edge_path.append(self.edges[self.edge_keys[k]])
-            assert len(self._gcs.Edges()) == self.n_edges
-            # Edges are in order they were added to the graph and not in order of the path
-            (
-                vertex_path,
-                ambient_path,
-            ) = self._convert_active_edges_to_factored_vertex_ambient_paths(
-                self.source_name, transition_name, target_names, edge_path, result
-            )
-
-        return ShortestPathSolution(
-            result.is_success(), cost, time, vertex_path, ambient_path, flows, result
-        )
 
     @staticmethod
     def _parse_partial_convex_restriction_result(
@@ -618,7 +555,6 @@ class Graph:
             time,
             None,
             None,
-            None,
             result=result if should_return_result else None,
         )
 
@@ -633,7 +569,6 @@ class Graph:
         time = result.get_solver_details().optimizer_time
 
         ambient_path = []
-        flows = []
         if result.is_success():
             ambient_path = [result.GetSolution(v.x()) for v in gcs_vertex_path]
 
@@ -643,7 +578,6 @@ class Graph:
             time,
             vertex_name_path,
             ambient_path,
-            flows,
             result=result if should_return_result else None,
         )
 
@@ -671,86 +605,17 @@ class Graph:
             ]
 
         return ShortestPathSolution(
-            result.is_success(), cost, time, vertex_path, ambient_path, flows, result
+            result.is_success(), cost, time, vertex_path, ambient_path, result
         )
 
-    def _convert_active_edges_to_factored_vertex_ambient_paths(
-        self,
-        source_name: str,
-        transition_name: str,
-        target_names: List[str],
-        edges: List[Edge],
-        result: MathematicalProgramResult,
-    ):
-        # Create a dictionary where the keys are the vertices and the values are their neighbors
-        neighbors = {e.u: e.v for e in edges}
-        # Start with the source vertex
-        vertex_path = []
-        ambient_path = []
-        current_vertex = source_name
-        # While the last vertex in the path has a neighbor
-        while True:
-            vertex_path.append(current_vertex)
-            # Add the ambient value of the neighbor to the ambient path
-            ambient_path.append(
-                result.GetSolution(self.vertices[current_vertex].gcs_vertex.x())
-            )
-
-            if current_vertex == transition_name:
-                break
-
-            current_vertex = neighbors[vertex_path[-1]]
-        return vertex_path, ambient_path
-        # Significant work needs to be done to combine the factored paths now that not every body might have a path.
-
-        # Now add all the factored paths
-        factored_vertex_paths = []
-        factored_ambient_paths = []
-
-        # NOTE: this relies on the transition edges having been added in the same order as the bodies
-        # which also needs to be the same order as the target names.
-        for i, e in enumerate(self.outgoing_edges(transition_name)):
-            current_vertex = e.v
-            factored_vertex_path = []
-            factored_ambient_path = []
-            while True:
-                factored_vertex_path.append(current_vertex)
-                factored_ambient_path.append(
-                    result.GetSolution(self.vertices[current_vertex].gcs_vertex.x())
-                )
-                if current_vertex == target_names[i]:
-                    break
-                current_vertex = neighbors[factored_vertex_path[-1]]
-            factored_vertex_paths.append(factored_vertex_path)
-            factored_ambient_paths.append(factored_ambient_path)
-
-        # Convert np arrays to lists
-        combined_vertex_paths = [
-            "+".join(row) for row in self._combine_paths(factored_vertex_paths)
-        ]
-        combined_ambient_paths = self._combine_paths(factored_ambient_paths)
-
-        vertex_path += combined_vertex_paths
-        ambient_path += combined_ambient_paths
-
-        return vertex_path, ambient_path
-
     @staticmethod
-    def _combine_paths(paths):
-        # Find the longest length in the paths
-        max_length = max(len(path) for path in paths)
-
-        # Pad all paths to have the same length
-        padded_paths = []
-        for path in paths:
-            last_element = path[-1] if path else None
-            padded_path = path + [last_element] * (max_length - len(path))
-            padded_paths.append(padded_path)
-
-        # Transpose the paths to get tuples
-        transposed_paths = list(zip(*padded_paths))
-
-        return transposed_paths
+    def _convert_conv_res_edges_to_vertex_path(
+        edges: List[Edge],
+    ):
+        v_path = [edges[0].u]
+        for e in edges:
+            v_path += [e.v]
+        return v_path
 
     @staticmethod
     def _convert_active_edges_to_vertex_path(
@@ -758,10 +623,6 @@ class Graph:
         target_name,
         edges: List[Edge],
     ):
-        v_path = [edges[0].u]
-        for e in edges:
-            v_path += [e.v]
-        return v_path
 
         # Create a dictionary where the keys are the vertices and the values are their neighbors
         neighbors = {e.u: e.v for e in edges}
@@ -876,7 +737,7 @@ class Graph:
     def vertex_name_indices(self, vertex_names):
         return [self.vertex_names.index(name) for name in vertex_names]
 
-    def generate_neighbors(self, vertex_name: str) -> None:
+    def generate_successors(self, vertex_name: str) -> None:
         pass
 
     @property
@@ -890,20 +751,10 @@ class Graph:
     @property
     def source_name(self):
         return self._source_name
-        # return (
-        #     self.vertex_names[self.vertices[0]]
-        #     if self._source_name is None
-        #     else self._source_name
-        # )
 
     @property
     def target_name(self):
         return self._target_name
-        # return (
-        #     self.vertex_names[self.vertices[-1]]
-        #     if self._target_name is None
-        #     else self._target_name
-        # )
 
     @property
     def source(self):

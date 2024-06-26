@@ -97,7 +97,7 @@ def main() -> None:
         for v in tqdm(sol.vertex_path):
             if v == "target":
                 continue
-            cg.generate_neighbors(v)
+            cg.generate_successors(v)
 
         if load_metrics:
             metric_files = list(path.glob("*_metrics.json"))
@@ -107,7 +107,7 @@ def main() -> None:
                     f"This is not expected, so something is likely wrong."
                 )
             metric_file = metric_files[0]
-            metrics = AlgMetrics.load(metric_file)
+            AlgMetrics.load(metric_file)
 
         print("Creating solution...")
         cg.contact_spp_sol = cg.create_contact_spp_sol(

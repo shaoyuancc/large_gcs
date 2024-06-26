@@ -1,5 +1,5 @@
 defaults:
-  - algorithm: gcs_star
+  - algorithm: gcs_star_eps_suboptimal
   - cost_estimator: shortcut_edge
   - domination_checker: reaches_new_sampling
   - hydra: hydra
@@ -14,15 +14,11 @@ should_use_l1_norm_vertex_cost: true
 
 cost_estimator:
   # USE L1 NORM SHORTCUT EDGE COST
-  shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted
+  shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1_norm_cost_factory_obj_weighted
 
 # Note: Comment this out if not using sampling domination checkers
 domination_checker:
   num_samples_per_vertex: 1
-
-algorithm:
-  should_terminate_early: true
-  should_invert_S: true
 
 save_visualization: true
 save_to_wandb: true
@@ -41,7 +37,7 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      algorithm.should_invert_S: true, false
+      algorithm.invert_S: true, false
   #     domination_checker: reaches_new_sampling, reaches_cheaper_sampling
       # domination_checker: reaches_cheaper_sampling, reaches_cheaper_sampling, reaches_new_containment, reaches_cheaper_containment 
       # graph_name: cg_simple_3, cg_trichal4, cg_maze_b3, cg_maze_b1

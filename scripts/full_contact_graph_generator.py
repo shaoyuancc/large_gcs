@@ -49,7 +49,7 @@ def generate_graph(graph_name: str, incremental, preview):
             expanded.add(v)
             if len(expanded) % 100 == 0:
                 logger.info(f"Expanded {len(expanded)} vertices")
-            graph.generate_neighbors(v)
+            graph.generate_successors(v)
             for u in graph.successors(v):
                 if u in expanded:
                     continue

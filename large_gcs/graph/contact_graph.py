@@ -448,32 +448,12 @@ class ContactGraph(Graph):
         pos_list = []
         for i, x in enumerate(ambient_path):
             pos_transition_map[len(pos_list)] = i
-            if "+" in vertex_path[i]:
-                # This is a factored vertex
-                factored_vertices = vertex_path[i].split("+")
-                x_positions = []
-                for factored_vertex, factored_x in zip(factored_vertices, x):
-                    x_vars = ref_graph.vertices[factored_vertex].convex_set.vars
-                    # shape: (base_dim, n_pos)
-                    x_pos = x_vars.pos_from_all(factored_x)[0]
-                    x_positions.append(x_pos)
-                # x_positions shape (n_bodies, base_dim, n_pos)
-                max_n_pos = max([x_pos.shape[1] for x_pos in x_positions])
-                # pad x_positions to (n_bodies, base_dim, max_n_pos) with last values
-                x_positions = np.array(
-                    [
-                        np.pad(x_pos, ((0, 0), (0, max_n_pos - x_pos.shape[1])), "edge")
-                        for x_pos in x_positions
-                    ]
-                )
-                # shape: (max_n_pos, base_dim, n_bodies)
-                pos_list.extend(x_positions.T.tolist())
-            else:
-                x_vars = self.vertices[vertex_path[i]].convex_set.vars
-                # shape: (n_bodies, base_dim, n_pos)
-                x_pos = x_vars.pos_from_all(x)
-                # shape: (n_pos, base_dim, n_bodies)
-                pos_list.extend(x_pos.T.tolist())
+
+            x_vars = self.vertices[vertex_path[i]].convex_set.vars
+            # shape: (n_bodies, base_dim, n_pos)
+            x_pos = x_vars.pos_from_all(x)
+            # shape: (n_pos, base_dim, n_bodies)
+            pos_list.extend(x_pos.T.tolist())
 
         # reshapes pos_list to (n_pos, n_bodies, base_dim)
         pos_trajs = np.array(pos_list).transpose(0, 2, 1)

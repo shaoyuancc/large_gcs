@@ -1,0 +1,5 @@
+_target_: large_gcs.algorithms.gcs_star.GcsStar
+
+terminate_early: True
+heuristic_inflation_factor: 10
+invert_S: true

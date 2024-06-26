@@ -1,5 +1,5 @@
 defaults:
-  - algorithm: gcs_star
+  - algorithm: gcs_star_eps_suboptimal
   - cost_estimator: shortcut_edge
   - domination_checker: reaches_cheaper_sampling
   - hydra: hydra
@@ -14,15 +14,13 @@ should_use_l1_norm_vertex_cost: true
 
 cost_estimator:
   # USE L1 NORM SHORTCUT EDGE COST
-  shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted
+  shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1_norm_cost_factory_obj_weighted
 
 # Note: Comment this out if not using sampling domination checkers
 domination_checker:
   num_samples_per_vertex: 1
 
 algorithm:
-  # should_terminate_early: true
-  # should_invert_S: true
   max_len_S_per_vertex: 1
 
 save_visualization: true

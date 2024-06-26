@@ -1,5 +1,5 @@
 defaults:
-  - algorithm: gcs_star
+  - algorithm: gcs_star_eps_suboptimal
   - cost_estimator: shortcut_edge
   - domination_checker: reaches_cheaper_last_pos_sampling_containment
   - hydra: hydra
@@ -14,16 +14,12 @@ should_use_l1_norm_vertex_cost: true
 
 cost_estimator:
   # USE L1 NORM SHORTCUT EDGE COST
-  shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted
+  shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1_norm_cost_factory_obj_weighted
 
 save_visualization: true
 save_solution: true
 save_metrics: true
 save_to_wandb: true
-
-algorithm:
-  should_invert_S: true
-  allow_cycles: true
 
 domination_checker:
   construct_path_from_nullspaces: true

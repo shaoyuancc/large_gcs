@@ -1,5 +1,5 @@
 defaults:
-  - algorithm: gcs_star
+  - algorithm: gcs_star_eps_suboptimal
   - cost_estimator: shortcut_edge
   - domination_checker: reaches_new_last_pos_sampling
   - hydra: hydra
@@ -19,8 +19,6 @@ save_metrics: true
 save_to_wandb: false
 
 algorithm:
-  should_invert_S: true
-  should_terminate_early: true
   allow_cycles: false
 
 domination_checker:

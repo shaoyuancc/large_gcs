@@ -19,8 +19,6 @@ from pydrake.all import (
 
 from large_gcs.contact.contact_set_decision_variables import ContactSetDecisionVariables
 
-OVERESTIMATE_EPS = 10
-
 
 def create_vars_from_template(
     vars_template: np.ndarray, name_prefix: str
@@ -139,87 +137,45 @@ def create_scaled_l1norm_position_continuity_costs(u_vars, v_vars, scaling_eps):
     return costs
 
 
-def _contact_shortcut_edge_l1_norm_cost_factory(
+def contact_shortcut_edge_l1_norm_cost_factory_obj_weighted(
     u_vars: ContactSetDecisionVariables,
     v_vars: ContactSetDecisionVariables,
     add_const_cost: bool = False,
-    scaling_eps: float = 1,
+    heuristic_inflation_factor: float = 1,
 ) -> List[Cost]:
-    costs = create_scaled_l1norm_position_continuity_costs(u_vars, v_vars, scaling_eps)
+    costs = create_scaled_l1norm_position_continuity_costs(
+        u_vars, v_vars, heuristic_inflation_factor
+    )
 
     if add_const_cost:
         total_dims = u_vars.all.size + v_vars.all.size
         # Constant cost for the edge
         a = np.zeros((total_dims, 1))
         # We add 2 because if a shortcut is used it minimally replaces 2 edges
-        constant_cost = 2 * scaling_eps
+        constant_cost = 2 * heuristic_inflation_factor
         costs.append(LinearCost(a, constant_cost))
 
     return costs
 
 
-def _contact_shortcut_edge_l1_norm_plus_switches_cost_factory(
+def contact_shortcut_edge_l1_norm_plus_switches_cost_factory(
     u_vars: ContactSetDecisionVariables,
     v_vars: ContactSetDecisionVariables,
     n_switches: int,
-    scaling_eps: float = 1,
+    heuristic_inflation_factor: float = 1,
 ) -> List[Cost]:
     """Assumes that simultaneous mode switches are not allowed."""
-    costs = create_scaled_l1norm_position_continuity_costs(u_vars, v_vars, scaling_eps)
+    costs = create_scaled_l1norm_position_continuity_costs(
+        u_vars, v_vars, heuristic_inflation_factor
+    )
 
     total_dims = u_vars.all.size + v_vars.all.size
     # Constant cost for the edge
     a = np.zeros((total_dims, 1))
-    constant_cost = (1 + n_switches) * scaling_eps
+    constant_cost = (1 + n_switches) * heuristic_inflation_factor
     costs.append(LinearCost(a, constant_cost))
 
     return costs
-
-
-def contact_shortcut_edge_l1_norm_plus_switches_cost_factory_under(
-    u_vars: ContactSetDecisionVariables,
-    v_vars: ContactSetDecisionVariables,
-    n_switches: int,
-    add_const_cost: bool = True,
-) -> List[Cost]:
-    # add_const_cost is ignored and assumed to be True because otherwise it doesn't make sense to add the constant costs for contact pair mode switches
-    return _contact_shortcut_edge_l1_norm_plus_switches_cost_factory(
-        u_vars, v_vars, n_switches, scaling_eps=1
-    )
-
-
-def contact_shortcut_edge_l1_norm_plus_switches_cost_factory_over(
-    u_vars: ContactSetDecisionVariables,
-    v_vars: ContactSetDecisionVariables,
-    n_switches: int,
-    add_const_cost: bool = True,
-) -> List[Cost]:
-    # add_const_cost is ignored and assumed to be True because otherwise it doesn't make sense to add the constant costs for contact pair mode switches
-    return _contact_shortcut_edge_l1_norm_plus_switches_cost_factory(
-        u_vars, v_vars, n_switches, scaling_eps=OVERESTIMATE_EPS
-    )
-
-
-def contact_shortcut_edge_l1_norm_cost_factory_under_obj_weighted(
-    u_vars: ContactSetDecisionVariables,
-    v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False,
-) -> List[Cost]:
-    """Creates a list of costs for the shortcut between set u and set v."""
-    return _contact_shortcut_edge_l1_norm_cost_factory(
-        u_vars, v_vars, add_const_cost, 1
-    )
-
-
-def contact_shortcut_edge_l1_norm_cost_factory_over_obj_weighted(
-    u_vars: ContactSetDecisionVariables,
-    v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False,
-) -> List[Cost]:
-    """Creates a list of costs for the shortcut between set u and set v."""
-    return _contact_shortcut_edge_l1_norm_cost_factory(
-        u_vars, v_vars, add_const_cost, OVERESTIMATE_EPS
-    )
 
 
 def contact_shortcut_edge_cost_factory_over(
@@ -544,29 +500,6 @@ def edge_constraint_position_continuity(
     v_pos = v_vars.pos_from_all(v_vars_all)
     u_last_pos = u_pos[:, :, -1].flatten()
     v_first_pos = v_pos[:, :, 0].flatten()
-    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
-    exprs = (u_last_pos - v_first_pos).flatten()
-    # Decompose affine expression into expr = Ax + b
-    A, b = DecomposeAffineExpressions(exprs, uv_vars_all)
-    # Linear equality constraint of the form: Ax = -b
-    return LinearEqualityConstraint(A, -b)
-
-
-def edge_constraint_position_continuity_factored(
-    body_index, u_vars: ContactSetDecisionVariables, v_vars: ContactSetDecisionVariables
-) -> LinearEqualityConstraint:
-    """Creates a constraint that enforces position continuity between the last
-    position in vertex u of body with body_index to the first position in
-    vertex v (assuming v is the lower dimensional factored set, and u is the
-    full dimensional set)"""
-    # Get the last position in u and first position in v
-    u_vars_all = create_vars_from_template(u_vars.all, "u")
-    v_vars_all = create_vars_from_template(v_vars.all, "v")
-    u_pos = u_vars.pos_from_all(u_vars_all)
-    v_pos = v_vars.pos_from_all(v_vars_all)
-    u_last_pos = u_pos[body_index, :, -1].flatten()
-    v_first_pos = v_pos[:, :, 0].flatten()
-    assert u_last_pos.size == v_first_pos.size
     uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
     exprs = (u_last_pos - v_first_pos).flatten()
     # Decompose affine expression into expr = Ax + b

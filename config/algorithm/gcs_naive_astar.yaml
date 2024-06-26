@@ -1,2 +1,3 @@
 _target_: large_gcs.algorithms.gcs_naive_astar.GcsNaiveAstar
 
+heuristic_inflation_factor: 1

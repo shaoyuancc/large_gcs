@@ -1,8 +1,11 @@
 import heapq as heap
+import itertools
 import logging
+import os
+import pickle
 import time
 from abc import ABC, abstractmethod
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field, fields
 from enum import Enum
 from functools import wraps
@@ -12,13 +15,32 @@ from typing import DefaultDict, Dict, List, Optional
 
 import numpy as np
 import plotly.graph_objects as go
-from pypolycontain.objects import AH_polytope
 
 import wandb
-from large_gcs.graph.graph import Edge, ShortestPathSolution
+from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
 from large_gcs.utils.utils import dict_to_dataclass
 
 logger = logging.getLogger(__name__)
+
+
+def profile_method(method):
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        start_time = time.time()
+        result = method(self, *args, **kwargs)  # Call the original method
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        if elapsed_time > 300:
+            logger.warning(
+                f"Method {method.__name__} took {elapsed_time:.2f} seconds to run."
+            )
+        # Update the AlgMetrics with the elapsed time for the method
+        self._alg_metrics.method_times[method.__name__] += elapsed_time
+        self._alg_metrics.method_counts[method.__name__] += 1
+
+        return result
+
+    return wrapper
 
 
 class TieBreak(Enum):
@@ -57,8 +79,8 @@ class AlgVisParams:
 class AlgMetrics:
     """Metrics for the algorithm."""
 
-    n_vertices_expanded: Dict[int, int] = field(default_factory=lambda: {0: 0})
-    n_vertices_visited: Dict[int, int] = field(default_factory=lambda: {0: 0})
+    n_vertices_expanded: int = 0
+    n_vertices_visited: int = 0
     time_wall_clock: float = 0.0
     n_gcs_solves: int = 0
     gcs_solve_time_total: float = 0.0
@@ -67,8 +89,8 @@ class AlgMetrics:
     gcs_solve_time_iter_std: float = 0.0
     gcs_solve_time_iter_min: float = inf
     gcs_solve_time_iter_max: float = 0.0
-    n_vertices_reexpanded: Dict[int, int] = field(default_factory=lambda: {0: 0})
-    n_vertices_revisited: Dict[int, int] = field(default_factory=lambda: {0: 0})
+    n_vertices_reexpanded: int = 0
+    n_vertices_revisited: int = 0
     n_Q: int = 0
     n_S: int = 0
     n_S_pruned: int = 0
@@ -275,11 +297,20 @@ class SearchNode:
     vertex_path: List[str]
     parent: Optional["SearchNode"] = None
     sol: Optional[ShortestPathSolution] = None
-    ah_polyhedron_ns: Optional[AH_polytope] = None
-    ah_polyhedron_fs: Optional[AH_polytope] = None
+    ah_polyhedron_ns: Optional["AH_polytope"] = None  # type: ignore
+    ah_polyhedron_fs: Optional["AH_polytope"] = None  # type: ignore
 
     def __lt__(self, other: "SearchNode"):
         return self.priority < other.priority
+
+    @classmethod
+    def from_source(cls, source_vertex_name: str):
+        return cls(
+            priority=0,
+            vertex_name=source_vertex_name,
+            edge_path=[],
+            vertex_path=[source_vertex_name],
+        )
 
     @classmethod
     def from_parent(cls, child_vertex_name: str, parent: "SearchNode"):
@@ -315,8 +346,35 @@ class SearchNode:
 class SearchAlgorithm(ABC):
     """Abstract base class for search algorithms."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        graph: Graph,
+        vis_params: Optional[AlgVisParams] = None,
+        heuristic_inflation_factor: float = 1.0,
+        tiebreak: TieBreak = TieBreak.FIFO,
+    ):
+        self._graph = graph
+        self._target_name = graph.target_name
+        self._heuristic_inflation_factor = heuristic_inflation_factor
+
+        # Visited dictionary
+        self._S: DefaultDict[str, deque[SearchNode]] = defaultdict(deque)
+        # Priority queue
+        self._Q = []
+
+        self._tiebreak = tiebreak
+        if tiebreak == TieBreak.FIFO or tiebreak == TieBreak.FIFO.name:
+            self._counter = itertools.count(start=0, step=1)
+        elif tiebreak == TieBreak.LIFO or tiebreak == TieBreak.LIFO.name:
+            self._counter = itertools.count(start=0, step=-1)
+
+        # For logging/metrics
+        self._vis_params = vis_params
         self._alg_metrics = AlgMetrics()
+        self._expanded = set()
+        self._visited = set()
+        self._last_plots_save_time = time.time()
+        self._step = 0
 
     @abstractmethod
     def run(self):
@@ -330,9 +388,44 @@ class SearchAlgorithm(ABC):
         # Abstraction for the priority queue pop operation that handles tiebreaks
         return heap.heappop(self._Q)[0]
 
+    def set_node_in_S(self, n: SearchNode):
+        self._S[n.vertex_name] = deque([n])
+
+    def add_node_to_S_left(self, n: SearchNode):
+        self._S[n.vertex_name].appendleft(n)
+
+    def add_node_to_S(self, n: SearchNode):
+        self._S[n.vertex_name].append(n)
+
+    def remove_node_from_S_left(self, vertex_name: str):
+        self._S[vertex_name].pop()
+
+    def remove_node_from_S(self, vertex_name: str):
+        self._S[vertex_name].popleft()
+
+    def update_expanded(self, n: SearchNode):
+        if n.vertex_name in self._expanded:
+            self._alg_metrics.n_vertices_reexpanded += 1
+        else:
+            self._expanded.add(n.vertex_name)
+            self._alg_metrics.n_vertices_expanded += 1
+
+    def update_visited(self, n: SearchNode):
+        # Purely for logging purposes
+        if n.vertex_name in self._visited:
+            self._alg_metrics.n_vertices_revisited += 1
+        else:
+            self._alg_metrics.n_vertices_visited += 1
+            self._visited.add(n.vertex_name)
+
+    def update_pruned(self, n: SearchNode):
+        self._alg_metrics._S_pruned_counts[n.vertex_name] += 1
+
     @property
     def alg_metrics(self):
         self._alg_metrics.n_Q = len(self._Q)
+        self._alg_metrics.n_S = sum(len(lst) for lst in self._S.values())
+        self._alg_metrics.n_S_pruned = sum(self._alg_metrics._S_pruned_counts.values())
         return self._alg_metrics.update_derived_metrics()
 
     def log_metrics_to_wandb(self, total_estimated_cost: float):
@@ -344,25 +437,93 @@ class SearchAlgorithm(ABC):
                 }
             )
 
-    def save_alg_metrics(self, loc: Path) -> None:
+    def save_alg_metrics_to_file(self, loc: Path) -> None:
         self._alg_metrics.save(loc)
 
+    @profile_method
+    def _save_metrics(self, n: SearchNode, n_successors: int, override_save=False):
+        logger.info(
+            f"iter: {self._step}\n{self.alg_metrics}\nnow exploring node {n.vertex_name}'s {n_successors} neighbors ({n.priority})"
+        )
+        self._step += 1
+        current_time = time.time()
+        PERIOD = 1200
 
-def profile_method(method):
-    @wraps(method)
-    def wrapper(self, *args, **kwargs):
-        start_time = time.time()
-        result = method(self, *args, **kwargs)  # Call the original method
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        if elapsed_time > 300:
-            logger.warning(
-                f"Method {method.__name__} took {elapsed_time:.2f} seconds to run."
+        if self._vis_params is not None and (
+            override_save or self._last_plots_save_time + PERIOD < current_time
+        ):
+            log_dir = self._vis_params.log_dir
+            # Histogram of paths per vertex
+            # Preparing tracked and pruned counts
+            tracked_counts = [len(self._S[v]) for v in self._S]
+            pruned_counts = [
+                self._alg_metrics._S_pruned_counts[v]
+                for v in self._alg_metrics._S_pruned_counts
+            ]
+            log_dict = {}
+            hist_fig = self.alg_metrics.generate_tracked_pruned_paths_histogram(
+                tracked_counts, pruned_counts
             )
-        # Update the AlgMetrics with the elapsed time for the method
-        self._alg_metrics.method_times[method.__name__] += elapsed_time
-        self._alg_metrics.method_counts[method.__name__] += 1
+            # Save the figure to a file as png
+            hist_fig.write_image(os.path.join(log_dir, "paths_per_vertex_hist.png"))
+            log_dict["paths_per_vertex_hist"] = wandb.Plotly(hist_fig)
 
-        return result
+            # Pie chart of method times
+            pie_fig = self._alg_metrics.generate_method_time_piechart()
+            pie_fig.write_image(os.path.join(log_dir, "method_times_pie_chart.png"))
+            log_dict["method_times_pie_chart"] = wandb.Plotly(pie_fig)
 
-    return wrapper
+            checkpoint_path_str = self.save_checkpoint()
+
+            if wandb.run is not None:
+                # Log the Plotly figure and other metrics to wandb
+                wandb.log(log_dict, step=self._step)
+                wandb.save(checkpoint_path_str)
+
+            self._last_plots_save_time = current_time
+        self.log_metrics_to_wandb(n.priority)
+
+    def save_checkpoint(self):
+        logger.info("Saving checkpoint")
+        log_dir = self._vis_params.log_dir
+        file_path = os.path.join(log_dir, "checkpoint.pkl")
+        checkpoint_data = {
+            "Q": self._Q,
+            "S": self._S,
+            "expanded": self._expanded,
+            "visited": self._visited,
+            "counter": next(self._counter) - 1,
+            "step": self._step,
+            "alg_metrics": self._alg_metrics,
+        }
+        with open(file_path, "wb") as f:
+            pickle.dump(checkpoint_data, f)
+        return str(file_path)
+
+    def load_checkpoint(self, checkpoint_log_dir, override_wall_clock_time=None):
+        file_path = os.path.join(checkpoint_log_dir, "checkpoint.pkl")
+        with open(file_path, "rb") as f:
+            checkpoint_data = pickle.load(f)
+        self._Q = checkpoint_data["Q"]
+        self._S = checkpoint_data["S"]
+        self._expanded = checkpoint_data["expanded"]
+        self._visited = checkpoint_data["visited"]
+
+        if self._tiebreak == TieBreak.FIFO or self._tiebreak == TieBreak.FIFO.name:
+            self._counter = itertools.count(start=checkpoint_data["counter"], step=1)
+        elif self._tiebreak == TieBreak.LIFO or self._tiebreak == TieBreak.LIFO.name:
+            self._counter = itertools.count(start=checkpoint_data["counter"], step=-1)
+        self._step = checkpoint_data["step"]
+        self._alg_metrics: AlgMetrics = checkpoint_data["alg_metrics"]
+        if override_wall_clock_time is not None:
+            self._alg_metrics.time_wall_clock = override_wall_clock_time
+
+    def log_metrics_to_wandb(self, total_estimated_cost: float):
+        if wandb.run is not None:  # not self._S
+            wandb.log(
+                {
+                    "total_estimated_cost": total_estimated_cost,
+                    "alg_metrics": self.alg_metrics.to_dict(),
+                },
+                self._step,
+            )

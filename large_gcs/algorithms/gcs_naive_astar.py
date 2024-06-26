@@ -70,10 +70,8 @@ class GcsNaiveAstar(SearchAlgorithm):
         )
         self._subgraph.set_target(self._graph.target_name)
         # Start with the target node in the visited subgraph
-        self.alg_metrics.n_vertices_expanded[0] = 1
+        self.alg_metrics.n_vertices_expanded = 1
         self._subgraph_fd_vertices.add(self._graph.target_name)
-
-        self._cost_estimator.setup_subgraph(self._subgraph)
 
     def run(
         self,
@@ -111,9 +109,9 @@ class GcsNaiveAstar(SearchAlgorithm):
         if self._reexplore_level == ReexploreLevel.NONE and node in self._expanded:
             return
         if node in self._expanded:
-            self._alg_metrics.n_vertices_reexpanded[0] += 1
+            self._alg_metrics.n_vertices_reexpanded += 1
         else:
-            self._alg_metrics.n_vertices_expanded[0] += 1
+            self._alg_metrics.n_vertices_expanded += 1
 
         self._set_subgraph_vertices_and_edges(node, active_edges)
 
@@ -155,9 +153,9 @@ class GcsNaiveAstar(SearchAlgorithm):
     def _explore_edge(self, edge: Edge, active_edges: List[str]):
         neighbor = edge.v
         if neighbor in self._expanded:
-            self._alg_metrics.n_vertices_revisited[0] += 1
+            self._alg_metrics.n_vertices_revisited += 1
         else:
-            self._alg_metrics.n_vertices_visited[0] += 1
+            self._alg_metrics.n_vertices_visited += 1
         # logger.info(f"exploring edge {edge.u} -> {edge.v}")
         sol = self._cost_estimator.estimate_cost(
             self._subgraph,
@@ -221,7 +219,7 @@ class GcsNaiveAstar(SearchAlgorithm):
         """Also adds source and target regardless of whether they are in
         edges."""
         if not vertex_name in self._expanded:
-            self._graph.generate_neighbors(vertex_name)
+            self._graph.generate_successors(vertex_name)
             self._expanded.add(vertex_name)
         vertices_to_add = set(
             [self._graph.target_name, self._graph.source_name, vertex_name]
