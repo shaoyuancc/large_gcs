@@ -149,43 +149,36 @@ class SetSamples:
     ) -> np.ndarray:
         vertex_names = node.vertex_path
         active_edges = node.edge_path
-        vertex_sampled = self.vertex_name
+        self.vertex_name
         # gcs vertices
         vertices = [graph.vertices[name].gcs_vertex for name in vertex_names]
         edges = [graph.edges[edge].gcs_edge for edge in active_edges]
 
         prog = MathematicalProgram()
+        # Name the vertices by index since cycles are allowed otherwise might get duplicate names.
         vertex_vars = [
-            prog.NewContinuousVariables(v.ambient_dimension(), name=f"{v_name}_vars")
-            for v, v_name in zip(vertices, vertex_names)
+            prog.NewContinuousVariables(v.ambient_dimension(), name=f"v{v_idx}_vars")
+            for v_idx, v in enumerate(vertices)
         ]
-        sample_vars = vertex_vars[vertex_names.index(vertex_sampled)]
-        for v, v_name, x in zip(vertices, vertex_names, vertex_vars):
-            if v_name == vertex_sampled:
-                v.set().AddPointInSetConstraints(prog, x)
+        sample_vars = vertex_vars[-1]
+        for i, (v, x) in enumerate(zip(vertices, vertex_vars)):
+            if i == len(vertices) - 1:
                 # Add the distance to the sample as a cost
                 prog.AddCost((x - sample).dot(x - sample))
-                # Vertex Constraints
-                for binding in v.GetConstraints():
-                    constraint = binding.evaluator()
-                    prog.AddConstraint(constraint, x)
-            else:
-                v.set().AddPointInSetConstraints(prog, x)
 
-                # Vertex Constraints
-                for binding in v.GetConstraints():
-                    constraint = binding.evaluator()
-                    prog.AddConstraint(constraint, x)
+            v.set().AddPointInSetConstraints(prog, x)
 
-        for e, e_name in zip(edges, active_edges):
+            # Vertex Constraints
+            for binding in v.GetConstraints():
+                constraint = binding.evaluator()
+                prog.AddConstraint(constraint, x)
+
+        for idx, (e, e_name) in enumerate(zip(edges, active_edges)):
             # Edge Constraints
             for binding in e.GetConstraints():
                 constraint = binding.evaluator()
-                variables = binding.variables()
-                u_name, v_name = graph.edges[e_name].u, graph.edges[e_name].v
-                u_idx, v_idx = vertex_names.index(u_name), vertex_names.index(v_name)
-                variables[: len(vertex_vars[u_idx])] = vertex_vars[u_idx]
-                variables[-len(vertex_vars[v_idx]) :] = vertex_vars[v_idx]
+                u_idx, v_idx = idx, idx + 1
+                variables = np.hstack((vertex_vars[u_idx], vertex_vars[v_idx]))
                 prog.AddConstraint(constraint, variables)
 
         solver_options = SolverOptions()
