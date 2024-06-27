@@ -70,7 +70,6 @@ class GcsStar(SearchAlgorithm):
         self._allow_cycles = allow_cycles
 
         # For logging/metrics
-        # Expanded set
         call_structure = {
             "_run_iteration": [
                 "_explore_successor",
@@ -114,6 +113,8 @@ class GcsStar(SearchAlgorithm):
             f"{self.__class__.__name__} complete! \ncost: {sol.cost}, time: {sol.time}"
             f"\nvertex path: {np.array(sol.vertex_path)}"
         )
+        # Call post-solve again in case other solutions were found after this was first visited.
+        self._graph._post_solve(sol)
         return sol
 
     @profile_method
@@ -139,11 +140,11 @@ class GcsStar(SearchAlgorithm):
         successors = self._graph.successors(n.vertex_name)
 
         self._save_metrics(n, len(successors))
+        # self.plot_search_node_and_graph(n, is_final_path=False)
 
         for v in successors:
-            if not self._allow_cycles:
-                if v in n.vertex_path:
-                    continue
+            if not self._allow_cycles and v in n.vertex_path:
+                continue
 
             early_terminate_sol = self._explore_successor(n, v)
             if early_terminate_sol is not None:
@@ -162,12 +163,13 @@ class GcsStar(SearchAlgorithm):
         self, n: SearchNode, successor: str
     ) -> Optional[ShortestPathSolution]:
 
-        sol: ShortestPathSolution = self._cost_estimator.estimate_cost_on_graph(
+        sol: ShortestPathSolution = self._cost_estimator.estimate_cost(
             self._graph,
             successor,
             n,
             heuristic_inflation_factor=self._heuristic_inflation_factor,
             solve_convex_restriction=True,
+            # override_skip_post_solve=False,
         )
 
         if not sol.is_success:
@@ -184,7 +186,7 @@ class GcsStar(SearchAlgorithm):
             f"Exploring path (length {len(n_next.vertex_path)}) {n_next.vertex_path}"
         )
 
-        # If coming from source or going to target, do not check if path reaches new samples
+        # If going to target, do not need to check domination condition
         if (
             successor != self._target_name
             # and n.vertex_name != self._graph.source_name

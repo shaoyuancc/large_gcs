@@ -1,23 +1,20 @@
-import heapq as heap
-import itertools
 import logging
 import time
-from collections import defaultdict
 from typing import List, Optional
 
-import matplotlib.pyplot as plt
 import numpy as np
-from IPython.display import HTML, display
 
 from large_gcs.algorithms.search_algorithm import (
     AlgVisParams,
     ReexploreLevel,
     SearchAlgorithm,
+    SearchNode,
     TieBreak,
+    profile_method,
 )
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
-from large_gcs.graph.contact_graph import ContactGraph
-from large_gcs.graph.graph import Edge, Graph
+from large_gcs.graph.graph import Graph, ShortestPathSolution
+from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 
 logger = logging.getLogger(__name__)
 
@@ -30,269 +27,191 @@ class GcsNaiveAstar(SearchAlgorithm):
         self,
         graph: Graph,
         cost_estimator: CostEstimator,
-        reexplore_level: ReexploreLevel = ReexploreLevel.NONE,
+        reexplore_level: ReexploreLevel = ReexploreLevel.PARTIAL,
         tiebreak: TieBreak = TieBreak.FIFO,
         vis_params: AlgVisParams = AlgVisParams(),
+        heuristic_inflation_factor: float = 1,
+        terminate_early: bool = False,
+        allow_cycles: bool = True,
     ):
-        super().__init__()
-        self._graph = graph
+        if isinstance(graph, IncrementalContactGraph):
+            assert (
+                graph._should_add_gcs == True
+            ), "Required because operating directly on graph instead of subgraph"
+        super().__init__(
+            graph=graph,
+            heuristic_inflation_factor=heuristic_inflation_factor,
+            vis_params=vis_params,
+            tiebreak=tiebreak,
+        )
         self._cost_estimator = cost_estimator
+        self._terminate_early = terminate_early
         self._reexplore_level = (
             ReexploreLevel[reexplore_level]
             if type(reexplore_level) == str
             else reexplore_level
         )
-        self._vis_params = vis_params
-        self._writer = None
         self._cost_estimator.set_alg_metrics(self._alg_metrics)
-        self._candidate_sol = None
-        # Priority Q
-        self._Q = []
-        self._feasible_edges = set()
-        # Visited dictionary
-        self._node_dists = defaultdict(lambda: float("inf"))
-        self._subgraph = Graph(self._graph._default_costs_constraints)
-        # Accounting of the full dimensional vertices in the visited subgraph
-        self._subgraph_fd_vertices = set()
-        # Accounting of all the vertices that have ever been visited for revisit management
-        self._expanded = set()
-        if tiebreak == TieBreak.FIFO or tiebreak == TieBreak.FIFO.name:
-            self._counter = itertools.count(start=0, step=1)
-        elif tiebreak == TieBreak.LIFO or tiebreak == TieBreak.LIFO.name:
-            self._counter = itertools.count(start=0, step=-1)
-        # Ensures the source is the first node to be visited, even though the heuristic distance is not 0.
-        heap.heappush(
-            self._Q, (0, next(self._counter), self._graph.source_name, [], None)
-        )
-        # Add the target to the visited subgraph
-        self._subgraph.add_vertex(
-            self._graph.vertices[self._graph.target_name], self._graph.target_name
-        )
-        self._subgraph.set_target(self._graph.target_name)
-        # Start with the target node in the visited subgraph
-        self.alg_metrics.n_vertices_expanded = 1
-        self._subgraph_fd_vertices.add(self._graph.target_name)
+        self._allow_cycles = allow_cycles
+
+        # For logging/metrics
+        call_structure = {
+            "_run_iteration": [
+                "_explore_successor",
+                "_generate_successors",
+                "_save_metrics",
+            ],
+            "_visit_neighbor": [
+                "_is_dominated",
+            ],
+        }
+        self._alg_metrics.update_method_call_structure(call_structure)
+
+        start_node = SearchNode.from_source(self._graph.source_name)
+        self.push_node_on_Q(start_node)
 
     def run(
         self,
-        animate_intermediate: bool = False,
-        animate_intermediate_sets: Optional[List[str]] = None,
-        final_plot: bool = False,
+        visualize_intermediate: bool = False,
+        intermediate_vertices_to_visualize: Optional[List[str]] = None,
     ):
         logger.info(
             f"Running {self.__class__.__name__}, reexplore_level: {self._reexplore_level}"
         )
-        self._animate_intermediate = animate_intermediate
-        self._animate_intermediate_sets = animate_intermediate_sets
+        self._visualize_intermediate = visualize_intermediate
+        self._intermediate_sets_to_visualize = intermediate_vertices_to_visualize
 
-        self._start_time = time.time()
-        while len(self._Q) > 0:
-            # Check for termination condition
-            curr = self._Q[0][2]
-            if curr == self._graph.target_name:
-                sol = self._candidate_sol
-                self._graph._post_solve(sol)
-                logger.info(
-                    f"Gcs A* Convex Restriction complete! \ncost: {sol.cost}, time: {sol.time}\nvertex path: {np.array(sol.vertex_path)}\n{self.alg_metrics}"
-                )
-
-                return sol
-
-            self._run_iteration()
-            self._alg_metrics.time_wall_clock = time.time() - self._start_time
-
-        logger.warning("Gcs A* Convex Restriction failed to find a path to the target.")
-        return None
-
-    def _run_iteration(self):
-        estimated_cost, _count, node, active_edges, contact_sol = heap.heappop(self._Q)
-        if self._reexplore_level == ReexploreLevel.NONE and node in self._expanded:
+        start_time = time.time()
+        sol: Optional[ShortestPathSolution] = None
+        while sol == None and len(self._Q) > 0:
+            sol = self._run_iteration()
+            self._alg_metrics.time_wall_clock = time.time() - start_time
+        if sol is None:
+            logger.warning(
+                f"{self.__class__.__name__} failed to find a path to the target."
+            )
             return
-        if node in self._expanded:
-            self._alg_metrics.n_vertices_reexpanded += 1
-        else:
-            self._alg_metrics.n_vertices_expanded += 1
-
-        self._set_subgraph_vertices_and_edges(node, active_edges)
-
-        edges = self._graph.outgoing_edges(node)
 
         logger.info(
-            f"\n{self.alg_metrics}\nnow exploring node {node}'s {len(edges)} neighbors ({estimated_cost})"
+            f"{self.__class__.__name__} complete! \ncost: {sol.cost}, time: {sol.time}"
+            f"\nvertex path: {np.array(sol.vertex_path)}"
         )
-        self.log_metrics_to_wandb(estimated_cost)
+        # Call post-solve again in case other solutions were found after this was first visited.
+        self._graph._post_solve(sol)
+
+        return sol
+
+    def _run_iteration(self) -> Optional[ShortestPathSolution]:
+        n: SearchNode = self.pop_node_from_Q()
 
         if (
-            self._animate_intermediate
-            and contact_sol is not None
-            and (
-                self._animate_intermediate_sets is None
-                or node in self._animate_intermediate_sets
-            )
+            self._reexplore_level == ReexploreLevel.NONE
+            and n.vertex_name in self._expanded
         ):
-            self._graph.contact_spp_sol = contact_sol
-            anim = self._graph.animate_solution()
-            display(HTML(anim.to_html5_video()))
+            return
 
-        if self._reexplore_level == ReexploreLevel.NONE:
-            for edge in edges:
-                if edge.v not in self._expanded or edge.v == self._graph.target_name:
-                    self._explore_edge(edge, active_edges)
-        else:
-            for edge in edges:
-                neighbor_in_path = any(
-                    (
-                        self._graph.edges[e].u == edge.v
-                        or self._graph.edges[e].v == edge.v
-                    )
-                    for e in active_edges
-                )
-                if not neighbor_in_path:
-                    self._explore_edge(edge, active_edges)
+        # Check termination condition
+        if n.vertex_name == self._graph.target_name:
+            self._save_metrics(n, [], override_save=True)
+            self._maybe_plot_search_node_and_graph(n, is_final_path=True)
+            return n.sol
 
-    def _explore_edge(self, edge: Edge, active_edges: List[str]):
-        neighbor = edge.v
-        if neighbor in self._expanded:
-            self._alg_metrics.n_vertices_revisited += 1
-        else:
-            self._alg_metrics.n_vertices_visited += 1
-        # logger.info(f"exploring edge {edge.u} -> {edge.v}")
-        sol = self._cost_estimator.estimate_cost(
-            self._subgraph,
-            edge,
-            active_edges,
+        if n.vertex_name not in self._expanded:
+            # Generate successors that you are about to explore
+            self._generate_successors(n.vertex_name)
+        self.update_expanded(n)
+
+        successors = self._graph.successors(n.vertex_name)
+
+        self._save_metrics(n, len(successors))
+        if self._visualize_intermediate:
+            self._maybe_plot_search_node_and_graph(n, is_final_path=False)
+
+        for v in successors:
+            if not self._allow_cycles and v in n.vertex_path:
+                continue
+
+            early_terminate_sol = self._explore_successor(n, v)
+            if early_terminate_sol is not None:
+                return early_terminate_sol
+
+    def _maybe_plot_search_node_and_graph(self, n: SearchNode, is_final_path: bool):
+        if self._visualize_intermediate and (
+            self._intermediate_sets_to_visualize is None
+            or n in self._intermediate_sets_to_visualize
+        ):
+
+            self.plot_search_node_and_graph(n, is_final_path=is_final_path)
+
+    @profile_method
+    def _generate_successors(self, vertex_name: str) -> None:
+        """Generates neighbors for the given vertex.
+
+        Wrapped to allow for profiling.
+        """
+        self._graph.generate_successors(vertex_name)
+
+    profile_method
+
+    def _explore_successor(
+        self, n: SearchNode, successor: str
+    ) -> Optional[ShortestPathSolution]:
+
+        sol: ShortestPathSolution = self._cost_estimator.estimate_cost(
+            self._graph,
+            successor,
+            n,
+            heuristic_inflation_factor=self._heuristic_inflation_factor,
             solve_convex_restriction=True,
+            override_skip_post_solve=False if self._visualize_intermediate else None,
         )
 
-        if sol.is_success:
-            new_dist = sol.cost
-            should_add_to_pq = self._should_add_to_pq(neighbor, new_dist)
-            logger.debug(
-                f"edge {edge.u} -> {edge.v} is feasible, new dist: {new_dist}, added to pq {should_add_to_pq}"
-            )
-            if should_add_to_pq:
-                new_active_edges = active_edges.copy() + [edge.key]
-                # Note this assumes graph is contact graph, should break this dependency...
-                # But this dependancy is only necessary for visualizing intermediate solutions
-                # Counter serves as tiebreaker for nodes with the same distance, to prevent nodes or edges from being compared
-                contact_sol = (
-                    self._graph.create_contact_spp_sol(
-                        sol.vertex_path, sol.ambient_path, ref_graph=self._subgraph
-                    )
-                    if isinstance(self._graph, ContactGraph)
-                    else None
-                )
-                heap.heappush(
-                    self._Q,
-                    (
-                        new_dist,
-                        next(self._counter),
-                        neighbor,
-                        new_active_edges,
-                        contact_sol,
-                    ),
-                )
-
-            if new_dist < self._node_dists[neighbor]:
-                self._node_dists[neighbor] = new_dist
-                # Check if this neighbor actually has an edge to the target
-                # Check if this neighbor is actually the target
-                if neighbor == self._graph.target_name:
-                    if self._candidate_sol is None:
-                        self._candidate_sol = sol
-                    elif sol.cost < self._candidate_sol.cost:
-                        self._candidate_sol = sol
-
-            self._feasible_edges.add((edge.u, edge.v))
+        if not sol.is_success:
+            logger.debug(f"Path not actually feasible")
+            # Path invalid, do nothing, don't add to Q
+            return
         else:
-            logger.debug(f"edge {edge.u} -> {edge.v} not actually feasible")
+            logger.debug(f"Path is feasible")
 
-    def _should_add_to_pq(self, neighbor, new_dist):
+        n_next = SearchNode.from_parent(child_vertex_name=successor, parent=n)
+        n_next.sol = sol
+        n_next.priority = sol.cost
+        logger.debug(
+            f"Exploring path (length {len(n_next.vertex_path)}) {n_next.vertex_path}"
+        )
+
+        # Here we compare total-estimated-cost \Tilde{f} instead of cost-to-come \Tilde{g}
+        # as presented in alg 1. in the paper.
+        # For discrete graphs comparing \Tilde{g} is equivalent to comparing \Tilde{f}
+        # since the heuristic cost-to-go is the same for a particular terminal vertex.
+        # On GCS, they are not equivalent, but we implement this version since we already
+        # calculate \Tilde{f} and \Tilde{g} is not currently exposed by Drake when
+        # solving the convex restriction.
+        # See https://github.com/RobotLocomotion/drake/issues/20443
+        if successor != self._target_name and not self._should_add_to_pq(
+            successor, sol.cost
+        ):
+            logger.debug(f"Not added to Q: Path to is dominated")
+            self.update_pruned(n_next)
+            return
+        logger.debug(f"Added to Q: Path not dominated")
+        self.set_node_in_S(n_next)
+        self.push_node_on_Q(n_next)
+        self.update_visited(n_next)
+
+        # Early Termination
+        if self._terminate_early and successor == self._target_name:
+            logger.info(f"EARLY TERMINATION: Visited path to target.")
+            self._save_metrics(n_next, [], override_save=True)
+            self._maybe_plot_search_node_and_graph(n_next, is_final_path=True)
+            return n_next.sol
+
+    def _should_add_to_pq(self, successor, new_cost):
         if self._reexplore_level == ReexploreLevel.FULL:
             return True
         elif self._reexplore_level == ReexploreLevel.PARTIAL:
-            return new_dist < self._node_dists[neighbor]
-        elif self._reexplore_level == ReexploreLevel.NONE:
-            return neighbor not in self._expanded
-
-    def _set_subgraph_vertices_and_edges(self, vertex_name, edge_keys):
-        """Also adds source and target regardless of whether they are in
-        edges."""
-        if not vertex_name in self._expanded:
-            self._graph.generate_successors(vertex_name)
-            self._expanded.add(vertex_name)
-        vertices_to_add = set(
-            [self._graph.target_name, self._graph.source_name, vertex_name]
-        )
-        for e_key in edge_keys:
-            vertices_to_add.add(self._graph.edges[e_key].v)
-
-        # Ignore cfree subgraph sets,
-        # Remove full dimensional sets if they aren't in the path
-        # Add all vertices that aren't already inside
-        for v in self._subgraph_fd_vertices.copy():
-            if v not in vertices_to_add:  # We don't want to have it so remove it
-                self._subgraph.remove_vertex(v)
-                self._subgraph_fd_vertices.remove(v)
-            else:  # We do want to have it but it's already in so don't need to add it
-                vertices_to_add.remove(v)
-
-        for v in vertices_to_add:
-            self._subgraph.add_vertex(self._graph.vertices[v], v)
-            self._subgraph_fd_vertices.add(v)
-
-        self._subgraph.set_source(self._graph.source_name)
-        self._subgraph.set_target(self._graph.target_name)
-
-        # Add edges that aren't already in the visited subgraph.
-        for edge_key in edge_keys:
-            if edge_key not in self._subgraph.edges:
-                self._subgraph.add_edge(self._graph.edges[edge_key])
-
-        # logger.debug(f"visited subgraph edges: {self._visited.edge_keys}")
-
-    def plot_graph(self, path=None, current_edge=None, is_final_path=False):
-        plt.title("GCS A* Convex Restriction")
-        if self._graph.workspace is not None:
-            plt.xlim(self._graph.workspace[0])
-            plt.ylim(self._graph.workspace[1])
-        plt.gca().set_aspect("equal")
-        for vertex_name, vertex in self._graph.vertices.items():
-            if current_edge and vertex_name == current_edge.u:
-                vertex.convex_set.plot(facecolor=self._vis_params.relaxing_from_color)
-            elif current_edge and vertex_name == current_edge.v:
-                vertex.convex_set.plot(facecolor=self._vis_params.relaxing_to_color)
-            elif vertex_name in self._subgraph.vertex_names:
-                vertex.convex_set.plot(facecolor=self._vis_params.visited_vertex_color)
-            elif vertex_name in [item[1] for item in self._Q]:
-                vertex.convex_set.plot(facecolor=self._vis_params.frontier_color)
-            else:
-                vertex.convex_set.plot()
-        for edge_key in self._graph.edge_keys:
-            edge = self._graph.edges[edge_key]
-            if current_edge and edge.u == current_edge.u and edge.v == current_edge.v:
-                self._graph.plot_edge(
-                    edge_key, color=self._vis_params.relaxing_edge_color, zorder=3
-                )
-            elif edge_key in self._subgraph.edge_keys:
-                self._graph.plot_edge(
-                    edge_key, color=self._vis_params.visited_edge_color
-                )
-            else:
-                self._graph.plot_edge(edge_key, color=self._vis_params.edge_color)
-        dist_labels = [
-            (
-                round(self._node_dists[v], 1)
-                if self._node_dists[v] != float("inf")
-                else "∞"
+            return (successor not in self._S) or (
+                new_cost < self._S[successor][0].priority
             )
-            for v in self._graph.vertex_names
-        ]
-        self._graph.plot_set_labels(dist_labels)
-
-        if path:
-            if is_final_path:
-                path_color = self._vis_params.final_path_color
-            else:
-                path_color = self._vis_params.intermediate_path_color
-            self._graph.plot_path(path, color=path_color, linestyle="--")
+        elif self._reexplore_level == ReexploreLevel.NONE:
+            return successor not in self._visited

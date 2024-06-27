@@ -21,14 +21,14 @@ from large_gcs.contact.contact_set import ContactPointSet, ContactSet
 from large_gcs.contact.rigid_body import BodyColor, MobilityType, RigidBody
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.contact_cost_constraint_factory import (
-    edge_constraint_position_continuity,
-    edge_cost_constant,
-    vertex_cost_position_l1_norm,
-    vertex_cost_position_path_length,
+    contact_edge_constraint_position_continuity,
+    contact_edge_cost_constant,
+    contact_vertex_cost_position_l1norm,
+    contact_vertex_cost_position_l2norm,
 )
 from large_gcs.graph.graph import Graph, ShortestPathSolution
 from large_gcs.visualize.visualize_trajectory import (
-    plot_trajectory,
+    plot_contact_trajectory,
     plot_trajectory_legacy,
 )
 
@@ -83,8 +83,6 @@ class ContactGraph(Graph):
             self._create_single_edge_costs = _create_single_empty_edge_cost
 
         self._should_use_l1_norm_vertex_cost = should_use_l1_norm_vertex_cost
-        if not should_use_l1_norm_vertex_cost:
-            raise NotImplementedError("Only L1 norm vertex cost is supported")
         # Note: The order of operations in this constructor is important
         self.vertex_inclusion = vertex_inclusion
         self.vertex_exclusion = vertex_exclusion
@@ -185,12 +183,9 @@ class ContactGraph(Graph):
 
     def _create_single_vertex_costs(self, set: ContactSet) -> List[Cost]:
         if self._should_use_l1_norm_vertex_cost:
-            return [vertex_cost_position_l1_norm(set.vars)]
+            return [contact_vertex_cost_position_l1norm(set.vars)]
         else:
-            return [
-                vertex_cost_position_path_length(set.vars),
-                # vertex_cost_force_actuation_norm(set.vars),
-            ]
+            return [contact_vertex_cost_position_l2norm(set.vars)]
 
     def _create_vertex_constraints(
         self, sets: List[ContactSet]
@@ -206,7 +201,7 @@ class ContactGraph(Graph):
 
     def _create_single_edge_costs(self, u: str, v: str) -> List[Cost]:
         return [
-            edge_cost_constant(
+            contact_edge_cost_constant(
                 self.vertices[u].convex_set.vars,
                 self.vertices[v].convex_set.vars,
                 constant_cost=1,
@@ -221,7 +216,7 @@ class ContactGraph(Graph):
 
     def _create_single_edge_constraints(self, u: str, v: str) -> List[Constraint]:
         return [
-            edge_constraint_position_continuity(
+            contact_edge_constraint_position_continuity(
                 self.vertices[u].convex_set.vars,
                 self.vertices[v].convex_set.vars,
             )
@@ -436,17 +431,15 @@ class ContactGraph(Graph):
         class."""
         if sol.is_success:
             self.contact_spp_sol = self.create_contact_spp_sol(
-                sol.vertex_path, sol.ambient_path
+                sol.vertex_path, sol.trajectory
             )
         # else:
         #     logger.debug("No Shortest Path Solution Found")
 
-    def create_contact_spp_sol(self, vertex_path, ambient_path, ref_graph=None):
-        """An ambient path is a list of vertices in the higher dimensional
-        space."""
+    def create_contact_spp_sol(self, vertex_path, trajectory):
         pos_transition_map = {}
         pos_list = []
-        for i, x in enumerate(ambient_path):
+        for i, x in enumerate(trajectory):
             pos_transition_map[len(pos_list)] = i
 
             x_vars = self.vertices[vertex_path[i]].convex_set.vars
@@ -547,11 +540,14 @@ class ContactGraph(Graph):
         raise NotImplementedError("Not sure how to visualize high dimensional sets")
 
     def plot_solution(
-        self, sol: ContactShortestPathSolution, loc: Optional[Path] = None
+        self,
+        sol: ContactShortestPathSolution,
+        loc: Optional[Path] = None,
+        use_paper_params: bool = False,
     ):
         # Process position trajectories
         trajs, _ = self._interpolate_positions(sol, max_gap=0.2)
-        plot_trajectory(
+        plot_contact_trajectory(
             trajs,
             self.obstacles,
             self.objects,
@@ -559,6 +555,7 @@ class ContactGraph(Graph):
             workspace=None,
             filepath=loc,
             target_regions=self.target_regions,
+            use_paper_params=use_paper_params,
         )
 
     def plot_current_solution(self, loc: Optional[Path] = None):

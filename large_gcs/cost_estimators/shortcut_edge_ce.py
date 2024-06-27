@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import Optional
 
 from large_gcs.algorithms.search_algorithm import SearchNode
 from large_gcs.contact.contact_set import ContactPointSet, ContactSet
@@ -34,7 +34,7 @@ class ShortcutEdgeCE(CostEstimator):
         self._shortcut_edge_cost_factory = shortcut_edge_cost_factory
         self._add_const_cost = add_const_cost
 
-    def estimate_cost_on_graph(
+    def estimate_cost(
         self,
         graph: Graph,
         successor: str,
@@ -42,6 +42,7 @@ class ShortcutEdgeCE(CostEstimator):
         heuristic_inflation_factor: float,
         solve_convex_restriction: bool = False,
         use_convex_relaxation: bool = False,
+        override_skip_post_solve: Optional[bool] = None,
     ) -> ShortestPathSolution:
 
         # Check if this neighbor is the target to see if shortcut edge is required
@@ -87,9 +88,14 @@ class ShortcutEdgeCE(CostEstimator):
             conv_res_active_edges = node.edge_path + [edge_to_successor]
 
         if solve_convex_restriction:
+            skip_post_solve = (
+                add_shortcut_edge
+                if override_skip_post_solve is None
+                else override_skip_post_solve
+            )
             # If used shortcut edge, do not parse the full result since we won't use the solution.
             sol = graph.solve_convex_restriction(
-                conv_res_active_edges, skip_post_solve=add_shortcut_edge
+                conv_res_active_edges, skip_post_solve=skip_post_solve
             )
         else:
             sol = graph.solve_shortest_path(use_convex_relaxation=use_convex_relaxation)
@@ -100,75 +106,6 @@ class ShortcutEdgeCE(CostEstimator):
         if add_shortcut_edge:
             logger.debug(f"Removing edge {edge_to_target.key}")
             graph.remove_edge(edge_to_target.key)
-
-        return sol
-
-    def estimate_cost(
-        self,
-        subgraph: Graph,
-        edge: Edge,
-        active_edges: List[Edge] = None,
-        solve_convex_restriction: bool = False,
-        use_convex_relaxation: bool = False,
-    ) -> ShortestPathSolution:
-        """active_edges does not include the edge argument.
-
-        Right now this function is unideally coupled because it returns
-        a shortest path solution instead of just the cost.
-        """
-
-        raise NotImplementedError(
-            "This function is not used in the current implementation"
-        )
-
-        neighbor = edge.v
-
-        # Check if this neighbor is the target to see if shortcut edge is required
-        if neighbor != self._graph.target_name:
-            # Add neighbor and edge temporarily to the visited subgraph
-            subgraph.add_vertex(self._graph.vertices[neighbor], neighbor)
-            # Add an edge from the neighbor to the target
-            direct_edge_costs = None
-            if self._shortcut_edge_cost_factory:
-                if isinstance(
-                    subgraph.vertices[neighbor].convex_set, ContactSet
-                ) or isinstance(subgraph.vertices[neighbor], ContactPointSet):
-                    # Only ContactSet and ContactPointSet have the vars attribute
-                    # convex_sets in general do not.
-                    direct_edge_costs = self._shortcut_edge_cost_factory(
-                        self._graph.vertices[neighbor].convex_set.vars,
-                        self._graph.vertices[self._graph.target_name].convex_set.vars,
-                        add_const_cost=self._add_const_cost,
-                    )
-                else:
-                    direct_edge_costs = self._shortcut_edge_cost_factory(
-                        self._graph.vertices[self._graph.target_name].convex_set.dim,
-                        add_const_cost=self._add_const_cost,
-                    )
-            edge_to_target = Edge(
-                neighbor, self._graph.target_name, costs=direct_edge_costs
-            )
-            subgraph.add_edge(edge_to_target)
-            conv_res_active_edges = active_edges + [edge.key, edge_to_target.key]
-        else:
-            conv_res_active_edges = active_edges + [edge.key]
-        subgraph.add_edge(edge)
-
-        if solve_convex_restriction:
-            # logger.debug(f"active edges: {subgraph.edges.keys()}")
-            sol = subgraph.solve_convex_restriction(conv_res_active_edges)
-        else:
-            sol = subgraph.solve_shortest_path(
-                use_convex_relaxation=use_convex_relaxation
-            )
-
-        self._alg_metrics.update_after_gcs_solve(sol.time)
-
-        # Clean up
-        if neighbor != self._graph.target_name:
-            subgraph.remove_vertex(neighbor)
-        else:
-            subgraph.remove_edge(edge.key)
 
         return sol
 

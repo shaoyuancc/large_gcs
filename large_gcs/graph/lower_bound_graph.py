@@ -151,13 +151,13 @@ class LowerBoundGraph:
                         parent_triple=(pred, vertex, succ),
                         point=self._graph.vertices[
                             vertex
-                        ].convex_set.vars.last_pos_from_all(sol.ambient_path[1]),
+                        ].convex_set.vars.last_pos_from_all(sol.trajectory[1]),
                     )
                     lbg_vertex_pred = LBGVertex(
                         parent_triple=(succ, vertex, pred),
                         point=self._graph.vertices[
                             pred
-                        ].convex_set.vars.last_pos_from_all(sol.ambient_path[0]),
+                        ].convex_set.vars.last_pos_from_all(sol.trajectory[0]),
                     )
                     self.add_vertex(lbg_vertex_pred)
                     self.add_vertex(lbg_vertex_succ)
@@ -183,13 +183,13 @@ class LowerBoundGraph:
             lbg_vertex_succ = LBGVertex(
                 parent_triple=(pred, vertex, succ),
                 point=self._graph.vertices[vertex].convex_set.vars.last_pos_from_all(
-                    sol.ambient_path[1]
+                    sol.trajectory[1]
                 ),
             )
             lbg_vertex_pred = LBGVertex(
                 parent_triple=(succ, vertex, pred),
                 point=self._graph.vertices[pred].convex_set.vars.last_pos_from_all(
-                    sol.ambient_path[0]
+                    sol.trajectory[0]
                 ),
             )
             self.add_vertex(lbg_vertex_pred)

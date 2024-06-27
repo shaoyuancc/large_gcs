@@ -14,6 +14,8 @@ class ContactSetDecisionVariables:
     force_mag_AB: np.ndarray
     all: np.ndarray
     base_all: np.ndarray
+    n_objects: int
+    n_robots: int
 
     @classmethod
     def from_contact_pair_modes(
@@ -43,16 +45,37 @@ class ContactSetDecisionVariables:
         # Extract the first point in n_pos_points_per_set
         base_all = np.array([body.vars_base_pos for body in objects + robots]).flatten()
 
-        return cls(pos, force_act, force_mag_AB, all, base_all)
+        return cls(
+            pos=pos,
+            force_act=force_act,
+            force_mag_AB=force_mag_AB,
+            all=all,
+            base_all=base_all,
+            n_objects=len(objects),
+            n_robots=len(robots),
+        )
+
+    @classmethod
+    def base_vars_from_objs_robs(cls, objects, robots):
+        """Base vars have no force variables, and only one knot point per
+        set."""
+        pos = np.array([body.vars_base_pos for body in objects + robots])
+        pos = pos[:, :, np.newaxis]
+        empty = np.array([])
+        return cls(
+            pos=pos,
+            force_act=empty,
+            force_mag_AB=empty,
+            all=pos.flatten(),
+            base_all=pos.flatten(),
+            n_objects=len(objects),
+            n_robots=len(robots),
+        )
 
     def pos_from_all(self, vars_all):
         """Extracts the vars_pos from vars_all and reshapes it to match the
         template."""
         return np.reshape(vars_all[: self.pos.size], self.pos.shape)
-
-    @property
-    def last_pos(self):
-        return self.pos[:, :, -1].flatten()
 
     def last_pos_from_all(self, vars_all):
         """Extracts the last knot point vars_pos from vars_all."""
@@ -63,9 +86,34 @@ class ContactSetDecisionVariables:
         vars_all."""
         return self.pos_from_all(vars_all)[0, :, 0].flatten()
 
-    @classmethod
-    def from_objs_robs(cls, objects, robots):
-        pos = np.array([body.vars_base_pos for body in objects + robots])
-        pos = pos[:, :, np.newaxis]
-        empty = np.array([])
-        return cls(pos, empty, empty, pos.flatten(), pos.flatten())
+    @property
+    def last_pos(self):
+        return self.pos[:, :, -1].flatten()
+
+    @property
+    def first_pos(self):
+        return self.pos[:, :, 0].flatten()
+
+    @property
+    def obj_pos(self):
+        return self.pos[: self.n_objects]
+
+    @property
+    def rob_pos(self):
+        return self.pos[self.n_objects :]
+
+    @property
+    def obj_last_pos(self):
+        return self.obj_pos[:, :, -1].flatten()
+
+    @property
+    def rob_last_pos(self):
+        return self.rob_pos[:, :, -1].flatten()
+
+    @property
+    def obj_first_pos(self):
+        return self.obj_pos[:, :, 0].flatten()
+
+    @property
+    def rob_first_pos(self):
+        return self.rob_pos[:, :, 0].flatten()

@@ -15,7 +15,7 @@ from large_gcs.domination_checkers.reaches_cheaper_containment import (
 )
 from large_gcs.domination_checkers.reaches_new_containment import ReachesNewContainment
 from large_gcs.graph.contact_cost_constraint_factory import (
-    contact_shortcut_edge_l1_norm_cost_factory_obj_weighted,
+    contact_shortcut_edge_l1norm_cost_factory_obj_weighted,
 )
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 from large_gcs.graph_generators.contact_graph_generator import (
@@ -209,7 +209,7 @@ def test_construct_path_from_nullspaces_reaches_new_cg_trichal4():
         domination_checker.set_alg_metrics(AlgMetrics())
         cost_estimator = ShortcutEdgeCE(
             graph=cg,
-            shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_obj_weighted,
+            shortcut_edge_cost_factory=contact_shortcut_edge_l1norm_cost_factory_obj_weighted,
             add_const_cost=True,
         )
         alg = GcsStar(
@@ -248,7 +248,7 @@ def test_construct_path_from_nullspaces_reaches_cheaper_cg_trichal4():
         domination_checker.set_alg_metrics(AlgMetrics())
         cost_estimator = ShortcutEdgeCE(
             graph=cg,
-            shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_obj_weighted,
+            shortcut_edge_cost_factory=contact_shortcut_edge_l1norm_cost_factory_obj_weighted,
             add_const_cost=True,
         )
         alg = GcsStar(
@@ -287,7 +287,7 @@ def test_construct_path_from_nullspaces_reaches_new_last_pos_cg_trichal4():
         domination_checker.set_alg_metrics(AlgMetrics())
         cost_estimator = ShortcutEdgeCE(
             graph=cg,
-            shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_obj_weighted,
+            shortcut_edge_cost_factory=contact_shortcut_edge_l1norm_cost_factory_obj_weighted,
             add_const_cost=True,
         )
         alg = GcsStar(
@@ -326,7 +326,7 @@ def test_construct_path_from_nullspaces_reaches_cheaper_last_pos_cg_trichal4():
         domination_checker.set_alg_metrics(AlgMetrics())
         cost_estimator = ShortcutEdgeCE(
             graph=cg,
-            shortcut_edge_cost_factory=contact_shortcut_edge_l1_norm_cost_factory_obj_weighted,
+            shortcut_edge_cost_factory=contact_shortcut_edge_l1norm_cost_factory_obj_weighted,
             add_const_cost=True,
         )
         alg = GcsStar(

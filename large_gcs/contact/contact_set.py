@@ -26,7 +26,9 @@ class ContactPointSet(ConvexSet):
         assert len(robots) == len(robot_positions)
         positions = np.array(object_positions + robot_positions)
 
-        self.vars = ContactSetDecisionVariables.from_objs_robs(objects, robots)
+        self.vars = ContactSetDecisionVariables.base_vars_from_objs_robs(
+            objects, robots
+        )
         self._point = DrakePoint(positions.flatten())
         self._nullspace_set = NullspaceSet.from_point(self._point)
 

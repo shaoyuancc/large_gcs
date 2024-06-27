@@ -15,8 +15,10 @@ from typing import DefaultDict, Dict, List, Optional
 
 import numpy as np
 import plotly.graph_objects as go
+from matplotlib import pyplot as plt
 
 import wandb
+from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.graph import Edge, Graph, ShortestPathSolution
 from large_gcs.utils.utils import dict_to_dataclass
 
@@ -67,10 +69,10 @@ class AlgVisParams:
     visited_vertex_color: str = "lightskyblue"
     visited_edge_color: str = "lightseagreen"
     frontier_color: str = "lightyellow"
-    relaxing_to_color: str = "lightgreen"
-    relaxing_from_color: str = "skyblue"
+    exploring_to_color: str = "lightgreen"
+    exploring_from_color: str = "skyblue"
     edge_color: str = "gray"
-    relaxing_edge_color: str = "lime"
+    exploring_edge_color: str = "lime"
     intermediate_path_color: str = "lightgrey"
     final_path_color: str = "orange"
 
@@ -449,8 +451,10 @@ class SearchAlgorithm(ABC):
         current_time = time.time()
         PERIOD = 1200
 
-        if self._vis_params is not None and (
-            override_save or self._last_plots_save_time + PERIOD < current_time
+        if (
+            self._vis_params is not None
+            and self._vis_params.log_dir is not None
+            and (override_save or self._last_plots_save_time + PERIOD < current_time)
         ):
             log_dir = self._vis_params.log_dir
             # Histogram of paths per vertex
@@ -527,3 +531,56 @@ class SearchAlgorithm(ABC):
                 },
                 self._step,
             )
+
+    def plot_search_node_and_graph(self, n: SearchNode, is_final_path=False):
+        if isinstance(self._graph, ContactGraph):
+            if n.sol is None:
+                return
+            contact_sol = self._graph.create_contact_spp_sol(
+                n.sol.vertex_path, n.sol.trajectory
+            )
+            self._graph.plot_solution(contact_sol)
+            return
+        if self._graph.workspace is not None:
+            plt.xlim(self._graph.workspace[0])
+            plt.ylim(self._graph.workspace[1])
+        plt.gca().set_aspect("equal")
+        # Plot all vertices
+        current_edge = (
+            self._graph.edges[n.edge_path[-1]] if len(n.edge_path) > 0 else None
+        )
+        for vertex_name, vertex in self._graph.vertices.items():
+            if current_edge and vertex_name == current_edge.u:
+                vertex.convex_set.plot(facecolor=self._vis_params.exploring_from_color)
+            elif current_edge and vertex_name == current_edge.v:
+                vertex.convex_set.plot(facecolor=self._vis_params.exploring_to_color)
+            elif vertex_name in [item[0] for item in self._Q]:
+                vertex.convex_set.plot(facecolor=self._vis_params.frontier_color)
+            elif vertex_name in self._visited:
+                vertex.convex_set.plot(facecolor=self._vis_params.visited_vertex_color)
+            else:
+                vertex.convex_set.plot()
+        # Plot all edges
+        for edge_key in self._graph.edge_keys:
+            edge = self._graph.edges[edge_key]
+            if current_edge and edge.key == current_edge.key:
+                self._graph.plot_edge(
+                    edge_key, color=self._vis_params.exploring_edge_color, zorder=3
+                )
+            else:
+                self._graph.plot_edge(edge_key, color=self._vis_params.edge_color)
+        dist_labels = [
+            (
+                round(min([n_alt.priority for n_alt in self._S[v]]), 1)
+                if v in self._S
+                else "∞"
+            )
+            for v in self._graph.vertex_names
+        ]
+        self._graph.plot_set_labels(dist_labels)
+
+        if is_final_path:
+            path_color = self._vis_params.final_path_color
+        else:
+            path_color = self._vis_params.intermediate_path_color
+        self._graph.plot_path(n.sol.trajectory, color=path_color, linestyle="--")

@@ -17,6 +17,6 @@ def test_gcs_star_polyhedra_hor_vert():
     sol = alg.run()
     ambient_path = np.array([[0.5, 0.5], [0.5, 3.9], [4.5, 3.9], [4.5, 0.5]])
     vertex_path = ["s", "p1", "p2", "t"]
-    assert np.allclose(sol.ambient_path, ambient_path)
+    assert np.allclose(sol.trajectory, ambient_path)
     assert sol.vertex_path == vertex_path
     assert np.isclose(sol.cost, 10.8, atol=tol)

@@ -31,12 +31,14 @@ logger = logging.getLogger(__name__)
 class ShortestPathSolution:
     # Whether the optimization was successful
     is_success: bool
+    # Optimal cost of the path
     cost: float
     # Time to solve the optimization problem
     time: float
     # List of vertex names and discrete coordinates in the path
     vertex_path: List[str]
-    ambient_path: List[np.ndarray]
+    # List of continuous valued points in each vertex along the path
+    trajectory: List[np.ndarray]
     # Result of the optimization
     result: Optional[MathematicalProgramResult] = None
 
@@ -64,7 +66,7 @@ class ShortestPathSolution:
     @property
     def ambient_path_str(self):
         ambient_path = "["
-        for a in self.ambient_path:
+        for a in self.trajectory:
             ambient_path += (
                 f"{np.array2string(a, separator=', ', max_line_width=np.inf)},"
             )

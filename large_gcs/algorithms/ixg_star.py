@@ -68,6 +68,8 @@ class IxGStar(IxG):
             f"{self.__class__.__name__} complete! \ncost: {sol.cost}, time: {sol.time}"
             f"\nvertex path: {np.array(sol.vertex_path)}"
         )
+        # Call post-solve again in case other solutions were found after this was first visited.
+        self._graph._post_solve(sol)
         return sol
 
     @profile_method

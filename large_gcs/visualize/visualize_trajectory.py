@@ -18,7 +18,7 @@ from large_gcs.visualize.colors import (
 )
 
 
-def plot_trajectory(
+def plot_contact_trajectory(
     pos_trajs: np.ndarray,  # (n_steps, n_objects + n_robots)
     obstacles: List[RigidBody],
     objects: List[RigidBody],
@@ -31,7 +31,7 @@ def plot_trajectory(
     add_legend: bool = False,
     use_type_1_font: bool = True,
     keyframe_idxs: Optional[List[int]] = None,
-    use_paper_params: bool = True,  # TODO(bernhardpg): Set to false
+    use_paper_params: bool = False,
 ):
     if x_buffer is None:
         x_buffer = np.array([1.4, 1.4])

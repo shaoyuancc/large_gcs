@@ -137,7 +137,7 @@ def create_scaled_l1norm_position_continuity_costs(u_vars, v_vars, scaling_eps):
     return costs
 
 
-def contact_shortcut_edge_l1_norm_cost_factory_obj_weighted(
+def contact_shortcut_edge_l1norm_cost_factory_obj_weighted(
     u_vars: ContactSetDecisionVariables,
     v_vars: ContactSetDecisionVariables,
     add_const_cost: bool = False,
@@ -326,7 +326,7 @@ def contact_norm_squared_shortcut_edge_cost_factory_over_obj_weighted(
 ### VERTEX COST CREATION ###
 
 
-def vertex_cost_position_path_length(
+def contact_vertex_cost_position_l2norm(
     vars: ContactSetDecisionVariables, scaling: float = 1.0
 ) -> L2NormCost:
     """Creates a vertex cost that penalizes the length of the path in position
@@ -342,7 +342,7 @@ def vertex_cost_position_path_length(
     return L2NormCost(A, b)
 
 
-def vertex_cost_position_l1_norm(
+def contact_vertex_cost_position_l1norm(
     vars: ContactSetDecisionVariables, scaling: float = 1.0
 ) -> L1NormCost:
     """Creates a vertex cost that penalizes the l1 norm of the path in position
@@ -400,7 +400,7 @@ def vertex_constraint_force_act_limits(
     raise NotImplementedError
 
 
-def vertex_constraint_last_pos_equality_contact(
+def contact_vertex_constraint_last_pos_equality_contact(
     vars: ContactSetDecisionVariables, sample: np.ndarray
 ) -> LinearEqualityConstraint:
     """Creates a constraint that enforces the last position of the vertex to be
@@ -446,7 +446,7 @@ def vertex_constraint_eps_bounding_box(
 ### EDGE COST CREATION ###
 
 
-def edge_cost_constant(
+def contact_edge_cost_constant(
     u_vars: ContactSetDecisionVariables,
     v_vars: ContactSetDecisionVariables,
     constant_cost: float = 1,
@@ -461,7 +461,7 @@ def edge_cost_constant(
     return LinearCost(a, b)
 
 
-def edge_costs_position_continuity_norm(
+def contact_edge_costs_position_continuity_norm(
     u_vars: ContactSetDecisionVariables,
     v_vars: ContactSetDecisionVariables,
     linear_scaling: float = 1,
@@ -483,7 +483,7 @@ def edge_costs_position_continuity_norm(
 ### EDGE CONSTRAINT CREATION ###
 
 
-def edge_constraint_position_continuity(
+def contact_edge_constraint_position_continuity(
     u_vars: ContactSetDecisionVariables, v_vars: ContactSetDecisionVariables
 ) -> LinearEqualityConstraint:
     """Creates a constraint that enforces position continuity between the last

@@ -5,7 +5,7 @@ from large_gcs.algorithms.gcs_naive_astar import GcsNaiveAstar
 from large_gcs.algorithms.search_algorithm import ReexploreLevel
 from large_gcs.cost_estimators.shortcut_edge_ce import ShortcutEdgeCE
 from large_gcs.graph.contact_cost_constraint_factory import (
-    contact_shortcut_edge_cost_factory_over_obj_weighted,
+    contact_shortcut_edge_l2norm_cost_factory_obj_weighted,
 )
 from large_gcs.graph.contact_graph import ContactGraph
 from large_gcs.graph.graph import ShortestPathSolution
@@ -24,7 +24,7 @@ def test_shortcut_edge_conv_res_cg_simple_2():
     cg = ContactGraph.load_from_file(graph_file)
     cost_estimator = ShortcutEdgeCE(
         cg,
-        shortcut_edge_cost_factory=contact_shortcut_edge_cost_factory_over_obj_weighted,
+        shortcut_edge_cost_factory=contact_shortcut_edge_l2norm_cost_factory_obj_weighted,
     )
     gcs_astar = GcsNaiveAstar(
         cg,
@@ -47,7 +47,7 @@ def test_shortcut_edge_conv_res_cg_simple_2():
         ]
     )
     assert np.isclose(sol.cost, 13.303138059978277, atol=tol)
-    for v, v_sol in zip(sol.ambient_path, ambient_path):
+    for v, v_sol in zip(sol.trajectory, ambient_path):
         if not np.allclose(v, v_sol, atol=tol):
             print(f"v: {v}\nv_sol: {v_sol}")
         assert np.allclose(v, v_sol, atol=tol)
@@ -65,7 +65,7 @@ def test_shortcut_edge_conv_res_cg_simple_2_inc():
     )
     cost_estimator = ShortcutEdgeCE(
         cg,
-        shortcut_edge_cost_factory=contact_shortcut_edge_cost_factory_over_obj_weighted,
+        shortcut_edge_cost_factory=contact_shortcut_edge_l2norm_cost_factory_obj_weighted,
     )
     gcs_astar = GcsNaiveAstar(
         cg,
@@ -90,7 +90,7 @@ def test_shortcut_edge_conv_res_cg_simple_2_inc():
     assert np.isclose(sol.cost, 13.303138059978277, atol=tol)
     assert all(
         np.allclose(v, v_sol, atol=tol)
-        for v, v_sol in zip(sol.ambient_path, ambient_path)
+        for v, v_sol in zip(sol.trajectory, ambient_path)
     )
     assert np.array_equal(sol.vertex_path, vertex_path)
 
@@ -111,7 +111,7 @@ def test_shortcut_edge_conv_res_cg_simple_3_inc():
     )
     cost_estimator = ShortcutEdgeCE(
         cg,
-        shortcut_edge_cost_factory=contact_shortcut_edge_cost_factory_over_obj_weighted,
+        shortcut_edge_cost_factory=contact_shortcut_edge_l2norm_cost_factory_obj_weighted,
     )
     gcs_astar = GcsNaiveAstar(
         cg,
@@ -187,7 +187,7 @@ def test_shortcut_edge_conv_res_cg_simple_3_inc():
     assert np.isclose(sol.cost, 9.35848932653506, atol=tol)
     assert all(
         np.allclose(v, v_sol, atol=tol)
-        for v, v_sol in zip(sol.ambient_path, ambient_path)
+        for v, v_sol in zip(sol.trajectory, ambient_path)
     )
     assert np.array_equal(sol.vertex_path, vertex_path)
 
@@ -198,7 +198,7 @@ def test_shortcut_edge_conv_res_cg_trichal2():
     cg = ContactGraph.load_from_file(graph_file)
     cost_estimator = ShortcutEdgeCE(
         cg,
-        shortcut_edge_cost_factory=contact_shortcut_edge_cost_factory_over_obj_weighted,
+        shortcut_edge_cost_factory=contact_shortcut_edge_l2norm_cost_factory_obj_weighted,
     )
     gcs_astar = GcsNaiveAstar(
         cg,
@@ -375,6 +375,6 @@ def test_shortcut_edge_conv_res_cg_trichal2():
     assert np.isclose(sol.cost, 24.51282601210196, atol=tol)
     assert all(
         np.allclose(v, v_sol, atol=tol)
-        for v, v_sol in zip(sol.ambient_path, ambient_path)
+        for v, v_sol in zip(sol.trajectory, ambient_path)
     )
     assert np.array_equal(sol.vertex_path, vertex_path)

@@ -34,7 +34,7 @@ class IncrementalContactGraph(ContactGraph):
         target_region_params: List[ContactRegionParams] = None,
         workspace: np.ndarray = None,
         should_incl_simul_mode_switches: bool = True,
-        should_add_gcs: bool = False,
+        should_add_gcs: bool = True,
         should_add_const_edge_cost: bool = True,
         should_use_l1_norm_vertex_cost: bool = True,
     ):
@@ -50,10 +50,6 @@ class IncrementalContactGraph(ContactGraph):
         Graph.__init__(self, workspace=workspace)
         assert self.workspace is not None, "Workspace must be set"
         self._should_use_l1_norm_vertex_cost = should_use_l1_norm_vertex_cost
-        if not should_use_l1_norm_vertex_cost:
-            raise NotImplementedError(
-                "Only L1 norm vertex cost is supported (should_use_l1_norm_vertex_cost=True)"
-            )
         # Note: The order of operations in this constructor is important
 
         self.target_pos = None
@@ -195,7 +191,7 @@ class IncrementalContactGraph(ContactGraph):
                 elif body.mobility_type == MobilityType.ACTUATED:
                     robs.append(body)
 
-            vars = ContactSetDecisionVariables.from_objs_robs(objs, robs)
+            vars = ContactSetDecisionVariables.base_vars_from_objs_robs(objs, robs)
             base_polyhedra = {
                 id: self._contact_pair_modes[id].create_base_polyhedron(
                     vars=vars, additional_constraints=additional_constraints

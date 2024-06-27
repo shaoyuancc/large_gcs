@@ -11,9 +11,11 @@ should_add_const_edge_cost: true
 
 
 cost_estimator:
-  shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1_norm_cost_factory_obj_weighted"
+  shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1norm_cost_factory_obj_weighted"
 
 save_visualization: true
+save_solution: true
+save_metrics: true
 save_to_wandb: true
 
 hydra:

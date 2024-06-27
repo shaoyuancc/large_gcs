@@ -33,7 +33,9 @@ class ContactRegionsSet(ConvexSet):
         name: str,
     ):
         self.contact_region_params = contact_region_params
-        self.vars = ContactSetDecisionVariables.from_objs_robs(objects, robots)
+        self.vars = ContactSetDecisionVariables.base_vars_from_objs_robs(
+            objects, robots
+        )
 
         self.constraint_formulas = []
         bodies_with_regions = set()

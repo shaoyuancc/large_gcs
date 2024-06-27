@@ -12,7 +12,7 @@ from large_gcs.graph.cfree_cost_constraint_factory import (
     vertex_constraint_last_pos_equality_cfree,
 )
 from large_gcs.graph.contact_cost_constraint_factory import (
-    vertex_constraint_last_pos_equality_contact,
+    contact_vertex_constraint_last_pos_equality_contact,
 )
 from large_gcs.graph.graph import ShortestPathSolution, Vertex
 
@@ -35,7 +35,9 @@ class SamplingLastPos(SamplingDominationChecker):
         if isinstance(convex_set, ContactSet) or isinstance(
             convex_set, ContactPointSet
         ):
-            con = vertex_constraint_last_pos_equality_contact(convex_set.vars, sample)
+            con = contact_vertex_constraint_last_pos_equality_contact(
+                convex_set.vars, sample
+            )
         else:
             # Assume that the convex set has 2 knot points and the last position is the second knot point i.e. the second half of the variables.
             con = vertex_constraint_last_pos_equality_cfree(sample)

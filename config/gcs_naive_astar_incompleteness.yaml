@@ -9,6 +9,8 @@ should_incl_simul_mode_switches: false
 should_add_const_edge_cost: false
 
 save_visualization: true
+save_solution: true
+save_metrics: true
 save_to_wandb: true
 
 algorithm:

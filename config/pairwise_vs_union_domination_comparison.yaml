@@ -1,5 +1,5 @@
 defaults:
-  - algorithm: gcs_star
+  - algorithm: gcs_star_eps_suboptimal
   - cost_estimator: shortcut_edge
   - domination_checker: reaches_cheaper_sampling_pairwise
   - hydra: hydra
@@ -11,13 +11,14 @@ should_add_const_edge_cost: true
 
 
 cost_estimator:
-  shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted
-  # shortcut_edge_cost_factory: "large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_under_obj_weighted"
+  shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l2norm_cost_factory_obj_weighted
 
 domination_checker:
   num_samples_per_vertex: 200
 
 save_visualization: true
+save_solution: true
+save_metrics: true
 save_to_wandb: true
 
 hydra:
@@ -33,9 +34,4 @@ hydra:
   sweeper:
     params:
       domination_checker: reaches_new_sampling, reaches_new_sampling_pairwise, reaches_cheaper_sampling, reaches_cheaper_sampling_pairwise
-      # cost_estimator.shortcut_edge_cost_factory:  large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_over_obj_weighted, large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_cost_factory_under_obj_weighted
-      # large_gcs.graph.contact_cost_constraint_factory.contact_norm_squared_shortcut_edge_cost_factory_over_obj_weighted, 
       graph_name: cg_trichal4, cg_maze_b1
-      
-# cg_simple_3, cg_trichal4 , cg_maze_b1, cg_maze_b3
-# cg_simple_2, cg_simple_3, cg_trichal2, cg_trichal4, cg_maze_b1, cg_maze_b3 #, cg_maze_a35

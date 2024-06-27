@@ -115,7 +115,7 @@ class SetSamples:
             self._proj_graph.remove_vertex(node.vertex_name)
             return None
             # assert sol.is_success, "Failed to project sample"
-        proj_sample = sol.ambient_path[-1]
+        proj_sample = sol.trajectory[-1]
 
         # Clean up the projection graph
         self._proj_graph.remove_vertex(node.vertex_name)
@@ -324,7 +324,7 @@ class SamplingDominationChecker(DominationChecker):
             raise NotImplementedError(
                 "There is a bug that is making the candidate sol sample not feasible"
             )
-            samples.append(candidate_node.sol.ambient_path[-2])
+            samples.append(candidate_node.sol.trajectory[-2])
             logger.debug(f"Sample from candidate sol: {samples[0]}")
 
         samples += list(self._set_samples[candidate_node.vertex_name].samples)

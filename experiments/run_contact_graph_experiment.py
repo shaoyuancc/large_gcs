@@ -106,6 +106,16 @@ def main(cfg: OmegaConf) -> None:
             lbg=lbg,
             vis_params=AlgVisParams(log_dir=full_log_dir),
         )
+    elif cfg.algorithm._target_ == "large_gcs.algorithms.gcs_naive_astar.GcsNaiveAstar":
+        cost_estimator: CostEstimator = instantiate(
+            cfg.cost_estimator, graph=cg, add_const_cost=cfg.should_add_const_edge_cost
+        )
+        alg: SearchAlgorithm = instantiate(
+            cfg.algorithm,
+            graph=cg,
+            cost_estimator=cost_estimator,
+            vis_params=AlgVisParams(log_dir=full_log_dir),
+        )
     else:
         cost_estimator: CostEstimator = instantiate(
             cfg.cost_estimator, graph=cg, add_const_cost=cfg.should_add_const_edge_cost
@@ -133,7 +143,7 @@ def main(cfg: OmegaConf) -> None:
                 + f"{cost_estimator.finger_print}_{cfg.graph_name}"
             )
 
-    if sol is not None and cfg.save_metrics:
+    if cfg.save_metrics:
         metrics_path = Path(full_log_dir) / f"{output_base}_metrics.json"
         alg.save_alg_metrics_to_file(metrics_path)
 

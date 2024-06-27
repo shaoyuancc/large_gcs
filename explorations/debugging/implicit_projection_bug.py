@@ -3,7 +3,7 @@ import logging
 from large_gcs.algorithms.gcs_star import GcsStar
 from large_gcs.cost_estimators.shortcut_edge_ce import ShortcutEdgeCE
 from large_gcs.graph.contact_cost_constraint_factory import (
-    contact_shortcut_edge_cost_factory_over_obj_weighted,
+    contact_shortcut_edge_l2norm_cost_factory_obj_weighted,
 )
 
 logging.basicConfig(level=logging.WARN)
@@ -25,7 +25,7 @@ cg = IncrementalContactGraph.load_from_file(
 )
 cost_estimator = ShortcutEdgeCE(
     cg,
-    shortcut_edge_cost_factory=contact_shortcut_edge_cost_factory_over_obj_weighted,
+    shortcut_edge_cost_factory=contact_shortcut_edge_l2norm_cost_factory_obj_weighted,
 )
 alg = GcsStar(cg, cost_estimator, num_samples_per_vertex=5)
 sol: ShortestPathSolution = alg.run()

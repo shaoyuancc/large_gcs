@@ -110,9 +110,7 @@ def main() -> None:
             AlgMetrics.load(metric_file)
 
         print("Creating solution...")
-        cg.contact_spp_sol = cg.create_contact_spp_sol(
-            sol.vertex_path, sol.ambient_path
-        )
+        cg.contact_spp_sol = cg.create_contact_spp_sol(sol.vertex_path, sol.trajectory)
 
         if make_video:
             vid_file = path / "regenerated_video.mp4"
@@ -122,7 +120,9 @@ def main() -> None:
 
         print("Generating figure...")
 
-        cg.plot_solution(cg.contact_spp_sol, path / "traj_figure.pdf")
+        cg.plot_solution(
+            cg.contact_spp_sol, path / "traj_figure.pdf", use_paper_params=True
+        )
 
 
 if __name__ == "__main__":
