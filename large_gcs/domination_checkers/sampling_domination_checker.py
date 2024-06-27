@@ -125,31 +125,17 @@ class SamplingDominationChecker(DominationChecker):
 
         samples = []
         if self._should_use_candidate_sol:
-            # The last vertex in the ambient path will be the target,
+            # The last vertex in the trajectory will be the target,
             # The second last would be the candidate vertex
-            raise NotImplementedError(
-                "There is a bug that is making the candidate sol sample not feasible"
-            )
             samples.append(candidate_node.sol.trajectory[-2])
-            logger.debug(f"Sample from candidate sol: {samples[0]}")
 
         samples += list(self._set_samples[candidate_node.vertex_name].samples)
 
         for idx, sample in enumerate(
             self._set_samples[candidate_node.vertex_name].samples
         ):
-            # logger.debug(f"Checking sample {idx}")
-            # if (not self._should_use_candidate_sol and idx == 0) or (
-            #     self._should_use_candidate_sol and idx == 1
-            # ):
-            #     # Before we project the first sample we need to init the graph
-            #     # logger.debug(f"Init graph for projection of samples")
-            #     self._set_samples[candidate_node.vertex_name].init_graph_for_projection(
-            #         self._graph, candidate_node, self._alg_metrics
-            #     )
-
             if self._should_use_candidate_sol and idx == 0:
-                # logger.debug(f"Using candidate sol as sample")
+                logger.debug(f"Using candidate sol as sample")
                 # Candidate sol does not need to be projected
                 proj_sample = sample
             else:
@@ -181,7 +167,6 @@ class SamplingDominationChecker(DominationChecker):
 
             any_single_domination = False
             for alt_i, alt_n in enumerate(alternate_nodes):
-                # logger.debug(f"Checking alternate path {alt_i} of {len(alternate_nodes)} for sample {idx}")
                 alt_sol = self._solve_conv_res_to_sample(alt_n, sample_vertex_name)
                 if self._is_single_dominated(candidate_sol, alt_sol):
                     self._graph.remove_vertex(sample_vertex_name)

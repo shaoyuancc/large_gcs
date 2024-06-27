@@ -15,6 +15,9 @@ from large_gcs.algorithms.search_algorithm import (
 )
 from large_gcs.cost_estimators.cost_estimator import CostEstimator
 from large_gcs.domination_checkers.domination_checker import DominationChecker
+from large_gcs.domination_checkers.sampling_domination_checker import (
+    SamplingDominationChecker,
+)
 from large_gcs.graph.graph import Graph, ShortestPathSolution
 from large_gcs.graph.incremental_contact_graph import IncrementalContactGraph
 
@@ -93,6 +96,16 @@ class GcsStar(SearchAlgorithm):
             )
             self._load_graph_from_checkpoint_data()
 
+        # Override skip post solve if domination checker requires it
+        self._override_skip_post_solve = None
+        if (
+            isinstance(self._domination_checker, SamplingDominationChecker)
+            and self._domination_checker._should_use_candidate_sol == True
+        ):
+            # If the domination checker is going to use the candidate solution,
+            # Then the trajectory needs to be processed by the post solve.
+            self._override_skip_post_solve = False
+
     def run(self) -> ShortestPathSolution:
         """Searches for a shortest path in the given graph."""
         logger.info(f"Running {self.__class__.__name__}")
@@ -169,7 +182,7 @@ class GcsStar(SearchAlgorithm):
             n,
             heuristic_inflation_factor=self._heuristic_inflation_factor,
             solve_convex_restriction=True,
-            # override_skip_post_solve=False,
+            override_skip_post_solve=self._override_skip_post_solve,
         )
 
         if not sol.is_success:
