@@ -81,10 +81,37 @@ class ContactSetDecisionVariables:
         """Extracts the last knot point vars_pos from vars_all."""
         return self.pos_from_all(vars_all)[:, :, -1].flatten()
 
-    def first_obj_first_pos_from_all(self, vars_all):
-        """Extracts the first knot point vars_pos of the first object from
+    def first_pos_from_all(self, vars_all):
+        """Extracts the first knot point vars_pos from vars_all."""
+        return self.pos_from_all(vars_all)[:, :, 0].flatten()
+
+    def obj_pos_from_all(self, vars_all):
+        """Extracts the vars_pos for the objects from vars_all."""
+        return self.pos_from_all(vars_all)[: self.n_objects]
+
+    def rob_pos_from_all(self, vars_all):
+        """Extracts the vars_pos for the robots from vars_all."""
+        return self.pos_from_all(vars_all)[self.n_objects :]
+
+    def obj_last_pos_from_all(self, vars_all):
+        """Extracts the last knot point vars_pos for the objects from
         vars_all."""
-        return self.pos_from_all(vars_all)[0, :, 0].flatten()
+        return self.obj_pos_from_all(vars_all)[:, :, -1].flatten()
+
+    def rob_last_pos_from_all(self, vars_all):
+        """Extracts the last knot point vars_pos for the robots from
+        vars_all."""
+        return self.rob_pos_from_all(vars_all)[:, :, -1].flatten()
+
+    def obj_first_pos_from_all(self, vars_all):
+        """Extracts the first knot point vars_pos for the objects from
+        vars_all."""
+        return self.obj_pos_from_all(vars_all)[:, :, 0].flatten()
+
+    def rob_first_pos_from_all(self, vars_all):
+        """Extracts the first knot point vars_pos for the robots from
+        vars_all."""
+        return self.rob_pos_from_all(vars_all)[:, :, 0].flatten()
 
     @property
     def last_pos(self):

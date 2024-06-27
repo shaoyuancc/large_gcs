@@ -6,14 +6,11 @@ from pydrake.all import (
     Cost,
     DecomposeAffineExpressions,
     DecomposeLinearExpressions,
-    DecomposeQuadraticPolynomial,
     L1NormCost,
     L2NormCost,
     LinearConstraint,
     LinearCost,
     LinearEqualityConstraint,
-    Polynomial,
-    QuadraticCost,
     Variable,
 )
 
@@ -23,7 +20,11 @@ from large_gcs.contact.contact_set_decision_variables import ContactSetDecisionV
 def create_vars_from_template(
     vars_template: np.ndarray, name_prefix: str
 ) -> np.ndarray:
-    """Creates a new set of variables from a template."""
+    """Creates a new set of variables from a template.
+
+    We use this because the names of the variables would be otherwise be
+    the same for u and v.
+    """
     vars_new = np.empty_like(vars_template)
     for i in range(vars_template.size):
         vars_new.flat[i] = Variable(
@@ -33,105 +34,67 @@ def create_vars_from_template(
     return vars_new
 
 
-def contact_shortcut_edge_cost_factory_under(
-    u_vars: ContactSetDecisionVariables,
-    v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False,
-) -> List[Cost]:
-    """Creates a list of costs for the shortcut between set u and set v."""
-    u_vars_all = create_vars_from_template(u_vars.all, "u")
-    v_vars_all = create_vars_from_template(v_vars.all, "v")
-
-    # Position continuity cost
-    u_pos = u_vars.pos_from_all(u_vars_all)
-    v_pos = v_vars.pos_from_all(v_vars_all)
-    u_last_pos = u_pos[:, :, -1].flatten()
-    v_first_pos = v_pos[:, :, 0].flatten()
-    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
-    exprs = (u_last_pos - v_first_pos).flatten()
-    A = DecomposeLinearExpressions(exprs, uv_vars_all)
-    b = np.zeros(A.shape[0])
-    costs = [L2NormCost(A, b)]
-
-    if add_const_cost:
-        # Constant cost for the edge
-        a = np.zeros((uv_vars_all.size, 1))
-        # We add 2 because if a shortcut is used it minimally replaces 2 edges
-        constant_cost = 2
-        costs.append(LinearCost(a, constant_cost))
-
-    return costs
-
-
-def contact_shortcut_edge_cost_factory_under_obj_weighted(
-    u_vars: ContactSetDecisionVariables,
-    v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False,
-) -> List[Cost]:
-    """Creates a list of costs for the shortcut between set u and set v."""
-    u_vars_all = create_vars_from_template(u_vars.all, "u")
-    v_vars_all = create_vars_from_template(v_vars.all, "v")
-    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
-    u_pos = u_vars.pos_from_all(u_vars_all)
-    v_pos = v_vars.pos_from_all(v_vars_all)
-
-    # Hacky way to separate the object and robot positions variables
-    # I know that v will be the target, and so will not have force variables
-    # I know that only robots have actuation force variables
-    n_robs = u_vars.force_act.shape[0]
-    n_objs = u_vars.pos.shape[0] - n_robs
-
-    def create_l2norm_cost(u_pos, v_pos, scaling=1):
-        u_last_pos = u_pos[:, :, -1].flatten()
-        v_first_pos = v_pos[:, :, 0].flatten()
-        exprs = (u_last_pos - v_first_pos).flatten() * scaling
-        A = DecomposeLinearExpressions(exprs, uv_vars_all)
-        b = np.zeros(A.shape[0])
-        return L2NormCost(A, b)
-
-    costs = [
-        create_l2norm_cost(u_pos[:n_objs], v_pos[:n_objs], scaling=1),
-        create_l2norm_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=0.2),
-    ]
-
-    if add_const_cost:
-        # Constant cost for the edge
-        a = np.zeros((uv_vars_all.size, 1))
-        # We add 2 because if a shortcut is used it minimally replaces 2 edges
-        constant_cost = 2
-        costs.append(LinearCost(a, constant_cost))
-
-    return costs
-
-
-def create_l1norm_cost(u_pos, v_pos, uv_vars_all, scaling=1):
-    u_last_pos = u_pos[:, :, -1].flatten()
-    v_first_pos = v_pos[:, :, 0].flatten()
+def create_l1norm_cost(u_last_pos, v_first_pos, uv_vars_all, scaling=1):
     exprs = (u_last_pos - v_first_pos).flatten() * scaling
     A = DecomposeLinearExpressions(exprs, uv_vars_all)
     b = np.zeros(A.shape[0])
     return L1NormCost(A, b)
 
 
-def create_scaled_l1norm_position_continuity_costs(u_vars, v_vars, scaling_eps):
+def create_l2norm_cost(u_last_pos, v_first_pos, uv_vars_all, scaling=1):
+    exprs = (u_last_pos - v_first_pos).flatten() * scaling
+    A = DecomposeLinearExpressions(exprs, uv_vars_all)
+    b = np.zeros(A.shape[0])
+    return L2NormCost(A, b)
+
+
+def create_scaled_l1norm_position_continuity_costs(
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    scaling_eps: float,
+):
     u_vars_all = create_vars_from_template(u_vars.all, "u")
     v_vars_all = create_vars_from_template(v_vars.all, "v")
     uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
-    u_pos = u_vars.pos_from_all(u_vars_all)
-    v_pos = v_vars.pos_from_all(v_vars_all)
-
-    # Hacky way to separate the object and robot positions variables
-    # I know that v will be the target, and so will not have force variables
-    # I know that only robots have actuation force variables
-    n_robs = u_vars.force_act.shape[0]
-    n_objs = u_vars.pos.shape[0] - n_robs
 
     costs = [
         create_l1norm_cost(
-            u_pos[:n_objs], v_pos[:n_objs], uv_vars_all, scaling=1 * scaling_eps
+            u_vars.obj_last_pos_from_all(u_vars_all),
+            v_vars.obj_first_pos_from_all(v_vars_all),
+            uv_vars_all,
+            scaling=1 * scaling_eps,
         ),
         create_l1norm_cost(
-            u_pos[n_objs:], v_pos[n_objs:], uv_vars_all, scaling=0.2 * scaling_eps
+            u_vars.rob_last_pos_from_all(u_vars_all),
+            v_vars.rob_first_pos_from_all(v_vars_all),
+            uv_vars_all,
+            scaling=0.2 * scaling_eps,
+        ),
+    ]
+    return costs
+
+
+def create_scaled_l2norm_position_continuity_costs(
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    scaling_eps: float,
+):
+    u_vars_all = create_vars_from_template(u_vars.all, "u")
+    v_vars_all = create_vars_from_template(v_vars.all, "v")
+    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
+
+    costs = [
+        create_l2norm_cost(
+            u_vars.obj_last_pos_from_all(u_vars_all),
+            v_vars.obj_first_pos_from_all(v_vars_all),
+            uv_vars_all,
+            scaling=1 * scaling_eps,
+        ),
+        create_l2norm_cost(
+            u_vars.rob_last_pos_from_all(u_vars_all),
+            v_vars.rob_first_pos_from_all(v_vars_all),
+            uv_vars_all,
+            scaling=0.2 * scaling_eps,
         ),
     ]
     return costs
@@ -144,6 +107,27 @@ def contact_shortcut_edge_l1norm_cost_factory_obj_weighted(
     heuristic_inflation_factor: float = 1,
 ) -> List[Cost]:
     costs = create_scaled_l1norm_position_continuity_costs(
+        u_vars, v_vars, heuristic_inflation_factor
+    )
+
+    if add_const_cost:
+        total_dims = u_vars.all.size + v_vars.all.size
+        # Constant cost for the edge
+        a = np.zeros((total_dims, 1))
+        # We add 2 because if a shortcut is used it minimally replaces 2 edges
+        constant_cost = 2 * heuristic_inflation_factor
+        costs.append(LinearCost(a, constant_cost))
+
+    return costs
+
+
+def contact_shortcut_edge_l2norm_cost_factory_obj_weighted(
+    u_vars: ContactSetDecisionVariables,
+    v_vars: ContactSetDecisionVariables,
+    add_const_cost: bool = False,
+    heuristic_inflation_factor: float = 1,
+) -> List[Cost]:
+    costs = create_scaled_l2norm_position_continuity_costs(
         u_vars, v_vars, heuristic_inflation_factor
     )
 
@@ -174,151 +158,6 @@ def contact_shortcut_edge_l1_norm_plus_switches_cost_factory(
     a = np.zeros((total_dims, 1))
     constant_cost = (1 + n_switches) * heuristic_inflation_factor
     costs.append(LinearCost(a, constant_cost))
-
-    return costs
-
-
-def contact_shortcut_edge_cost_factory_over(
-    u_vars: ContactSetDecisionVariables,
-    v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False,
-) -> List[Cost]:
-    """Creates a list of costs for the shortcut between set u and set v."""
-    u_vars_all = create_vars_from_template(u_vars.all, "u")
-    v_vars_all = create_vars_from_template(v_vars.all, "v")
-
-    # Position continuity cost
-    u_pos = u_vars.pos_from_all(u_vars_all)
-    v_pos = v_vars.pos_from_all(v_vars_all)
-    u_last_pos = u_pos[:, :, -1].flatten()
-    v_first_pos = v_pos[:, :, 0].flatten()
-    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
-    exprs = (u_last_pos - v_first_pos).flatten()
-    A = DecomposeLinearExpressions(exprs, uv_vars_all)
-    b = np.zeros(A.shape[0])
-    costs = [L2NormCost(A, b)]
-
-    if add_const_cost:
-        # Constant cost for the edge
-        a = np.zeros((uv_vars_all.size, 1))
-        # We add 2 because if a shortcut is used it minimally replaces 2 edges
-        constant_cost = 20
-        costs.append(LinearCost(a, constant_cost))
-
-    return costs
-
-
-def contact_norm_squared_shortcut_edge_cost_factory_over(
-    u_vars: ContactSetDecisionVariables,
-    v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False,
-) -> List[Cost]:
-    """Creates a list of costs for the shortcut between set u and set v."""
-    u_vars_all = create_vars_from_template(u_vars.all, "u")
-    v_vars_all = create_vars_from_template(v_vars.all, "v")
-
-    # Position continuity cost
-    u_pos = u_vars.pos_from_all(u_vars_all)
-    v_pos = v_vars.pos_from_all(v_vars_all)
-    u_last_pos = u_pos[:, :, -1].flatten()
-    v_first_pos = v_pos[:, :, 0].flatten()
-    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
-    diff = (u_last_pos - v_first_pos).flatten()
-
-    expr = np.dot(diff, diff)
-    var_map = {var.get_id(): i for i, var in enumerate(uv_vars_all)}
-    Q, b, c = DecomposeQuadraticPolynomial(Polynomial(expr), var_map)
-    costs = [QuadraticCost(Q, b, c)]
-
-    if add_const_cost:
-        # Constant cost for the edge
-        a = np.zeros((uv_vars_all.size, 1))
-        # We add 2 because if a shortcut is used it minimally replaces 2 edges
-        constant_cost = 20
-        costs.append(LinearCost(a, constant_cost))
-
-    return costs
-
-
-def contact_shortcut_edge_cost_factory_over_obj_weighted(
-    u_vars: ContactSetDecisionVariables,
-    v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False,
-) -> List[Cost]:
-    """Creates a list of costs for the shortcut between set u and set v."""
-    u_vars_all = create_vars_from_template(u_vars.all, "u")
-    v_vars_all = create_vars_from_template(v_vars.all, "v")
-    # Hacky way to separate the object and robot positions variables
-    # I know that v will be the target, and so will not have force variables
-    # I know that only robots have actuation force variables
-    n_robs = u_vars.force_act.shape[0]
-    n_objs = u_vars.pos.shape[0] - n_robs
-    # Position continuity cost
-    u_pos = u_vars.pos_from_all(u_vars_all)
-    v_pos = v_vars.pos_from_all(v_vars_all)
-    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
-
-    def create_l2norm_cost(u_pos, v_pos, scaling=1):
-        u_last_pos = u_pos[:, :, -1].flatten()
-        v_first_pos = v_pos[:, :, 0].flatten()
-        exprs = (u_last_pos - v_first_pos).flatten() * scaling
-        A = DecomposeLinearExpressions(exprs, uv_vars_all)
-        b = np.zeros(A.shape[0])
-        return L2NormCost(A, b)
-
-    costs = [
-        create_l2norm_cost(u_pos[:n_objs], v_pos[:n_objs], scaling=10),
-        create_l2norm_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=2),
-    ]
-
-    if add_const_cost:
-        # Constant cost for the edge
-        a = np.zeros((uv_vars_all.size, 1))
-        # We add 2 because if a shortcut is used it minimally replaces 2 edges
-        constant_cost = 20
-        costs.append(LinearCost(a, constant_cost))
-
-    return costs
-
-
-def contact_norm_squared_shortcut_edge_cost_factory_over_obj_weighted(
-    u_vars: ContactSetDecisionVariables,
-    v_vars: ContactSetDecisionVariables,
-    add_const_cost: bool = False,
-) -> List[Cost]:
-    """Creates a list of costs for the shortcut between set u and set v."""
-    u_vars_all = create_vars_from_template(u_vars.all, "u")
-    v_vars_all = create_vars_from_template(v_vars.all, "v")
-    # Hacky way to separate the object and robot positions variables
-    # I know that v will be the target, and so will not have force variables
-    # I know that only robots have actuation force variables
-    n_robs = u_vars.force_act.shape[0]
-    n_objs = u_vars.pos.shape[0] - n_robs
-    # Position continuity cost
-    u_pos = u_vars.pos_from_all(u_vars_all)
-    v_pos = v_vars.pos_from_all(v_vars_all)
-    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
-
-    def create_quadratic_cost(u_pos, v_pos, scaling=1):
-        u_last_pos = u_pos[:, :, -1].flatten()
-        v_first_pos = v_pos[:, :, 0].flatten()
-        diff = (u_last_pos - v_first_pos).flatten()
-        expr = np.dot(diff, diff) * scaling
-        var_map = {var.get_id(): i for i, var in enumerate(uv_vars_all)}
-        Q, b, c = DecomposeQuadraticPolynomial(Polynomial(expr), var_map)
-        return QuadraticCost(Q, b, c)
-
-    costs = [
-        create_quadratic_cost(u_pos[:n_objs], v_pos[:n_objs], scaling=10),
-        create_quadratic_cost(u_pos[n_objs:], v_pos[n_objs:], scaling=2),
-    ]
-
-    if add_const_cost:
-        # Constant cost for the edge
-        a = np.zeros((uv_vars_all.size, 1))
-        # We add 2 because if a shortcut is used it minimally replaces 2 edges
-        constant_cost = 20
-        costs.append(LinearCost(a, constant_cost))
 
     return costs
 
@@ -358,46 +197,7 @@ def contact_vertex_cost_position_l1norm(
     return L1NormCost(A, b)
 
 
-def vertex_cost_position_path_length_squared(
-    vars: ContactSetDecisionVariables,
-) -> QuadraticCost:
-    path_length = np.diff(vars.pos).flatten()
-    expr = np.dot(path_length, path_length)
-    var_map = {var.get_id(): i for i, var in enumerate(vars.all)}
-    Q, b, c = DecomposeQuadraticPolynomial(Polynomial(expr), var_map)
-    return QuadraticCost(Q, b, c)
-
-
-def vertex_cost_force_actuation_norm(vars: ContactSetDecisionVariables) -> L2NormCost:
-    """Creates a vertex cost that penalizes the magnitude of the force
-    actuation."""
-    exprs = vars.force_act.flatten()
-    A = DecomposeLinearExpressions(exprs, vars.all)
-    b = np.zeros(A.shape[0])
-    return L2NormCost(A, b)
-
-
-def vertex_cost_force_actuation_norm_squared(
-    vars: ContactSetDecisionVariables,
-) -> QuadraticCost:
-    """Creates a vertex cost that penalizes the magnitude of the force
-    actuation squared."""
-    expr = np.dot(vars.force_act.flatten(), vars.force_act.flatten())
-    var_map = {var.get_id(): i for i, var in enumerate(vars.all)}
-    Q, b, c = DecomposeQuadraticPolynomial(Polynomial(expr), var_map)
-    return QuadraticCost(Q, b, c)
-
-
 ### VERTEX CONSTRAINT CREATION ###
-
-
-def vertex_constraint_force_act_limits(
-    vars: ContactSetDecisionVariables, lb: np.ndarray, ub: np.ndarray
-) -> LinearConstraint:
-    """Creates a constraint that limits the magnitude of the force actuation in
-    each dimension."""
-    assert vars.force_act.size > 0
-    raise NotImplementedError
 
 
 def contact_vertex_constraint_last_pos_equality_contact(
@@ -415,7 +215,7 @@ def contact_vertex_constraint_last_pos_equality_contact(
     return LinearEqualityConstraint(A, -b)
 
 
-def vertex_constraint_last_pos_eps_equality(
+def contact_vertex_constraint_last_pos_eps_equality(
     vars: ContactSetDecisionVariables, sample: np.ndarray, eps: float = 1e-3
 ) -> LinearConstraint:
     """Creates a constraint that enforces the last position of the vertex to be
@@ -430,7 +230,7 @@ def vertex_constraint_last_pos_eps_equality(
     return LinearConstraint(A, -b - eps, -b + eps)
 
 
-def vertex_constraint_eps_bounding_box(
+def contact_vertex_constraint_eps_bounding_box(
     sample: np.ndarray, eps: float = 1e-3
 ) -> BoundingBoxConstraint:
     """Creates a constraint that enforces the last position of the vertex to be
@@ -452,32 +252,11 @@ def contact_edge_cost_constant(
     constant_cost: float = 1,
 ) -> LinearCost:
     """Creates a cost that penalizes each active edge a constant value."""
-    u_vars_all = create_vars_from_template(u_vars.all, "u")
-    v_vars_all = create_vars_from_template(v_vars.all, "v")
+    total_dims = u_vars.all.size + v_vars.all.size
     # Linear cost of the form: a'x + b, where a is a vector of coefficients and b is a constant.
-    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
-    a = np.zeros((uv_vars_all.size, 1))
+    a = np.zeros((total_dims, 1))
     b = constant_cost
     return LinearCost(a, b)
-
-
-def contact_edge_costs_position_continuity_norm(
-    u_vars: ContactSetDecisionVariables,
-    v_vars: ContactSetDecisionVariables,
-    linear_scaling: float = 1,
-) -> L2NormCost:
-    # Get the last position in u and first position in v
-    u_vars_all = create_vars_from_template(u_vars.all, "u")
-    v_vars_all = create_vars_from_template(v_vars.all, "v")
-    u_pos = u_vars.pos_from_all(u_vars_all)
-    v_pos = v_vars.pos_from_all(v_vars_all)
-    u_last_pos = u_pos[:, :, -1].flatten()
-    v_first_pos = v_pos[:, :, 0].flatten()
-    uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
-    exprs = (u_last_pos - v_first_pos).flatten() * linear_scaling
-    A = DecomposeLinearExpressions(exprs, uv_vars_all)
-    b = np.zeros(A.shape[0])
-    return L2NormCost(A, b)
 
 
 ### EDGE CONSTRAINT CREATION ###
@@ -493,15 +272,13 @@ def contact_edge_constraint_position_continuity(
     Since this is an edge constraint, the decision variables will be
     those of both the u and v vertices.
     """
-    # Get the last position in u and first position in v
     u_vars_all = create_vars_from_template(u_vars.all, "u")
     v_vars_all = create_vars_from_template(v_vars.all, "v")
-    u_pos = u_vars.pos_from_all(u_vars_all)
-    v_pos = v_vars.pos_from_all(v_vars_all)
-    u_last_pos = u_pos[:, :, -1].flatten()
-    v_first_pos = v_pos[:, :, 0].flatten()
     uv_vars_all = np.concatenate((u_vars_all, v_vars_all))
-    exprs = (u_last_pos - v_first_pos).flatten()
+    exprs = (
+        u_vars.last_pos_from_all(u_vars_all) - v_vars.first_pos_from_all(v_vars_all)
+    ).flatten()
+
     # Decompose affine expression into expr = Ax + b
     A, b = DecomposeAffineExpressions(exprs, uv_vars_all)
     # Linear equality constraint of the form: Ax = -b

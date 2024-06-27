@@ -10,11 +10,15 @@ should_incl_simul_mode_switches: false
 should_add_const_edge_cost: true
 # USE L1 NORM VERTEX COST
 should_use_l1_norm_vertex_cost: true
+# L2 NORM VERTEX COST
+# should_use_l1_norm_vertex_cost: false
 
 
 cost_estimator:
-  # USE L1 NORM SHORTCUT EDGE COST
+  # L1 Norm Shortcut Edge Cost
   shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1norm_cost_factory_obj_weighted
+  # L2 Norm Shortcut Edge Cost
+  # shortcut_edge_cost_factory: large_gcs.graph.contact_cost_constraint_factory.contact_shortcut_edge_l1norm_cost_factory_obj_weighted
 
 save_visualization: true
 save_solution: true
