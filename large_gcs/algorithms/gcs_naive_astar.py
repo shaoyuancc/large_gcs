@@ -61,9 +61,6 @@ class GcsNaiveAstar(SearchAlgorithm):
                 "_generate_successors",
                 "_save_metrics",
             ],
-            "_visit_neighbor": [
-                "_is_dominated",
-            ],
         }
         self._alg_metrics.update_method_call_structure(call_structure)
 

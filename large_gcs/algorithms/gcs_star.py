@@ -76,7 +76,7 @@ class GcsStar(SearchAlgorithm):
                 "_generate_successors",
                 "_save_metrics",
             ],
-            "_visit_neighbor": [
+            "_explore_successor": [
                 "_is_dominated",
             ],
         }
