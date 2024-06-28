@@ -1,4 +1,3 @@
-import itertools
 import logging
 from typing import List, Type
 
@@ -88,13 +87,18 @@ class Polyhedron(ConvexSet):
         # Verify that the vertices are in the same dimension
         assert len(set([v.size for v in vertices])) == 1
 
-        vertices = order_vertices_counter_clockwise(vertices)
+        # If the ambient dimension of the polyhedron is 2
+        if vertices.shape[1] == 2:
+            vertices = order_vertices_counter_clockwise(vertices)
 
         v_polytope = VPolytope(vertices.T)
         h_polyhedron = HPolyhedron(v_polytope)
-        H, h = Polyhedron._reorder_A_b_by_vertices(
-            h_polyhedron.A(), h_polyhedron.b(), vertices
-        )
+        if vertices.shape[1] == 2:
+            H, h = Polyhedron._reorder_A_b_by_vertices(
+                h_polyhedron.A(), h_polyhedron.b(), vertices
+            )
+        else:
+            H, h = h_polyhedron.A(), h_polyhedron.b()
 
         polyhedron = cls(H, h, should_compute_vertices=False)
         if polyhedron._vertices is None:
@@ -102,14 +106,6 @@ class Polyhedron(ConvexSet):
             # Set center to be the mean of the vertices
             polyhedron._center = np.mean(vertices, axis=0)
 
-        (
-            polyhedron._A,
-            polyhedron._b,
-            polyhedron._C,
-            polyhedron._d,
-        ) = Polyhedron.get_separated_inequality_equality_constraints(
-            h_polyhedron.A(), h_polyhedron.b()
-        )
         polyhedron.create_nullspace_set()
         return polyhedron
 
@@ -189,11 +185,19 @@ class Polyhedron(ConvexSet):
         transformed_vertices = self.vertices @ T.T + t
         return transformed_vertices
 
-    def plot_transformation(self, T, t, **kwargs):
+    def plot_transformation(self, T, t=None, **kwargs):
+        if t is None:
+            t = np.zeros((T.shape[0],))
         transformed_vertices = self.vertices @ T.T + t
         # orders vertices counterclockwise
         hull = ConvexHull(transformed_vertices)
         if transformed_vertices.shape[1] == 2:
+            if "name" in kwargs:
+                kwargs["label"] = kwargs["name"]
+                del kwargs["name"]
+            if "fig" in kwargs:
+                del kwargs["fig"]
+            kwargs["linestyle"] = "dotted"
             transformed_vertices = transformed_vertices[hull.vertices]
             # Repeat the first vertex to close the polygon
             transformed_vertices = np.vstack(
@@ -201,7 +205,10 @@ class Polyhedron(ConvexSet):
             )
             # print(f"transformed_vertices: {transformed_vertices}")
             plt.plot(*transformed_vertices.T, **kwargs)
+            plt.xlabel("X")
+            plt.ylabel("Y")
             plt.title("Transformed Polyhedron")
+            return plt
         elif transformed_vertices.shape[1] == 3:
             # MATPLOTLIB
 
@@ -256,6 +263,8 @@ class Polyhedron(ConvexSet):
                     i=hull.simplices[:, 0],
                     j=hull.simplices[:, 1],
                     k=hull.simplices[:, 2],
+                    opacity=0.3,
+                    showlegend=True,
                     **kwargs,
                 )
             )
@@ -326,69 +335,6 @@ class Polyhedron(ConvexSet):
         assert len(new_order) == len(vertices), "Something went wrong"
         return A[new_order], b[new_order]
 
-    @staticmethod
-    def _check_contains_equality_constraints(A, b, rtol=1e-5, atol=1e-8):
-        """Equality constraints are enforced by having one row in A and b be:
-        ax ≤ b and another row be: -ax ≤ -b.
-
-        So checking if any pairs of rows add up to 0 tells us whether
-        there are any equality constraints.
-        """
-        for (i, (a1, b1)), (j, (a2, b2)) in itertools.combinations(
-            enumerate(zip(A, b)), 2
-        ):
-            if np.allclose(a1 + a2, 0, rtol=rtol, atol=atol) and np.isclose(
-                b1 + b2, 0, rtol=rtol, atol=atol
-            ):
-                return True
-        return False
-
-    def has_equality_constraints(self):
-        """Equality constraints are enforced by having one row in A and b be:
-        ax ≤ b and another row be: -ax ≤ -b.
-
-        So checking if any pairs of rows add up to 0 tells us whether
-        there are any equality constraints.
-        """
-        return self._check_contains_equality_constraints(self.set.A(), self.set.b())
-
-    @staticmethod
-    def get_separated_inequality_equality_constraints(
-        A_original, b_original, rtol=1e-5, atol=1e-8
-    ):
-        """Separate and return A, b, C, d where A x ≤ b are inequalities and C
-        x = d are equalities."""
-        equality_indices = set()
-        equality_rows = []
-
-        for (i1, (a1, b1)), (i2, (a2, b2)) in itertools.combinations(
-            enumerate(zip(A_original, b_original)), 2
-        ):
-            if np.allclose(a1 + a2, 0, rtol=rtol, atol=atol) and np.isclose(
-                b1 + b2, 0, rtol=rtol, atol=atol
-            ):
-                # logger.debug(f"Equality constraints found: {i1}, {i2}")
-                # logger.debug(f"a1: {a1}, b1: {b1}")
-                # logger.debug(f"a2: {a2}, b2: {b2}")
-                equality_indices.update([i1, i2])
-                equality_rows.append(i1)
-        # logger.debug(f"equality_indices: {equality_indices}")
-        # logger.debug(f"equality_rows: {equality_rows}")
-        C = np.array([A_original[i] for i in equality_rows])
-        d = np.array([b_original[i] for i in equality_rows])
-
-        inequality_rows = [
-            (a, b)
-            for i, (a, b) in enumerate(zip(A_original, b_original))
-            if i not in equality_indices
-        ]
-        A_ineq, b_ineq = (
-            zip(*inequality_rows)
-            if inequality_rows
-            else (np.empty((0, A_original.shape[1])), np.array([]))
-        )
-        return np.array(A_ineq), np.array(b_ineq), C, d
-
     def get_samples(self, n_samples=100):
         return self._nullspace_set.get_samples(n_samples)
 
@@ -407,22 +353,6 @@ class Polyhedron(ConvexSet):
     @property
     def h(self):
         return self._h
-
-    @property
-    def A(self):
-        return self._A
-
-    @property
-    def b(self):
-        return self._b
-
-    @property
-    def C(self):
-        return self._C
-
-    @property
-    def d(self):
-        return self._d
 
     @property
     def nullspace_set(self):

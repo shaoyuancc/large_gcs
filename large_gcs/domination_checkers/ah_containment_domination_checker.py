@@ -22,7 +22,6 @@ from large_gcs.geometry.geometry_utils import (
     remove_rows_near_zero,
 )
 from large_gcs.geometry.nullspace_set import AFFINE_SUBSPACE_TOL, NullspaceSet
-from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.graph.graph import Graph
 
 logger = logging.getLogger(__name__)
@@ -133,35 +132,6 @@ class AHContainmentDominationChecker(DominationChecker):
 
         return self._solve_containment_prog(prog)
 
-    def is_contained_in_w_AbCd_decomposition(
-        self, A_x, b_x, T_x, A_y, b_y, T_y
-    ) -> bool:
-        logger.debug(f"Checking containment")
-
-        A_x, b_x, C_x, d_x = Polyhedron.get_separated_inequality_equality_constraints(
-            A_x, b_x
-        )
-        K_x, k_x, T_x, t_x = self._nullspace_polyhedron_and_transformation_from_AbCdT(
-            A_x, b_x, C_x, d_x, T_x
-        )
-        A_y, b_y, C_y, d_y = Polyhedron.get_separated_inequality_equality_constraints(
-            A_y, b_y
-        )
-        K_y, k_y, T_y, t_y = self._nullspace_polyhedron_and_transformation_from_AbCdT(
-            A_y, b_y, C_y, d_y, T_y
-        )
-
-        AH_X, AH_Y = self._create_AH_polytopes(K_x, k_x, T_x, t_x, K_y, k_y, T_y, t_y)
-
-        prog = MathematicalProgram()
-
-        # https://github.com/sadraddini/pypolycontain/blob/master/pypolycontain/containment.py#L123
-        # -1 for sufficient condition
-        # pick `0` for necessary and sufficient encoding (may be too slow) (2019b)
-        pp.subset(prog, AH_X, AH_Y, self._containment_condition)
-
-        return self._solve_containment_prog(prog)
-
     def _nullspace_polyhedron_and_transformation_from_HPoly_and_T(
         self, h_poly: HPolyhedron, T: np.ndarray, t: np.ndarray = None
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, bool]:
@@ -188,52 +158,14 @@ class AHContainmentDominationChecker(DominationChecker):
             reduce_inequalities_suceeded,
         )  # , nullspace_set._V, nullspace_set._x_0
 
-    def _nullspace_polyhedron_and_transformation_from_AbCdT(self, A, b, C, d, T):
-        A_invalid = A is None or A.shape[0] == 0
-        C_invalid = C is None or C.shape[0] == 0
-
-        if A_invalid and C_invalid:
-            raise ValueError("A and C cannot both be empty")
-        elif A_invalid:
-            raise NotImplementedError(
-                "The case where A is empty hasn't been implemented yet"
-            )
-        elif C_invalid:
-            # There are no equality constraints
-            return A, b, T, np.zeros((T.shape[0], 1))
-
-        # Compute the basis of the null space of C
-        V = scipy.linalg.null_space(C)
-
-        # Compute a point in the null space of C
-        x_0, residuals, rank, s = np.linalg.lstsq(C, d, rcond=None)
-
-        A_prime = A @ V
-        b_prime = b - A @ x_0
-
-        T_prime = T @ V
-        t_prime = T @ x_0
-
-        return A_prime, b_prime, T_prime, t_prime
-
     @profile_method
-    def _create_AH_polytopes(self, A_x, b_x, T_x, t_x, A_y, b_y, T_y, t_y):
-        X = pp.H_polytope(A_x, b_x)
-        Y = pp.H_polytope(A_y, b_y)
-
-        AH_X = pp.AH_polytope(t_x, T_x, X)
-        AH_Y = pp.AH_polytope(t_y, T_y, Y)
-        return AH_X, AH_Y
-
-    @profile_method
-    def _create_path_AH_polytope_from_nullspace_sets(self, node: SearchNode):
-        logger.debug(f"create_path_AH_polytope_from_nullspace_sets")
-        # import pdb
-        # pdb.set_trace()
-        prog, full_dim = self.get_nullspace_path_mathematical_program(node)
-        # logger.debug(f"full_dim: {full_dim}")
+    def _create_path_AH_polytope_from_nullspace_sets(
+        self, node: SearchNode, add_upper_bound=False, cost_upper_bound=500
+    ):
+        prog, full_dim = self.get_nullspace_path_mathematical_program(
+            node, add_upper_bound=add_upper_bound, cost_upper_bound=cost_upper_bound
+        )
         h_poly = HPolyhedron(prog)
-        # logger.debug(f"path prog is empty: {h_poly.IsEmpty()}")
         T_H, t_H = self.get_nullspace_H_transformation(node, full_dim=full_dim)
         (
             K,
@@ -244,27 +176,19 @@ class AHContainmentDominationChecker(DominationChecker):
         ) = self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(
             h_poly, T_H, t_H
         )
-        # logger.debug(f"K: {K.shape}, k: {k.shape}, T: {T.shape}, t: {t.shape}")
-        # logger.debug(f"\nK: \n{K}, \nk: \n{k}, \nT: \n{T}, \nt: \n{t}")
         X = pp.H_polytope(K, k)
         return pp.AH_polytope(t, T, X), reduce_inequalities_succeeded
 
     @profile_method
-    def _create_path_AH_polytope_from_full_sets(self, node: SearchNode):
+    def _create_path_AH_polytope_from_full_sets(
+        self, node: SearchNode, add_upper_bound=False, cost_upper_bound=500
+    ):
         logger.debug(f"create_path_AH_polytope_from_full_sets")
-        # import pdb
-        # pdb.set_trace()
-        # A, b, C, d = self.get_path_A_b_C_d(node)
-        # total_dims = A.shape[1]
-        if self.include_cost_epigraph:
-            H, h = self.get_epigraph_matrices(node)
-            h_poly = HPolyhedron(H, h)
-        else:
-            prog = self.get_path_constraint_mathematical_program(node)
-            h_poly = HPolyhedron(prog)
-        # logger.debug(f"full_dim: {h_poly.ambient_dimension()}")
+        prog = self.get_path_mathematical_program(
+            node, add_upper_bound=add_upper_bound, cost_upper_bound=cost_upper_bound
+        )
+        h_poly = HPolyhedron(prog)
         T_H = self.get_H_transformation(node, h_poly.ambient_dimension())
-        # K, k, T, t = self._nullspace_polyhedron_and_transformation_from_AbCdT(A, b, C, d, T_H)
         (
             K,
             k,
@@ -272,8 +196,6 @@ class AHContainmentDominationChecker(DominationChecker):
             t,
             reduce_inequalities_succeeded,
         ) = self._nullspace_polyhedron_and_transformation_from_HPoly_and_T(h_poly, T_H)
-        # logger.debug(f"K: {K.shape}, k: {k.shape}, T: {T.shape}, t: {t.shape}")
-        # logger.debug(f"\nK: \n{K}, \nk: \n{k}, \nT: \n{T}, \nt: \n{t}")
         X = pp.H_polytope(K, k)
         return pp.AH_polytope(t, T, X), reduce_inequalities_succeeded
 
@@ -518,19 +440,16 @@ class AHContainmentDominationChecker(DominationChecker):
                 cost_b += cost.b()
                 cost_coeff_row += cost.a() @ S
 
+            prog.AddLinearConstraint(
+                A=cost_coeff_row,
+                lb=[-np.inf],
+                ub=[-cost_b],
+                vars=prog.decision_variables(),
+            )
             if add_upper_bound:
+                S = create_selection_matrix([N - 1], N)
                 prog.AddLinearConstraint(
-                    A=cost_coeff_row,
-                    lb=[-cost_upper_bound],
-                    ub=[-cost_b],
-                    vars=prog.decision_variables(),
-                )
-            else:
-                prog.AddLinearConstraint(
-                    A=cost_coeff_row,
-                    lb=[-np.inf],
-                    ub=[-cost_b],
-                    vars=prog.decision_variables(),
+                    A=S, lb=[0], ub=[cost_upper_bound], vars=prog.decision_variables()
                 )
 
             # Full_v_dim is the hallucinated dimension of the full space path prog
@@ -541,39 +460,9 @@ class AHContainmentDominationChecker(DominationChecker):
 
         return prog, full_v_dim
 
-    def get_path_constraint_mathematical_program(
-        self, node: SearchNode
+    def get_path_mathematical_program(
+        self, node: SearchNode, add_upper_bound=False, cost_upper_bound=500
     ) -> MathematicalProgram:
-        # gcs vertices
-        vertices = [self._graph.vertices[name].gcs_vertex for name in node.vertex_path]
-        edges = [self._graph.edges[edge].gcs_edge for edge in node.edge_path]
-
-        prog = MathematicalProgram()
-        vertex_vars = [
-            prog.NewContinuousVariables(v.ambient_dimension(), name=f"v{v_idx}_vars")
-            for v_idx, v in enumerate(vertices)
-        ]
-        for v, x in zip(vertices, vertex_vars):
-            v.set().AddPointInSetConstraints(prog, x)
-
-            # Vertex Constraints
-            for binding in v.GetConstraints():
-                constraint = binding.evaluator()
-                prog.AddConstraint(constraint, x)
-
-        for idx, e in enumerate(edges):
-            # Edge Constraints
-            for binding in e.GetConstraints():
-                constraint = binding.evaluator()
-                variables = binding.variables()
-
-                u_idx, v_idx = idx, idx + 1
-                variables = np.hstack((vertex_vars[u_idx], vertex_vars[v_idx]))
-                prog.AddConstraint(constraint, variables)
-
-        return prog
-
-    def get_path_mathematical_program(self, node: SearchNode) -> MathematicalProgram:
         # gcs vertices
         vertices = [self._graph.vertices[name].gcs_vertex for name in node.vertex_path]
         edges = [self._graph.edges[edge].gcs_edge for edge in node.edge_path]
@@ -592,25 +481,28 @@ class AHContainmentDominationChecker(DominationChecker):
                 constraint = binding.evaluator()
                 prog.AddConstraint(constraint, x)
 
-            # Vertex Costs
-            for binding in v.GetCosts():
-                cost = binding.evaluator()
-                if isinstance(cost, L1NormCost):
-                    A = cost.A()
-                    t = prog.NewContinuousVariables(
-                        A.shape[0], name=f"v{idx}_vertex_l1norm_cost"
-                    )
-                    prog.AddLinearCost(np.sum(t))
-                    prog.AddLinearConstraint(
-                        A @ x - t, np.ones(A.shape[0]) * (-np.inf), np.zeros(A.shape[0])
-                    )
-                    prog.AddLinearConstraint(
-                        -A @ x - t,
-                        np.ones(A.shape[0]) * (-np.inf),
-                        np.zeros(A.shape[0]),
-                    )
-                else:
-                    prog.AddCost(cost, x)
+            if self.include_cost_epigraph:
+                # Vertex Costs
+                for binding in v.GetCosts():
+                    cost = binding.evaluator()
+                    if isinstance(cost, L1NormCost):
+                        A = cost.A()
+                        t = prog.NewContinuousVariables(
+                            A.shape[0], name=f"v{idx}_vertex_l1norm_cost"
+                        )
+                        prog.AddLinearCost(np.sum(t))
+                        prog.AddLinearConstraint(
+                            A @ x - t,
+                            np.ones(A.shape[0]) * (-np.inf),
+                            np.zeros(A.shape[0]),
+                        )
+                        prog.AddLinearConstraint(
+                            -A @ x - t,
+                            np.ones(A.shape[0]) * (-np.inf),
+                            np.zeros(A.shape[0]),
+                        )
+                    else:
+                        prog.AddCost(cost, x)
 
         for idx, e in enumerate(edges):
             u_idx, v_idx = idx, idx + 1
@@ -620,65 +512,65 @@ class AHContainmentDominationChecker(DominationChecker):
                 constraint = binding.evaluator()
                 prog.AddConstraint(constraint, variables)
 
-            # Edge Costs
-            for binding in e.GetCosts():
+            if self.include_cost_epigraph:
+                # Edge Costs
+                for binding in e.GetCosts():
+                    cost = binding.evaluator()
+                    if isinstance(cost, L1NormCost):
+                        A = cost.A()
+                        t = prog.NewContinuousVariables(
+                            A.shape[0], name=f"e{idx}_edge_l1norm_cost"
+                        )
+                        prog.AddLinearCost(np.sum(t))
+                        prog.AddLinearConstraint(
+                            A @ variables - t,
+                            np.ones(A.shape[0]) * (-np.inf),
+                            np.zeros(A.shape[0]),
+                        )
+                        prog.AddLinearConstraint(
+                            -A @ variables - t,
+                            np.ones(A.shape[0]) * (-np.inf),
+                            np.zeros(A.shape[0]),
+                        )
+                    else:
+                        prog.AddCost(cost, variables)
+
+        # Add cost epigraph variable
+        if self.include_cost_epigraph:
+            prog.NewContinuousVariables(1, name="cost")
+            N = len(prog.decision_variables())
+            # Add the epigraph cost as the final row
+            cost_coeff_row = np.zeros((1, N))
+            # Assumes the cost variable is the last variable
+            cost_coeff_row[0, -1] = -1
+            cost_b = 0
+            for binding in prog.GetAllCosts():
                 cost = binding.evaluator()
-                if isinstance(cost, L1NormCost):
-                    A = cost.A()
-                    t = prog.NewContinuousVariables(
-                        A.shape[0], name=f"e{idx}_edge_l1norm_cost"
+                if not isinstance(cost, LinearCost):
+                    raise NotImplementedError(
+                        f"Only linear costs are supported for now, {cost} not supported"
                     )
-                    prog.AddLinearCost(np.sum(t))
-                    prog.AddLinearConstraint(
-                        A @ variables - t,
-                        np.ones(A.shape[0]) * (-np.inf),
-                        np.zeros(A.shape[0]),
-                    )
-                    prog.AddLinearConstraint(
-                        -A @ variables - t,
-                        np.ones(A.shape[0]) * (-np.inf),
-                        np.zeros(A.shape[0]),
-                    )
-                else:
-                    prog.AddCost(cost, variables)
+                cost_var_indices = prog.FindDecisionVariableIndices(binding.variables())
+                S = create_selection_matrix(cost_var_indices, N)
+                # Linear cost is of the form a^T x + b
+                # Transforming it to cost_coeff_row x <=  - cost_b
+                # (1, N) (N, 1) = scalar
+                # which then becomes: cost in terms of all other variables + cost_b <= cost_var
+                cost_b += cost.b()
+                cost_coeff_row += cost.a() @ S
+
+            prog.AddLinearConstraint(
+                A=cost_coeff_row,
+                lb=[-np.inf],
+                ub=[-cost_b],
+                vars=prog.decision_variables(),
+            )
+            if add_upper_bound:
+                S = create_selection_matrix([N - 1], N)
+                prog.AddLinearConstraint(
+                    A=S, lb=[0], ub=[cost_upper_bound], vars=prog.decision_variables()
+                )
         return prog
-
-    def get_feasibility_matrices_via_prog(self, node: SearchNode):
-        logger.debug(f"get_feasibility_matrices_via_prog")
-        prog = self.get_path_constraint_mathematical_program(node)
-        X = HPolyhedron(prog)
-        return X.A(), X.b()
-
-    def get_epigraph_matrices(
-        self, node: SearchNode, add_upper_bound=False, cost_upper_bound=1e4
-    ):
-        prog = self.get_path_mathematical_program(node)
-        X = HPolyhedron(prog)
-        vars = list(prog.decision_variables())
-        cs = prog.GetAllCosts()
-        c_coeff_vec = np.zeros(len(vars))
-        b = 0
-        for c in cs:
-            c_vars = c.variables()
-            c_coeff = c.evaluator().a()
-            b += c.evaluator().b()
-            for i_c_var, c_var in enumerate(c_vars):
-                c_var_ind = self.find_index(vars, c_var)
-
-                c_coeff_vec[c_var_ind] += c_coeff[i_c_var]
-
-        col = np.zeros(X.A().shape[0] + 1)
-        col[-1] = -1
-        A_x = np.hstack((np.vstack([X.A(), c_coeff_vec]), col.reshape(-1, 1)))
-        b_x = np.hstack([X.b(), -b])
-
-        if add_upper_bound:
-            # Add upper bound constraint
-            A_x = np.vstack([A_x, np.zeros(A_x.shape[1])])
-            A_x[-1, -1] = 1
-            b_x = np.hstack([b_x, cost_upper_bound])
-
-        return A_x, b_x
 
     def get_nullspace_H_transformation(
         self,

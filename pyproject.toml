@@ -24,6 +24,7 @@ pdbpp = "^0.10.3"
 plotly = "^5.20.0"
 docformatter = "^1.7.5"
 drake = "^1.28.0"
+nbformat = "^5.10.4"
 
 [tool.isort]
 profile = "black"
@@ -33,7 +34,7 @@ line-length = 88
 
 [tool.pytest.ini_options]
 log_cli = true
-log_cli_level = "DEBUG"
+log_cli_level = "INFO"
 addopts = "--disable-warnings"
 
 [build-system]

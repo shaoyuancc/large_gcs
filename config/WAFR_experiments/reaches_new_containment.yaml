@@ -11,6 +11,8 @@ should_add_const_edge_cost: true
 # USE L1 NORM VERTEX COST
 should_use_l1_norm_vertex_cost: true
 
+algorithm:
+  save_expansion_order: false
 
 cost_estimator:
   # USE L1 NORM SHORTCUT EDGE COST
@@ -28,7 +30,7 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      graph_name: cg_simple_4
+      graph_name: cg_stackpush_d2
       # graph_name: cg_simple_4, cg_stackpush_d2 #, cg_maze_b1
       # domination_checker: reaches_new_last_pos_sampling_containment, reaches_new_sampling_containment
       # domination_checker.construct_path_from_nullspaces: true, false

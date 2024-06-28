@@ -11,35 +11,40 @@ from pydrake.all import (
 )
 
 
-def shortcut_edge_cost_factory(dim: int, add_const_cost: bool = False) -> List[Cost]:
-    edge_cost = create_l2norm_edge_cost(dim)
+def shortcut_edge_cost_factory(
+    dim: int, add_const_cost: bool = False, heuristic_inflation_factor=1
+) -> List[Cost]:
+    edge_cost = create_l2norm_edge_cost(dim, heuristic_inflation_factor)
     costs = [edge_cost]
     if add_const_cost:
         a = np.zeros((dim, 1))
-        constant_cost = 1
+        constant_cost = 2 * heuristic_inflation_factor
         costs.append(LinearCost(a, constant_cost))
     return
 
 
-def l1_norm_shortcut_edge_cost_factory(dim: int, add_const_cost=False) -> List[Cost]:
-    edge_cost = create_l1norm_edge_cost(dim)
+def l1_norm_shortcut_edge_cost_factory(
+    dim: int, add_const_cost=False, heuristic_inflation_factor=1
+) -> List[Cost]:
+    edge_cost = create_l1norm_edge_cost(dim, heuristic_inflation_factor)
     costs = [edge_cost]
     if add_const_cost:
         a = np.zeros((dim, 1))
-        constant_cost = 1
+        # We add 2 because if a shortcut is used it minimally replaces 2 edges
+        constant_cost = 2 * heuristic_inflation_factor
         costs.append(LinearCost(a, constant_cost))
     return
 
 
-def create_l2norm_edge_cost(dim: int):
-    A = np.hstack((np.eye(dim), -np.eye(dim)))
+def create_l2norm_edge_cost(dim: int, heuristic_inflation_factor: float = 1):
+    A = np.hstack((np.eye(dim), -np.eye(dim))) * heuristic_inflation_factor
     b = np.zeros((dim, 1))
     edge_cost = L2NormCost(A, b)
     return edge_cost
 
 
-def create_l1norm_edge_cost(dim: int):
-    A = np.hstack((np.eye(dim), -np.eye(dim)))
+def create_l1norm_edge_cost(dim: int, heuristic_inflation_factor: float = 1):
+    A = np.hstack((np.eye(dim), -np.eye(dim))) * heuristic_inflation_factor
     b = np.zeros((dim, 1))
     edge_cost = L1NormCost(A, b)
     return edge_cost

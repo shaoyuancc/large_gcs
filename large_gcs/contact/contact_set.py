@@ -169,21 +169,5 @@ class ContactSet(ConvexSet):
         return self._polyhedron.h
 
     @property
-    def A(self):
-        return self._polyhedron.A
-
-    @property
-    def b(self):
-        return self._polyhedron.b
-
-    @property
-    def C(self):
-        return self._polyhedron.C
-
-    @property
-    def d(self):
-        return self._polyhedron.d
-
-    @property
     def nullspace_set(self):
         return self._polyhedron._nullspace_set
