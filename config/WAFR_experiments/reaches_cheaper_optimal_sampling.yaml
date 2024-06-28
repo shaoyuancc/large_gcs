@@ -30,5 +30,8 @@ hydra:
   mode: MULTIRUN
   sweeper:
     params:
-      graph_name: cg_maze_b1
-      # graph_name: cg_simple_4, cg_maze_b1, cg_stackpush_d2
+      # Finishes
+      graph_name: cg_simple_4, cg_maze_b1
+      # Times out
+      # graph_name: cg_stackpush_d2
+      

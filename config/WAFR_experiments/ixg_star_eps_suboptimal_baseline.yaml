@@ -28,4 +28,5 @@ hydra:
         level: INFO
   sweeper:
     params:
-      graph_name: cg_simple_4 #, cg_maze_b1
+      # Times out
+      graph_name: cg_simple_4, cg_maze_b1, cg_stackpush_d2
