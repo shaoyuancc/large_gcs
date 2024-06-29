@@ -13,6 +13,8 @@ should_use_l1_norm_vertex_cost: true
 # L2 NORM VERTEX COST
 # should_use_l1_norm_vertex_cost: false
 
+algorithm:
+  terminate_early: true
 
 cost_estimator:
   # L1 Norm Shortcut Edge Cost

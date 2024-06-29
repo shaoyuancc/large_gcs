@@ -4,8 +4,8 @@ python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR
 python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR_experiments --config-dir config --config-name reaches_cheaper_eps_suboptimal_sampling
 python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR_experiments --config-dir config --config-name reaches_cheaper_optimal_sampling
 python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR_experiments --config-dir config --config-name reaches_new_containment
-python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR_experiments --config-dir config --config-name reaches_cheaper_optimal_containment
 python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR_experiments --config-dir config --config-name reaches_cheaper_eps_suboptimal_containment
+python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR_experiments --config-dir config --config-name reaches_cheaper_optimal_containment
 # Baseline method
 python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR_experiments --config-dir config --config-name ixg_baseline
 # python3 experiments/run_contact_graph_experiment.py --config-path ../config/WAFR_experiments --config-dir config --config-name ixg_star_eps_suboptimal_baseline

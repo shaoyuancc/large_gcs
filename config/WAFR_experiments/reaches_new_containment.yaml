@@ -12,7 +12,7 @@ should_add_const_edge_cost: true
 should_use_l1_norm_vertex_cost: true
 
 algorithm:
-  save_expansion_order: false
+  terminate_early: true
 
 cost_estimator:
   # USE L1 NORM SHORTCUT EDGE COST
