@@ -109,7 +109,7 @@ class GcsNaiveAstar(SearchAlgorithm):
 
         # Check termination condition
         if n.vertex_name == self._graph.target_name:
-            self._save_metrics(n, [], override_save=True)
+            self._save_metrics(n, 0, override_save=True)
             self._maybe_plot_search_node_and_graph(n, is_final_path=True)
             return n.sol
 
@@ -199,7 +199,7 @@ class GcsNaiveAstar(SearchAlgorithm):
         # Early Termination
         if self._terminate_early and successor == self._target_name:
             logger.info(f"EARLY TERMINATION: Visited path to target.")
-            self._save_metrics(n_next, [], override_save=True)
+            self._save_metrics(n_next, 0, override_save=True)
             self._maybe_plot_search_node_and_graph(n_next, is_final_path=True)
             return n_next.sol
 

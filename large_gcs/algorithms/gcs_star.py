@@ -141,7 +141,7 @@ class GcsStar(SearchAlgorithm):
 
         # Check termination condition
         if n.vertex_name == self._graph.target_name:
-            self._save_metrics(n, [], override_save=True)
+            self._save_metrics(n, 0, override_save=True)
             return n.sol
 
         if n.vertex_name not in self._expanded:
@@ -222,7 +222,7 @@ class GcsStar(SearchAlgorithm):
         # Early Termination
         if self._terminate_early and successor == self._target_name:
             logger.info(f"EARLY TERMINATION: Visited path to target.")
-            self._save_metrics(n_next, [], override_save=True)
+            self._save_metrics(n_next, 0, override_save=True)
             return n_next.sol
 
     @profile_method

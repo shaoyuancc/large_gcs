@@ -84,14 +84,14 @@ class IxGStar(IxG):
 
         self.update_expanded(n)
 
-        edges = self._graph.outgoing_edges(n.vertex_name)
-        self._save_metrics(n, edges)
-        for edge in edges:
-            self._explore_successor(n, edge)
+        successors = self._graph.successors(n.vertex_name)
+        self._save_metrics(n, len(successors))
+        for v in successors:
+            self._explore_successor(n, v)
 
     @profile_method
-    def _explore_successor(self, n: SearchNode, edge) -> None:
-        n_next = SearchNode.from_parent(child_vertex_name=edge.v, parent=n)
+    def _explore_successor(self, n: SearchNode, successor: str) -> None:
+        n_next = SearchNode.from_parent(child_vertex_name=successor, parent=n)
         self._graph.set_target(n_next.vertex_name)
         sol = self._graph.solve_convex_restriction(
             active_edge_keys=n_next.edge_path,

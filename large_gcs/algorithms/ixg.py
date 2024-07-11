@@ -95,18 +95,19 @@ class IxG(SearchAlgorithm):
             return None
         self.update_expanded(n)
 
-        edges = self._graph.outgoing_edges(n.vertex_name)
+        successors = self._graph.successors(n.vertex_name)
+
         if self._should_save_metrics:
-            self._save_metrics(n, edges)
-        for edge in edges:
+            self._save_metrics(n, len(successors))
+        for v in successors:
             # Check early termination condition
-            sol = self._explore_successor(n, edge)
+            sol = self._explore_successor(n, v)
             if sol is not None:
                 return sol
 
     @profile_method
-    def _explore_successor(self, n: SearchNode, edge) -> None:
-        n_next = SearchNode.from_parent(child_vertex_name=edge.v, parent=n)
+    def _explore_successor(self, n: SearchNode, successor: str) -> None:
+        n_next = SearchNode.from_parent(child_vertex_name=successor, parent=n)
         self._graph.set_target(n_next.vertex_name)
         sol = self._graph.solve_convex_restriction(
             active_edge_keys=n_next.edge_path,
@@ -134,7 +135,7 @@ class IxG(SearchAlgorithm):
 
             if n_next.vertex_name == self._target_name:
                 if self._should_save_metrics:
-                    self._save_metrics(n_next, [], override_save=True)
+                    self._save_metrics(n_next, 0, override_save=True)
                 return n_next.sol
         else:
             self.update_pruned(n_next)
