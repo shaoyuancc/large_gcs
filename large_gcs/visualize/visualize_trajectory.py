@@ -61,16 +61,16 @@ def plot_contact_trajectory(
         num_keyframes = int(np.ceil(n_steps / 15))
 
     fontsize = None
-
+    print("num_keyframes", num_keyframes)
     if use_paper_params:
         # NOTE: These are specific parameters that we use to get the
         # figures we want in the paper, and should be removed for
         # general use.
         # They are made to match the trajs generated from
         # WAFR_experiments/trajectory_figures.yaml
-        if num_keyframes == 8:  # cg_maze_b1
+        if num_keyframes == 10:  # cg_maze_b1
             num_keyframes = 6
-            keyframe_idxs = [0, 37, 50, 81, 102, 107]
+            keyframe_idxs = [0, 50, 74, 90, 107, 120]
             keyframe_idxs.append(n_steps)
             x_buffer = np.array([0.8, 0.8])
             y_buffer = np.array([1.4, 1.0])

@@ -89,7 +89,7 @@ def main() -> None:
         sol_file = sol_files[0]
         sol = ShortestPathSolution.load(sol_file)
 
-        print("Finished loading solution file")
+        print(f"Finished loading solution file for {cfg.graph_name}")
         print("Generating neighbors in path...")
 
         # Generate all required neighbours in graph
