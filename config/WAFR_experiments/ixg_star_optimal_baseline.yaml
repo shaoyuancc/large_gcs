@@ -14,7 +14,7 @@ save_metrics: true
 save_to_wandb: true
 
 algorithm:
-  eps: 1
+  heuristic_inflation_factor: 1
 
 hydra:
   mode: MULTIRUN
