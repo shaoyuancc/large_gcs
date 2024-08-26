@@ -9,13 +9,7 @@ import numpy as np
 from large_gcs.contact.rigid_body import MobilityType, RigidBody
 from large_gcs.geometry.polyhedron import Polyhedron
 from large_gcs.utils.utils import split_numbers_into_sublists
-from large_gcs.visualize.colors import (
-    AZURE3,
-    BISQUE3,
-    BLACK,
-    DARKSEAGREEN2,
-    EMERALDGREEN,
-)
+from large_gcs.visualize.colors import AZURE3, BISQUE3, BLACK, DARKSEAGREEN2
 
 
 def plot_contact_trajectory(
@@ -128,8 +122,6 @@ def plot_contact_trajectory(
 
     EDGE_COLOR = BLACK.diffuse()
 
-    EMERALDGREEN.diffuse()
-
     START_TRANSPARENCY = 0.3
     END_TRANSPARENCY = 1.0
 
@@ -179,11 +171,11 @@ def plot_contact_trajectory(
     # Plot goal regions
     if target_regions is not None:
         goal_kwargs = {
-            "edgecolor": "none",
+            # "edgecolor": "none",
             "facecolor": "none",
-            "hatch": "....",
+            "hatch": "x",
             "linewidth": 1,
-            "alpha": 0.3,
+            "alpha": 0.4,
         }
         for ax in axs:
             for region in target_regions:
