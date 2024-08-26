@@ -6,7 +6,7 @@ import numpy as np
 from pydrake.symbolic import Polynomial, Variable
 
 from large_gcs.utils.utils import use_type_1_fonts_in_plots
-from large_gcs.visualize.colors import DEEPPINK2, DODGERBLUE3, GREEN2
+from large_gcs.visualize.colors import DEEPPINK2, DODGERBLUE3, GREEN2, ORANGE2
 
 
 def _make_values(a, b, c, shift, x_vals) -> np.ndarray:
@@ -91,6 +91,42 @@ def plot_min(curves: List[Curve], x_vals, offset=1) -> None:
     )
 
 
+def plot_reachability_domination(
+    candidate_curve: Curve, alternate_curves: List[Curve], x_vals, offset=4.5
+) -> None:
+    r_dom_x = []
+    for x in x_vals:
+        if (candidate_curve.at(x) != np.inf) and (
+            np.min([c.at(x) for c in alternate_curves]) == np.inf
+        ):
+            r_dom_x.append(x)
+    r_dom_y = [offset] * len(r_dom_x)
+    plt.plot(
+        r_dom_x,
+        r_dom_y,
+        color=REACHABILITY_DOM_COLOR,
+        linewidth=2.0,
+        label=r"Not reachability dominated",
+    )
+
+
+def plot_cost_domination(
+    candidate_curve: Curve, alternate_curves: List[Curve], x_vals, offset=2.5
+) -> None:
+    r_dom_x = []
+    for x in x_vals:
+        if candidate_curve.at(x) < np.min([c.at(x) for c in alternate_curves]):
+            r_dom_x.append(x)
+    r_dom_y = [offset] * len(r_dom_x)
+    plt.plot(
+        r_dom_x,
+        r_dom_y,
+        color=COST_DOM_COLOR,
+        linewidth=2.0,
+        label=r"Not cost dominated",
+    )
+
+
 #
 # parser = argparse.ArgumentParser(description="Figure to generate")
 # parser.add_argument(
@@ -109,11 +145,15 @@ def plot_min(curves: List[Curve], x_vals, offset=1) -> None:
 G_COLOR = DODGERBLUE3.diffuse()
 G_NEXT_COLOR = DEEPPINK2.diffuse()
 MIN_COLOR = GREEN2.diffuse()
+REACHABILITY_DOM_COLOR = ORANGE2.diffuse()
+COST_DOM_COLOR = GREEN2.diffuse()
 
 
 def make_plot(figure_idx, filename=None):
     use_type_1_fonts_in_plots()
     fig = plt.figure(figsize=(3, 1.5))
+
+    should_plot_min = False
 
     if figure_idx == 0:
         # Generate x values
@@ -140,23 +180,12 @@ def make_plot(figure_idx, filename=None):
         g_next.plot()
         g.plot()
 
-        plot_min([g, g_next], x_vals)
+        plot_reachability_domination(g_next, [g], x_vals)
+        plot_cost_domination(g_next, [g], x_vals)
+
+        if should_plot_min:
+            plot_min([g, g_next], x_vals)
         y_max = 50
-
-        save_legend = False
-        if save_legend:
-            plt.legend(fontsize=14, loc="center left")
-            ax = plt.gca()
-            # Create a new figure for the legend
-            fig_legend = plt.figure(figsize=(1.5, 1))
-            # Add the legend to the new figure
-            fig_legend.legend(*ax.get_legend_handles_labels(), loc="center")
-
-            # Remove axes from the legend figure
-            plt.axis("off")
-
-            # Save the legend figure
-            fig_legend.savefig("domination_legend.pdf")
 
     elif figure_idx == 1:
         # Generate x values
@@ -183,7 +212,11 @@ def make_plot(figure_idx, filename=None):
         g.plot()
         g_next.plot()
 
-        plot_min([g, g_next], x_vals)
+        plot_reachability_domination(g_next, [g], x_vals)
+        plot_cost_domination(g_next, [g], x_vals)
+
+        if should_plot_min:
+            plot_min([g, g_next], x_vals)
         y_max = 50
 
     elif figure_idx == 2:
@@ -209,7 +242,11 @@ def make_plot(figure_idx, filename=None):
         g = Curve.make_quadratic(7, 1, 7, shift=-3, x_min=1, x_max=5, with_dash=False)
         g.plot()
 
-        plot_min([g, g_next], x_vals)
+        plot_reachability_domination(g_next, [g], x_vals)
+        plot_cost_domination(g_next, [g], x_vals)
+
+        if should_plot_min:
+            plot_min([g, g_next], x_vals)
 
         y_max = 50
 
@@ -229,7 +266,11 @@ def make_plot(figure_idx, filename=None):
         g_3.plot()
         g_next.plot()
 
-        plot_min([g_1, g_2, g_3, g_next], x_vals, offset=0.5)
+        plot_reachability_domination(g_next, [g_1, g_2, g_3], x_vals)
+        plot_cost_domination(g_next, [g_1, g_2, g_3], x_vals)
+
+        if should_plot_min:
+            plot_min([g_1, g_2, g_3, g_next], x_vals, offset=0.5)
 
         y_max = 30
 
@@ -249,7 +290,11 @@ def make_plot(figure_idx, filename=None):
         g_3.plot()
         g_next.plot()
 
-        plot_min([g_1, g_2, g_3, g_next], x_vals, offset=0.5)
+        plot_reachability_domination(g_next, [g_1, g_2, g_3], x_vals)
+        plot_cost_domination(g_next, [g_1, g_2, g_3], x_vals)
+
+        if should_plot_min:
+            plot_min([g_1, g_2, g_3, g_next], x_vals, offset=0.5)
 
         y_max = 30
 
@@ -366,7 +411,7 @@ def make_plot(figure_idx, filename=None):
 
     # Labels and legend
     plt.xlabel(r"$x$", fontsize=16)
-    # plt.ylabel(r"$y$")
+    plt.ylabel(r"cost", fontsize=16)
 
     # Indicate an interval along the x-axis with brackets
     # interval_start, interval_end = 1, 8
@@ -427,6 +472,53 @@ def make_plot(figure_idx, filename=None):
         plt.close()
     else:
         plt.show()
+
+    save_legend = True
+    if save_legend:
+        # Generate x values
+        x_vals = np.linspace(0, 10, 800)
+
+        g_next = Curve.make_quadratic(
+            6,
+            1,
+            7,
+            shift=-5,
+            x_min=2.5,
+            x_max=7,
+            with_dash=True,
+        )
+        g = Curve.make_quadratic(
+            4,
+            1,
+            5,
+            shift=-5,
+            x_min=2,
+            x_max=7.5,
+        )
+
+        g_next.plot()
+        g.plot()
+
+        plot_reachability_domination(g_next, [g], x_vals)
+        plot_cost_domination(g_next, [g], x_vals)
+
+        if should_plot_min:
+            plot_min([g, g_next], x_vals)
+
+        y_max = 50
+
+        plt.legend(fontsize=14, loc="center left")
+        ax = plt.gca()
+        # Create a new figure for the legend
+        fig_legend = plt.figure(figsize=(2.3, 1))
+        # Add the legend to the new figure
+        fig_legend.legend(*ax.get_legend_handles_labels(), loc="center")
+
+        # Remove axes from the legend figure
+        plt.axis("off")
+
+        # Save the legend figure
+        fig_legend.savefig("domination_legend.pdf")
 
 
 names = "a", "d", "c", "e", "f"
