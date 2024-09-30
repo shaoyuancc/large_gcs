@@ -1,2 +1,4 @@
 poly_idx: 0
-point: [4.25, 0.25, 0.15, 0, 0, 0]
+point: [0.25, 0.25, 0.15, 0, 0, 0]
+
+# Assumes zero offset from point to containing polytope!

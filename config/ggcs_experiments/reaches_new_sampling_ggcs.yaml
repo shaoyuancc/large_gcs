@@ -7,7 +7,7 @@ defaults:
   - target: point_8
 
 
-graph_name: "problem_3"
+graph_name: "ggcs_new"
 
 cost_estimator:
   # USE L1 NORM SHORTCUT EDGE COST
@@ -38,3 +38,5 @@ hydra:
       # Test with all 9 points
       source: point_0, point_1, point_2, point_3, point_4, point_5, point_6, point_7, point_8
       target: point_0, point_1, point_2, point_3, point_4, point_5, point_6, point_7, point_8
+      # source: point_0
+      # target: point_1
