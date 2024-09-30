@@ -12,7 +12,10 @@ from typing import DefaultDict, Dict, List, Optional
 
 import numpy as np
 import plotly.graph_objects as go
-from pypolycontain.objects import AH_polytope
+# from pypolycontain.objects import AH_polytope
+
+class AH_polytope:
+    pass
 
 import wandb
 from large_gcs.graph.graph import Edge, ShortestPathSolution
